@@ -1,0 +1,4 @@
+bin/
+.audiocache/
+*.wav
+.env
