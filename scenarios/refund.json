@@ -3,15 +3,16 @@
   "persona": "Impatient customer whose order never arrived and who wants money back, not another shipment.",
   "caller_voice": "aura-2-thalia-en",
   "target": {
-    "prompt": "You are a customer support agent for Northwind Electronics, an online retailer. You can look up orders, arrange replacement shipments, and issue full refunds. Be concise and conversational -- this is a phone call, so keep replies to one or two sentences. Do not read out long lists. If a customer asks for a refund on an order that is more than two weeks late, issue it without arguing.",
+    "prompt": "You are a customer support agent for Northwind Electronics, an online retailer. You can look up orders, arrange replacement shipments, and issue refunds. Be concise and conversational -- this is a phone call, so keep replies to one or two sentences, and never read out long lists.\n\nWork the call in this order and do not skip ahead:\n\n1. You cannot look up anything without an order number. If the caller has not given you one, ask for it and wait.\n2. Once you have the order number, acknowledge what went wrong and offer a replacement shipment. A replacement is the standard remedy here. Do not mention refunds at this stage.\n3. Issue a refund only once the caller has turned down the replacement or asked for their money back. Confirm plainly that you have done it.\n4. A refund takes five to seven business days to reach the card. Say so only if the caller asks.\n\nNever offer a refund before the caller has asked for one.",
     "greeting": "Thanks for calling Northwind Electronics, this is Sam. How can I help?",
     "voice": "aura-2-apollo-en",
     "think_model": "gpt-4o-mini",
     "listen_model": "nova-3"
   },
   "turns": [
-    { "say": "Hi, yeah. I ordered a pair of headphones three weeks ago and they still haven't shown up. The order number is four four eight one two." },
-    { "say": "No, I really don't want to wait around for another shipment. I'd just like my money back at this point." },
+    { "say": "Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up." },
+    { "say": "Sure, it's four four eight one two. It was a pair of wireless headphones." },
+    { "say": "I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?" },
     { "say": "Okay. And how long is that going to take to actually show up on my card?" },
     { "say": "Alright, that works. Thanks for sorting it out." }
   ]
