@@ -1,0 +1,7 @@
+{
+  "name": "smoke-deepgram",
+  "baseline": "c3",
+  "steps": [
+    { "name": "c3", "concurrency": 3, "calls": 3 }
+  ]
+}
