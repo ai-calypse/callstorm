@@ -156,7 +156,32 @@ docker compose -f deploy/docker-compose.yml up -d   # Prometheus + Grafana
 
 Histograms for TTFA, endpointing, think/speak, turn latency and harness drift,
 all labelled by step; a gauge for active calls; counters for turn and call
-outcomes. The Grafana dashboard is provisioned automatically.
+outcomes. Grafana opens straight onto the provisioned dashboard at
+`localhost:3000`.
+
+**Turns are recorded as they finish, not when their call ends.** Under load
+every call in a step completes at roughly the same moment, so reporting at call
+end would deliver a step's measurements in one burst after the step was already
+over -- useless for watching an agent buckle.
+
+**`/metrics` is held open for `-metrics-linger` (default 5s) after the run.**
+A step's turns land in the registry as that step ends, and the breakpoint is by
+definition the *last* step. Exiting the instant the run finished dropped
+exactly the numbers the run exists to produce, and left `active_calls` frozen
+at its last non-zero value instead of back at rest.
+
+**The stack needs Prometheus 3.8 or newer**, where native histograms became a
+scrape-config setting rather than an experimental command-line flag. Each
+latency histogram is exposed twice: native buckets grow by a fixed ratio and
+resolve a quantile to about 1% of its own value, while classic fixed buckets
+can only place it somewhere inside the bucket it fell in. On one run whose true
+p95 was 504ms, the classic buckets drew it at 738ms -- and reported two
+different concurrency steps as identical, because both fell in the same bucket.
+The percentile panels read the native series; the distribution heatmap reads
+the classic ones, which is what a heatmap needs.
+
+Percentiles on the dashboard are for watching a run happen. The exact figures
+come from the run report, which sorts the real durations.
 
 ## Per-turn events over Kafka
 
