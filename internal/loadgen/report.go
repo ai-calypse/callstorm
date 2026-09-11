@@ -4,6 +4,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/yakshgandhi/callstorm/internal/judge"
 	"github.com/yakshgandhi/callstorm/internal/metrics"
 )
 
@@ -74,6 +75,11 @@ type StepReport struct {
 
 	WorstDriftMs float64 `json:"worst_harness_drift_ms"`
 
+	// WER is how accurately the agent heard this step's callers. It is the one
+	// failure no latency number can show: an agent can answer fast, fluently,
+	// and to a question nobody asked.
+	WER WERStats `json:"wer"`
+
 	// HarnessDegraded marks a step where the load generator could not hold
 	// realtime pacing. Its latency numbers still describe the agent, but the
 	// call timing stopped being realistic, so the step is suspect.
@@ -87,6 +93,25 @@ type StepReport struct {
 	Errors map[string]int `json:"errors,omitempty"`
 }
 
+// WERStats is transcript accuracy over one step.
+type WERStats struct {
+	// Turns counts only turns the target actually transcribed. A target that
+	// reports no transcript contributes nothing here rather than scoring a
+	// perfect zero for having said nothing.
+	Turns int `json:"turns"`
+
+	// Mean is total errors over total words spoken across the step, not the
+	// average of per-turn rates. Averaging rates would let a three-word turn
+	// weigh as heavily as a thirty-word one.
+	Mean  float64 `json:"mean"`
+	Worst float64 `json:"worst"`
+
+	Substitutions int `json:"substitutions"`
+	Deletions     int `json:"deletions"`
+	Insertions    int `json:"insertions"`
+	RefWords      int `json:"ref_words"`
+}
+
 // Report is a whole profile run.
 type Report struct {
 	Profile   string       `json:"profile"`
@@ -96,13 +121,27 @@ type Report struct {
 	StartedAt time.Time    `json:"started_at"`
 	Duration  float64      `json:"duration_s"`
 	Steps     []StepReport `json:"steps"`
+
+	// Calls is every conversation the run produced, kept out of the report
+	// card and written alongside it. The report card answers how fast the
+	// agent was; these are what it actually said, which is what a judge -- or
+	// a person wondering why a step failed -- has to read.
+	Calls []CallRecord `json:"-"`
+}
+
+// CallRecord is one call's conversation, tagged with the step that placed it.
+type CallRecord struct {
+	Step      string               `json:"step"`
+	RequestID string               `json:"request_id,omitempty"`
+	Turns     []metrics.TurnMetric `json:"turns"`
 }
 
 // callOutcome is one completed (or failed) call, tagged with its step.
 type callOutcome struct {
-	step  string
-	turns []metrics.TurnMetric
-	err   error
+	step      string
+	requestID string
+	turns     []metrics.TurnMetric
+	err       error
 }
 
 // buildStepReport folds every call placed during one step into its report.
@@ -111,6 +150,11 @@ func buildStepReport(step Step, outcomes []callOutcome) StepReport {
 
 	var ttfa, endpointing, thinkSpeak, turnLatency []time.Duration
 	var worstDrift time.Duration
+
+	var (
+		werTurns, werSubs, werDels, werIns, werRefWords int
+		werWorst                                        float64
+	)
 
 	for _, o := range outcomes {
 		r.CallsAttempted++
@@ -140,6 +184,23 @@ func buildStepReport(step Step, outcomes []callOutcome) StepReport {
 			if t.CallerYielded {
 				continue
 			}
+
+			// Transcript accuracy is scored only on turns the caller finished,
+			// and only where the target returned a transcript at all. A turn
+			// cut short by the agent never had its script fully spoken, so
+			// every unsaid word would be charged to the agent's hearing.
+			if t.HeardText != "" {
+				w := judge.Score(t.CallerText, t.HeardText)
+				werTurns++
+				werSubs += w.Substitutions
+				werDels += w.Deletions
+				werIns += w.Insertions
+				werRefWords += w.RefWords
+				if w.Rate > werWorst {
+					werWorst = w.Rate
+				}
+			}
+
 			if t.TTFA > 0 {
 				ttfa = append(ttfa, t.TTFA)
 			}
@@ -164,6 +225,18 @@ func buildStepReport(step Step, outcomes []callOutcome) StepReport {
 	r.TurnLatency = summarize(turnLatency)
 	r.WorstDriftMs = math.Round(float64(worstDrift.Microseconds())/1000*10) / 10
 	r.HarnessDegraded = math.Abs(r.WorstDriftMs) > maxHealthyDriftMs
+
+	r.WER = WERStats{
+		Turns:         werTurns,
+		Worst:         werWorst,
+		Substitutions: werSubs,
+		Deletions:     werDels,
+		Insertions:    werIns,
+		RefWords:      werRefWords,
+	}
+	if werRefWords > 0 {
+		r.WER.Mean = float64(werSubs+werDels+werIns) / float64(werRefWords)
+	}
 
 	if len(r.Errors) == 0 {
 		r.Errors = nil

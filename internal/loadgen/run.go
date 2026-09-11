@@ -66,6 +66,16 @@ func Run(ctx context.Context, cfg Config) (*Report, error) {
 		sr := buildStepReport(step, outcomes)
 		rep.Steps = append(rep.Steps, sr)
 
+		for _, o := range outcomes {
+			if o.err == nil && len(o.turns) > 0 {
+				rep.Calls = append(rep.Calls, CallRecord{
+					Step:      o.step,
+					RequestID: o.requestID,
+					Turns:     o.turns,
+				})
+			}
+		}
+
 		fmt.Fprintf(cfg.Out, " p95 %.0fms  setup %.0f%%  turns %d",
 			sr.TTFA.P95Ms, sr.SetupSuccess*100, sr.TurnsTotal)
 
@@ -125,6 +135,7 @@ func runStep(ctx context.Context, cfg Config, step Step) []callOutcome {
 
 				o := callOutcome{step: step.Name, err: err}
 				if err == nil {
+					o.requestID = res.RequestID
 					o.turns = res.Turns
 					for _, t := range res.Turns {
 						cfg.Bus.Publish(ctx, bus.NewTurnEvent(cfg.RunID, step.Name, res.RequestID, t))

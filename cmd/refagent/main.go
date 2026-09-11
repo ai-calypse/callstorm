@@ -324,11 +324,13 @@ func (s *session) reply(ctx context.Context, text string, anchor time.Time, barg
 	}
 
 	// The user transcript lands before the audio does, which is what lets
-	// Callstorm split TTFA into endpointing and think/speak.
+	// Callstorm split TTFA into endpointing and think/speak. The content is
+	// deliberately empty: this agent runs no STT, and inventing a transcript
+	// would give the word error rate something to score that was never heard.
 	if !barged && cfg.endpointing < ttfa {
 		sleepUntil(ctx, anchor.Add(cfg.endpointing))
 		_ = s.sendJSON(ctx, map[string]string{
-			"type": "ConversationText", "role": "user", "content": "(refagent heard the caller)",
+			"type": "ConversationText", "role": "user", "content": "",
 		})
 	}
 

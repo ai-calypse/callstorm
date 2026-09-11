@@ -216,13 +216,18 @@ func runLoad(ctx context.Context, o opts, sc *scenario.Scenario, apiKey string) 
 	if err := writeCSV(csvPath, rep); err != nil {
 		return err
 	}
+	callsPath := filepath.Join(o.outDir, runID+"-calls.jsonl")
+	if err := writeCalls(callsPath, rep.Calls); err != nil {
+		return err
+	}
+
 	svgPath := filepath.Join(o.outDir, runID+".svg")
 	if err := chart.RenderSweep(svgPath, rep); err != nil {
 		fmt.Fprintf(os.Stderr, "chart: %v\n", err)
 		svgPath = ""
 	}
 
-	printLoadReport(rep, jsonPath, csvPath, svgPath)
+	printLoadReport(rep, jsonPath, csvPath, svgPath, callsPath)
 
 	// A step's turns land in the registry as that step ends, and a scrape that
 	// arrives after the process has exited gets nothing at all. The breakpoint
@@ -276,7 +281,7 @@ func writeCSV(path string, rep *loadgen.Report) error {
 	return os.WriteFile(path, []byte(b.String()), 0o644)
 }
 
-func printLoadReport(rep *loadgen.Report, jsonPath, csvPath, svgPath string) {
+func printLoadReport(rep *loadgen.Report, jsonPath, csvPath, svgPath, callsPath string) {
 	fmt.Printf("\n%s\n", strings.Repeat("-", 92))
 	fmt.Printf("LOAD REPORT  %s   scenario=%s\n", rep.Profile, rep.Scenario)
 	fmt.Printf("%s\n\n", strings.Repeat("-", 92))
@@ -310,6 +315,29 @@ func printLoadReport(rep *loadgen.Report, jsonPath, csvPath, svgPath string) {
 		}
 	}
 
+	anyWER := false
+	for _, s := range rep.Steps {
+		if s.WER.Turns > 0 {
+			anyWER = true
+		}
+	}
+	if anyWER {
+		fmt.Printf("\n%-12s %-9s %-9s %s\n", "step", "wer mean", "wer worst", "errors / words heard")
+		for _, s := range rep.Steps {
+			if s.WER.Turns == 0 {
+				fmt.Printf("%-12s %-9s %-9s %s\n", s.Name, "-", "-", "target returned no transcript")
+				continue
+			}
+			w := s.WER
+			fmt.Printf("%-12s %-9s %-9s %d of %d  (%dS %dD %dI over %d turns)\n",
+				s.Name,
+				fmt.Sprintf("%.1f%%", w.Mean*100),
+				fmt.Sprintf("%.1f%%", w.Worst*100),
+				w.Substitutions+w.Deletions+w.Insertions, w.RefWords,
+				w.Substitutions, w.Deletions, w.Insertions, w.Turns)
+		}
+	}
+
 	if bp := rep.Breakpoint(); bp != nil {
 		fmt.Printf("\nBREAKPOINT   %s at %d concurrent: p95 TTFA %s is %.2fx baseline\n",
 			bp.Name, bp.Concurrency, msf(bp.TTFA.P95Ms), bp.P95Ratio)
@@ -330,6 +358,36 @@ func printLoadReport(rep *loadgen.Report, jsonPath, csvPath, svgPath string) {
 	if svgPath != "" {
 		fmt.Printf("chart        %s\n", svgPath)
 	}
+	if callsPath != "" {
+		fmt.Printf("calls        %s\n", callsPath)
+	}
+}
+
+// writeCalls records every conversation the run produced, one JSON object per
+// line.
+//
+// It is kept apart from the report card because the two are read for different
+// reasons and grow at very different rates: the card stays a page whatever the
+// concurrency, while this grows with every call placed. JSON Lines rather than
+// one array so a judge, or a later analytics store, can stream a run instead of
+// loading it whole.
+func writeCalls(path string, calls []loadgen.CallRecord) error {
+	if len(calls) == 0 {
+		return nil
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	enc := json.NewEncoder(f)
+	for _, c := range calls {
+		if err := enc.Encode(c); err != nil {
+			return err
+		}
+	}
+	return f.Close()
 }
 
 func writeArtifacts(outDir, runID string, res *worker.Result) (jsonPath, wavPath string, err error) {
