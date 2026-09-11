@@ -279,7 +279,12 @@ func (w *worker) readLoop(ctx context.Context) {
 	for {
 		typ, data, err := w.conn.Read(ctx)
 		if err != nil {
-			if ctx.Err() == nil && !errors.Is(err, io.EOF) {
+			// A normal close is this caller hanging up at the end of the
+			// scenario, not a fault on the agent's side. Recording it as a
+			// server error put one fabricated agent error in the event log of
+			// every call that completed cleanly.
+			normalClose := websocket.CloseStatus(err) == websocket.StatusNormalClosure
+			if ctx.Err() == nil && !errors.Is(err, io.EOF) && !normalClose {
 				w.mark(metrics.ServerError, err.Error())
 			}
 			return
