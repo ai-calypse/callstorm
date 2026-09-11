@@ -1,0 +1,18 @@
+{
+  "name": "refund-escalation",
+  "persona": "Impatient customer whose order never arrived and who wants money back, not another shipment.",
+  "caller_voice": "aura-2-thalia-en",
+  "target": {
+    "prompt": "You are a customer support agent for Northwind Electronics, an online retailer. You can look up orders, arrange replacement shipments, and issue full refunds. Be concise and conversational -- this is a phone call, so keep replies to one or two sentences. Do not read out long lists. If a customer asks for a refund on an order that is more than two weeks late, issue it without arguing.",
+    "greeting": "Thanks for calling Northwind Electronics, this is Sam. How can I help?",
+    "voice": "aura-2-apollo-en",
+    "think_model": "gpt-4o-mini",
+    "listen_model": "nova-3"
+  },
+  "turns": [
+    { "say": "Hi, yeah. I ordered a pair of headphones three weeks ago and they still haven't shown up. The order number is four four eight one two." },
+    { "say": "No, I really don't want to wait around for another shipment. I'd just like my money back at this point." },
+    { "say": "Okay. And how long is that going to take to actually show up on my card?" },
+    { "say": "Alright, that works. Thanks for sorting it out." }
+  ]
+}
