@@ -1,0 +1,220 @@
+{
+  "profile": "sweep-local",
+  "scenario": "refund-escalation",
+  "target": "ws://localhost:8080/v1/agent/converse",
+  "baseline": "baseline",
+  "started_at": "2026-09-10T19:39:46.4909316-04:00",
+  "duration_s": 185.1065507,
+  "steps": [
+    {
+      "name": "baseline",
+      "concurrency": 1,
+      "calls": 2,
+      "calls_attempted": 2,
+      "calls_connected": 2,
+      "turns_total": 8,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 8,
+        "p50_ms": 502.5,
+        "p95_ms": 504.1,
+        "p99_ms": 504.1,
+        "max_ms": 504.1
+      },
+      "endpointing": {
+        "n": 8,
+        "p50_ms": 201.2,
+        "p95_ms": 206,
+        "p99_ms": 206,
+        "max_ms": 206
+      },
+      "think_speak": {
+        "n": 8,
+        "p50_ms": 301.2,
+        "p95_ms": 303.7,
+        "p99_ms": 303.7,
+        "max_ms": 303.7
+      },
+      "turn_latency": {
+        "n": 8,
+        "p50_ms": 1502.5,
+        "p95_ms": 1504.1,
+        "p99_ms": 1504.1,
+        "max_ms": 1504.1
+      },
+      "worst_harness_drift_ms": 17.4,
+      "p95_ratio": 1,
+      "verdict": "pass"
+    },
+    {
+      "name": "c5",
+      "concurrency": 5,
+      "calls": 5,
+      "calls_attempted": 5,
+      "calls_connected": 5,
+      "turns_total": 20,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 20,
+        "p50_ms": 505.5,
+        "p95_ms": 522.3,
+        "p99_ms": 522.3,
+        "max_ms": 522.3
+      },
+      "endpointing": {
+        "n": 20,
+        "p50_ms": 202,
+        "p95_ms": 212.9,
+        "p99_ms": 214.6,
+        "max_ms": 214.6
+      },
+      "think_speak": {
+        "n": 20,
+        "p50_ms": 301,
+        "p95_ms": 321.5,
+        "p99_ms": 321.6,
+        "max_ms": 321.6
+      },
+      "turn_latency": {
+        "n": 20,
+        "p50_ms": 1505.5,
+        "p95_ms": 1522.3,
+        "p99_ms": 1522.3,
+        "max_ms": 1522.3
+      },
+      "worst_harness_drift_ms": 22.8,
+      "p95_ratio": 1.04,
+      "verdict": "pass"
+    },
+    {
+      "name": "c10",
+      "concurrency": 10,
+      "calls": 10,
+      "calls_attempted": 10,
+      "calls_connected": 10,
+      "turns_total": 40,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 40,
+        "p50_ms": 503.4,
+        "p95_ms": 513.3,
+        "p99_ms": 520.6,
+        "max_ms": 520.6
+      },
+      "endpointing": {
+        "n": 40,
+        "p50_ms": 201.7,
+        "p95_ms": 205.6,
+        "p99_ms": 206.8,
+        "max_ms": 206.8
+      },
+      "think_speak": {
+        "n": 40,
+        "p50_ms": 301.8,
+        "p95_ms": 310.6,
+        "p99_ms": 318.3,
+        "max_ms": 318.3
+      },
+      "turn_latency": {
+        "n": 40,
+        "p50_ms": 1503.4,
+        "p95_ms": 1513.3,
+        "p99_ms": 1520.6,
+        "max_ms": 1520.6
+      },
+      "worst_harness_drift_ms": -232.9,
+      "p95_ratio": 1.02,
+      "verdict": "pass"
+    },
+    {
+      "name": "c25",
+      "concurrency": 25,
+      "calls": 25,
+      "calls_attempted": 25,
+      "calls_connected": 25,
+      "turns_total": 100,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 100,
+        "p50_ms": 878.8,
+        "p95_ms": 908.7,
+        "p99_ms": 1001.9,
+        "max_ms": 1003.7
+      },
+      "endpointing": {
+        "n": 100,
+        "p50_ms": 202.8,
+        "p95_ms": 317.3,
+        "p99_ms": 338.6,
+        "max_ms": 342.8
+      },
+      "think_speak": {
+        "n": 100,
+        "p50_ms": 675.8,
+        "p95_ms": 684.5,
+        "p99_ms": 688.7,
+        "max_ms": 693.6
+      },
+      "turn_latency": {
+        "n": 100,
+        "p50_ms": 1880.2,
+        "p95_ms": 1937.4,
+        "p99_ms": 2001.9,
+        "max_ms": 2003.7
+      },
+      "worst_harness_drift_ms": 49.1,
+      "p95_ratio": 1.8,
+      "verdict": "warn"
+    },
+    {
+      "name": "c50",
+      "concurrency": 50,
+      "calls": 50,
+      "calls_attempted": 50,
+      "calls_connected": 50,
+      "turns_total": 200,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 200,
+        "p50_ms": 1502.8,
+        "p95_ms": 1535.8,
+        "p99_ms": 1690.4,
+        "max_ms": 1730.5
+      },
+      "endpointing": {
+        "n": 200,
+        "p50_ms": 201.2,
+        "p95_ms": 206.6,
+        "p99_ms": 216.1,
+        "max_ms": 282.8
+      },
+      "think_speak": {
+        "n": 200,
+        "p50_ms": 1301.2,
+        "p95_ms": 1334.4,
+        "p99_ms": 1489.9,
+        "max_ms": 1523.5
+      },
+      "turn_latency": {
+        "n": 200,
+        "p50_ms": 2502.8,
+        "p95_ms": 2649.9,
+        "p99_ms": 2690.4,
+        "max_ms": 2730.5
+      },
+      "worst_harness_drift_ms": 81.3,
+      "p95_ratio": 3.05,
+      "verdict": "fail"
+    }
+  ]
+}

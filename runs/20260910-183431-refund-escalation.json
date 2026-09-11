@@ -1,0 +1,322 @@
+{
+  "scenario": "refund-escalation",
+  "persona": "Impatient customer whose order never arrived and who wants money back, not another shipment.",
+  "request_id": "01a08d75-563d-7c72-9810-e3917540e8a0",
+  "started_at": "2026-09-10T18:34:31.9823316-04:00",
+  "turns": [
+    {
+      "turn": 1,
+      "caller_text": "Hi, yeah. I ordered a pair of headphones three weeks ago and they still haven't shown up. The order number is four four eight one two.",
+      "agent_text": "I’m sorry to hear that your order is late! I’ll go ahead and issue a full refund for your headphones since it’s been over two weeks. You’ll see that processed shortly.",
+      "failed": false,
+      "ttfb_ms": 909.16,
+      "endpointing_ms": 0,
+      "think_speak_ms": 8009.14,
+      "agent_speech_ms": 9001.96,
+      "turn_latency_ms": 9911.12
+    },
+    {
+      "turn": 2,
+      "caller_text": "No, I really don't want to wait around for another shipment. I'd just like my money back at this point.",
+      "agent_text": "I understand, but since it’s been more than two weeks, I’ll need to proceed with the refund.",
+      "failed": false,
+      "fail_reason": "agent spoke over the caller",
+      "ttfb_ms": 0,
+      "endpointing_ms": 0,
+      "think_speak_ms": 526.32,
+      "agent_speech_ms": 128.39,
+      "turn_latency_ms": 0
+    },
+    {
+      "turn": 3,
+      "caller_text": "Okay. And how long is that going to take to actually show up on my card?",
+      "agent_text": "I completely understand. The refund should process within 3 to 5 business days, and you’ll be notified once it’s complete.",
+      "failed": false,
+      "ttfb_ms": 831.26,
+      "endpointing_ms": 0,
+      "think_speak_ms": 4045.59,
+      "agent_speech_ms": 4031.7,
+      "turn_latency_ms": 4862.96
+    },
+    {
+      "turn": 4,
+      "caller_text": "Alright, that works. Thanks for sorting it out.",
+      "agent_text": "You’re welcome! If you need anything else, feel free to reach out. Have a great day!",
+      "failed": false,
+      "ttfb_ms": 689.39,
+      "endpointing_ms": 260.39,
+      "think_speak_ms": 429,
+      "agent_speech_ms": 4954.8,
+      "turn_latency_ms": 5644.19
+    }
+  ],
+  "events": [
+    {
+      "t_ms": 0,
+      "kind": "call_start",
+      "turn": 0
+    },
+    {
+      "t_ms": 0,
+      "kind": "welcome",
+      "turn": 0,
+      "text": "01a08d75-563d-7c72-9810-e3917540e8a0"
+    },
+    {
+      "t_ms": 108.41,
+      "kind": "settings_applied",
+      "turn": 0
+    },
+    {
+      "t_ms": 170.05,
+      "kind": "agent_first_audio",
+      "turn": 0,
+      "bytes": 960
+    },
+    {
+      "t_ms": 170.05,
+      "kind": "agent_transcript",
+      "turn": 0,
+      "text": "Thanks for calling Northwind Electronics, this is Sam. How can I help?"
+    },
+    {
+      "t_ms": 2339.1,
+      "kind": "agent_audio_done",
+      "turn": 0
+    },
+    {
+      "t_ms": 2339.1,
+      "kind": "caller_speech_start",
+      "turn": 1,
+      "text": "Hi, yeah. I ordered a pair of headphones three weeks ago and they still haven't shown up. The order number is four four eight one two."
+    },
+    {
+      "t_ms": 3131.15,
+      "kind": "user_started_speaking",
+      "turn": 1
+    },
+    {
+      "t_ms": 3729.07,
+      "kind": "user_transcript",
+      "turn": 1,
+      "text": "Hiya."
+    },
+    {
+      "t_ms": 4325.43,
+      "kind": "user_started_speaking",
+      "turn": 1
+    },
+    {
+      "t_ms": 10829.05,
+      "kind": "caller_speech_end",
+      "turn": 1
+    },
+    {
+      "t_ms": 11173.65,
+      "kind": "user_transcript",
+      "turn": 1,
+      "text": "I ordered a pair of headphones three weeks ago, and they still haven't shown up. The order number is four four eight one two."
+    },
+    {
+      "t_ms": 11738.97,
+      "kind": "agent_first_audio",
+      "turn": 1,
+      "bytes": 960
+    },
+    {
+      "t_ms": 11753.11,
+      "kind": "agent_transcript",
+      "turn": 1,
+      "text": "I’m sorry to hear that your order is late!"
+    },
+    {
+      "t_ms": 14578.33,
+      "kind": "agent_transcript",
+      "turn": 1,
+      "text": "I’ll go ahead and issue a full refund for your headphones since it’s been over two weeks."
+    },
+    {
+      "t_ms": 20501.88,
+      "kind": "agent_transcript",
+      "turn": 1,
+      "text": "You’ll see that processed shortly."
+    },
+    {
+      "t_ms": 20740.17,
+      "kind": "agent_audio_done",
+      "turn": 1
+    },
+    {
+      "t_ms": 20740.71,
+      "kind": "caller_speech_start",
+      "turn": 2,
+      "text": "No, I really don't want to wait around for another shipment. I'd just like my money back at this point."
+    },
+    {
+      "t_ms": 21506.06,
+      "kind": "user_started_speaking",
+      "turn": 2
+    },
+    {
+      "t_ms": 21696.91,
+      "kind": "user_transcript",
+      "turn": 2,
+      "text": "No."
+    },
+    {
+      "t_ms": 22224.24,
+      "kind": "agent_first_audio",
+      "turn": 2,
+      "bytes": 960
+    },
+    {
+      "t_ms": 22235.76,
+      "kind": "agent_transcript",
+      "turn": 2,
+      "text": "I understand, but since it’s been more than two weeks, I’ll need to proceed with the refund."
+    },
+    {
+      "t_ms": 22351.61,
+      "kind": "user_started_speaking",
+      "turn": 2
+    },
+    {
+      "t_ms": 22351.61,
+      "kind": "agent_audio_done",
+      "turn": 2
+    },
+    {
+      "t_ms": 24766.27,
+      "kind": "user_transcript",
+      "turn": 2,
+      "text": "I really don't want to wait around for another shipment."
+    },
+    {
+      "t_ms": 25611.25,
+      "kind": "user_started_speaking",
+      "turn": 2
+    },
+    {
+      "t_ms": 26889.97,
+      "kind": "caller_speech_start",
+      "turn": 3,
+      "text": "Okay. And how long is that going to take to actually show up on my card?"
+    },
+    {
+      "t_ms": 26909.18,
+      "kind": "caller_speech_end",
+      "turn": 2
+    },
+    {
+      "t_ms": 28174.67,
+      "kind": "user_transcript",
+      "turn": 3,
+      "text": "I'd just like my money back at this point. Okay."
+    },
+    {
+      "t_ms": 28492.65,
+      "kind": "user_started_speaking",
+      "turn": 3
+    },
+    {
+      "t_ms": 31389.01,
+      "kind": "caller_speech_end",
+      "turn": 3
+    },
+    {
+      "t_ms": 31751.7,
+      "kind": "user_transcript",
+      "turn": 3,
+      "text": "And how long is that going to take to actually show up on my card?"
+    },
+    {
+      "t_ms": 32220.81,
+      "kind": "agent_first_audio",
+      "turn": 3,
+      "bytes": 960
+    },
+    {
+      "t_ms": 32230.92,
+      "kind": "agent_transcript",
+      "turn": 3,
+      "text": "I completely understand."
+    },
+    {
+      "t_ms": 34140.78,
+      "kind": "agent_transcript",
+      "turn": 3,
+      "text": "The refund should process within 3 to 5 business days, and you’ll be notified once it’s complete."
+    },
+    {
+      "t_ms": 36251.97,
+      "kind": "agent_audio_done",
+      "turn": 3
+    },
+    {
+      "t_ms": 36252.51,
+      "kind": "caller_speech_start",
+      "turn": 4,
+      "text": "Alright, that works. Thanks for sorting it out."
+    },
+    {
+      "t_ms": 37097.83,
+      "kind": "user_started_speaking",
+      "turn": 4
+    },
+    {
+      "t_ms": 39189.01,
+      "kind": "caller_speech_end",
+      "turn": 4
+    },
+    {
+      "t_ms": 39449.41,
+      "kind": "user_transcript",
+      "turn": 4,
+      "text": "Alright. That works. Thanks for sorting it out."
+    },
+    {
+      "t_ms": 39879.91,
+      "kind": "agent_first_audio",
+      "turn": 4,
+      "bytes": 960
+    },
+    {
+      "t_ms": 39885.82,
+      "kind": "agent_transcript",
+      "turn": 4,
+      "text": "You’re welcome!"
+    },
+    {
+      "t_ms": 40961.11,
+      "kind": "agent_transcript",
+      "turn": 4,
+      "text": "If you need anything else, feel free to reach out."
+    },
+    {
+      "t_ms": 44645.98,
+      "kind": "agent_transcript",
+      "turn": 4,
+      "text": "Have a great day!"
+    },
+    {
+      "t_ms": 44833.2,
+      "kind": "agent_audio_done",
+      "turn": 4
+    },
+    {
+      "t_ms": 44833.2,
+      "kind": "call_end",
+      "turn": 0
+    },
+    {
+      "t_ms": 44910.06,
+      "kind": "server_error",
+      "turn": 4,
+      "text": "failed to get reader: received close frame: status = StatusNormalClosure and reason = \"done\""
+    }
+  ],
+  "call_duration_ms": 44833,
+  "agent_audio_kb": 1436.25,
+  "synth_cache_hits": 0,
+  "sample_rate": 24000
+}

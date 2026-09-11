@@ -1,0 +1,281 @@
+{
+  "scenario": "refund-escalation",
+  "persona": "Impatient customer whose order never arrived and who wants money back, not another shipment.",
+  "request_id": "refagent-00000001",
+  "started_at": "2026-09-10T19:35:07.4811786-04:00",
+  "turns": [
+    {
+      "turn": 1,
+      "caller_text": "Hi, yeah. I ordered a pair of headphones three weeks ago and they still haven't shown up. The order number is four four eight one two.",
+      "agent_text": "Reference reply for turn 2.",
+      "heard_text": "",
+      "caller_yielded": true,
+      "failed": false,
+      "fail_reason": "agent talked over the caller",
+      "ttfa_ms": 0,
+      "endpointing_ms": 0,
+      "think_speak_ms": 0,
+      "agent_speech_ms": 2000,
+      "turn_latency_ms": 2000,
+      "pacing_drift_ms": 0
+    },
+    {
+      "turn": 2,
+      "caller_text": "No, I really don't want to wait around for another shipment. I'd just like my money back at this point.",
+      "agent_text": "Reference reply for turn 3.",
+      "heard_text": "",
+      "caller_yielded": true,
+      "failed": false,
+      "fail_reason": "agent talked over the caller",
+      "ttfa_ms": 0,
+      "endpointing_ms": 0,
+      "think_speak_ms": 0,
+      "agent_speech_ms": 2000,
+      "turn_latency_ms": 2000,
+      "pacing_drift_ms": 0
+    },
+    {
+      "turn": 3,
+      "caller_text": "Okay. And how long is that going to take to actually show up on my card?",
+      "agent_text": "Reference reply for turn 4.",
+      "heard_text": "",
+      "caller_yielded": true,
+      "failed": false,
+      "fail_reason": "agent talked over the caller",
+      "ttfa_ms": -0.63,
+      "endpointing_ms": 0,
+      "think_speak_ms": 0,
+      "agent_speech_ms": 2000,
+      "turn_latency_ms": 1999.37,
+      "pacing_drift_ms": 0
+    },
+    {
+      "turn": 4,
+      "caller_text": "Alright, that works. Thanks for sorting it out.",
+      "agent_text": "Reference reply for turn 5.",
+      "heard_text": "",
+      "caller_yielded": true,
+      "failed": false,
+      "fail_reason": "agent talked over the caller",
+      "ttfa_ms": -0.85,
+      "endpointing_ms": 0,
+      "think_speak_ms": 0,
+      "agent_speech_ms": 2000,
+      "turn_latency_ms": 1999.15,
+      "pacing_drift_ms": 0
+    }
+  ],
+  "events": [
+    {
+      "t_ms": 0,
+      "kind": "call_start",
+      "turn": 0
+    },
+    {
+      "t_ms": 0.63,
+      "kind": "welcome",
+      "turn": 0,
+      "text": "refagent-00000001"
+    },
+    {
+      "t_ms": 1.23,
+      "kind": "settings_applied",
+      "turn": 0
+    },
+    {
+      "t_ms": 303.55,
+      "kind": "user_transcript",
+      "turn": 0,
+      "text": "(refagent heard the caller)"
+    },
+    {
+      "t_ms": 801.71,
+      "kind": "agent_transcript",
+      "turn": 0,
+      "text": "Thanks for calling Northwind Electronics, this is Sam. How can I help?"
+    },
+    {
+      "t_ms": 801.71,
+      "kind": "agent_started_speaking",
+      "turn": 0
+    },
+    {
+      "t_ms": 803.14,
+      "kind": "agent_first_audio",
+      "turn": 0,
+      "bytes": 4800
+    },
+    {
+      "t_ms": 2089.78,
+      "kind": "agent_audio_done",
+      "turn": 0
+    },
+    {
+      "t_ms": 2803.74,
+      "kind": "caller_speech_start",
+      "turn": 1,
+      "text": "Hi, yeah. I ordered a pair of headphones three weeks ago and they still haven't shown up. The order number is four four eight one two."
+    },
+    {
+      "t_ms": 4824.11,
+      "kind": "agent_transcript",
+      "turn": 1,
+      "text": "Reference reply for turn 2."
+    },
+    {
+      "t_ms": 4824.11,
+      "kind": "agent_started_speaking",
+      "turn": 1
+    },
+    {
+      "t_ms": 4825.34,
+      "kind": "agent_first_audio",
+      "turn": 1,
+      "bytes": 4800
+    },
+    {
+      "t_ms": 4825.34,
+      "kind": "caller_yielded",
+      "turn": 1
+    },
+    {
+      "t_ms": 4825.34,
+      "kind": "caller_speech_end",
+      "turn": 1
+    },
+    {
+      "t_ms": 6112.56,
+      "kind": "agent_audio_done",
+      "turn": 1
+    },
+    {
+      "t_ms": 6825.51,
+      "kind": "caller_speech_start",
+      "turn": 2,
+      "text": "No, I really don't want to wait around for another shipment. I'd just like my money back at this point."
+    },
+    {
+      "t_ms": 8842.79,
+      "kind": "agent_transcript",
+      "turn": 2,
+      "text": "Reference reply for turn 3."
+    },
+    {
+      "t_ms": 8842.79,
+      "kind": "agent_started_speaking",
+      "turn": 2
+    },
+    {
+      "t_ms": 8843.99,
+      "kind": "agent_first_audio",
+      "turn": 2,
+      "bytes": 4800
+    },
+    {
+      "t_ms": 8843.99,
+      "kind": "caller_yielded",
+      "turn": 2
+    },
+    {
+      "t_ms": 8843.99,
+      "kind": "caller_speech_end",
+      "turn": 2
+    },
+    {
+      "t_ms": 10166.26,
+      "kind": "agent_audio_done",
+      "turn": 2
+    },
+    {
+      "t_ms": 10844.6,
+      "kind": "caller_speech_start",
+      "turn": 3,
+      "text": "Okay. And how long is that going to take to actually show up on my card?"
+    },
+    {
+      "t_ms": 12882.98,
+      "kind": "agent_transcript",
+      "turn": 3,
+      "text": "Reference reply for turn 4."
+    },
+    {
+      "t_ms": 12882.98,
+      "kind": "agent_started_speaking",
+      "turn": 3
+    },
+    {
+      "t_ms": 12884.4,
+      "kind": "agent_first_audio",
+      "turn": 3,
+      "bytes": 4800
+    },
+    {
+      "t_ms": 12884.4,
+      "kind": "caller_yielded",
+      "turn": 3
+    },
+    {
+      "t_ms": 12884.4,
+      "kind": "caller_speech_end",
+      "turn": 3
+    },
+    {
+      "t_ms": 14173.17,
+      "kind": "agent_audio_done",
+      "turn": 3
+    },
+    {
+      "t_ms": 14884.1,
+      "kind": "caller_speech_start",
+      "turn": 4,
+      "text": "Alright, that works. Thanks for sorting it out."
+    },
+    {
+      "t_ms": 16901.81,
+      "kind": "agent_transcript",
+      "turn": 4,
+      "text": "Reference reply for turn 5."
+    },
+    {
+      "t_ms": 16901.81,
+      "kind": "agent_started_speaking",
+      "turn": 4
+    },
+    {
+      "t_ms": 16903.18,
+      "kind": "agent_first_audio",
+      "turn": 4,
+      "bytes": 4800
+    },
+    {
+      "t_ms": 16904.03,
+      "kind": "caller_yielded",
+      "turn": 4
+    },
+    {
+      "t_ms": 16904.03,
+      "kind": "caller_speech_end",
+      "turn": 4
+    },
+    {
+      "t_ms": 18193.51,
+      "kind": "agent_audio_done",
+      "turn": 4
+    },
+    {
+      "t_ms": 18903.72,
+      "kind": "call_end",
+      "turn": 0
+    },
+    {
+      "t_ms": 18904.54,
+      "kind": "server_error",
+      "turn": 4,
+      "text": "failed to get reader: received close frame: status = StatusNormalClosure and reason = \"done\""
+    }
+  ],
+  "call_duration_ms": 18903,
+  "agent_audio_kb": 468.75,
+  "synth_cache_hits": 4,
+  "sample_rate": 24000
+}

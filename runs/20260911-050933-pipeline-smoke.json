@@ -1,0 +1,94 @@
+{
+  "profile": "pipeline-smoke",
+  "scenario": "refund-escalation",
+  "target": "ws://localhost:8080/v1/agent/converse",
+  "baseline": "baseline",
+  "started_at": "2026-09-11T05:09:33.739849615Z",
+  "duration_s": 79.393599101,
+  "steps": [
+    {
+      "name": "baseline",
+      "concurrency": 2,
+      "calls": 2,
+      "calls_attempted": 2,
+      "calls_connected": 2,
+      "turns_total": 8,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 8,
+        "p50_ms": 513.5,
+        "p95_ms": 515.2,
+        "p99_ms": 515.2,
+        "max_ms": 515.2
+      },
+      "endpointing": {
+        "n": 8,
+        "p50_ms": 201.4,
+        "p95_ms": 202.9,
+        "p99_ms": 202.9,
+        "max_ms": 202.9
+      },
+      "think_speak": {
+        "n": 8,
+        "p50_ms": 311,
+        "p95_ms": 313.6,
+        "p99_ms": 313.6,
+        "max_ms": 313.6
+      },
+      "turn_latency": {
+        "n": 8,
+        "p50_ms": 3513.5,
+        "p95_ms": 3515.2,
+        "p99_ms": 3515.2,
+        "max_ms": 3515.2
+      },
+      "worst_harness_drift_ms": 20,
+      "p95_ratio": 1,
+      "verdict": "pass"
+    },
+    {
+      "name": "c8",
+      "concurrency": 8,
+      "calls": 8,
+      "calls_attempted": 8,
+      "calls_connected": 8,
+      "turns_total": 32,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 32,
+        "p50_ms": 517.7,
+        "p95_ms": 529.8,
+        "p99_ms": 530.1,
+        "max_ms": 530.1
+      },
+      "endpointing": {
+        "n": 32,
+        "p50_ms": 201.6,
+        "p95_ms": 202.6,
+        "p99_ms": 202.7,
+        "max_ms": 202.7
+      },
+      "think_speak": {
+        "n": 32,
+        "p50_ms": 315.9,
+        "p95_ms": 328,
+        "p99_ms": 328.6,
+        "max_ms": 328.6
+      },
+      "turn_latency": {
+        "n": 32,
+        "p50_ms": 3517.7,
+        "p95_ms": 3529.8,
+        "p99_ms": 3530.1,
+        "max_ms": 3530.1
+      },
+      "worst_harness_drift_ms": 20.6,
+      "p95_ratio": 1.03,
+      "verdict": "pass"
+    }
+  ]
+}
