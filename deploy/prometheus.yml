@@ -1,0 +1,19 @@
+# Scrapes a running callstorm load test.
+# Start callstorm with:  -metrics :9464
+global:
+  scrape_interval: 2s      # a voice turn is ~1s; a 15s default would miss the shape
+  evaluation_interval: 10s
+
+scrape_configs:
+  - job_name: callstorm
+    # Callstorm exposes each latency histogram in both forms. The native one
+    # resolves a quantile to ~1% of its value; the classic fixed buckets can
+    # only place it somewhere inside the bucket it fell in, which drew a run
+    # whose true p95 was 504ms at 738ms. Both are kept: the native series back
+    # the percentile panels, the classic ones back the heatmap.
+    scrape_native_histograms: true
+    always_scrape_classic_histograms: true
+    static_configs:
+      # host.docker.internal reaches the callstorm process on the host from
+      # inside the compose network.
+      - targets: ["host.docker.internal:9464"]

@@ -1,0 +1,30 @@
+# Live dashboard for a callstorm run.
+#
+#   docker compose -f deploy/docker-compose.yml up -d
+#   ./bin/callstorm -profile profiles/sweep-local.json -metrics :9464 \
+#       -target ws://localhost:8080/v1/agent/converse
+#   open http://localhost:3000   (anonymous admin, no login)
+services:
+  prometheus:
+    # 3.8 is where native histograms stopped being experimental and became a
+    # scrape-config setting rather than a command-line feature flag.
+    image: prom/prometheus:v3.14.0
+    ports: ["9090:9090"]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    extra_hosts: ["host.docker.internal:host-gateway"]
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    ports: ["3000:3000"]
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      # Without this the landing page is "starred and recently viewed
+      # dashboards", which on a first visit is empty -- the one dashboard this
+      # stack exists to show is provisioned but never shown.
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/provisioning/dashboards/callstorm.json
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on: [prometheus]

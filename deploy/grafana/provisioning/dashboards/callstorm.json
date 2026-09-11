@@ -1,0 +1,139 @@
+{
+  "title": "Callstorm — live run",
+  "uid": "callstorm-live",
+  "tags": ["callstorm", "voice"],
+  "timezone": "browser",
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "type": "heatmap",
+      "title": "Time to first audio — distribution",
+      "description": "How many turns landed in each latency band over time. Read it as: one tight horizontal band is a steady agent; the band drifting upward or smearing as concurrency rises is an agent starting to buckle. Steps run one at a time, so the run reads left to right. Unlike a percentile line this interpolates nothing — it shows where the measurements actually fell.",
+      "gridPos": { "h": 9, "w": 16, "x": 0, "y": 0 },
+      "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "color": { "mode": "scheme", "scheme": "Blues", "steps": 64, "reverse": false, "exponent": 0.5 },
+        "yAxis": { "unit": "s", "axisLabel": "TTFA" },
+        "cellValues": { "unit": "short", "decimals": 0 },
+        "legend": { "show": true },
+        "tooltip": { "show": true, "yHistogram": true },
+        "filterValues": { "le": 1e-9 },
+        "rowsFrame": { "layout": "auto" }
+      },
+      "targets": [
+        {
+          "expr": "sum by (le) (increase(callstorm_ttfa_seconds_bucket[$__rate_interval]))",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Time to first audio by percentile",
+      "description": "The same measurements read back as quantiles, per step. Served from the native histogram, whose buckets grow by a fixed ratio, so these land within about 1% of the run report's exact figures rather than somewhere inside a fixed bucket.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "lineWidth": 2, "fillOpacity": 0 },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#fab219", "value": 1.0 },
+              { "color": "#d03b3b", "value": 2.0 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (step) (rate(callstorm_ttfa_seconds[1m])))",
+          "legendFormat": "p50 {{step}}"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (step) (rate(callstorm_ttfa_seconds[1m])))",
+          "legendFormat": "p95 {{step}}"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (step) (rate(callstorm_ttfa_seconds[1m])))",
+          "legendFormat": "p99 {{step}}"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Active calls",
+      "description": "Concurrent synthetic callers in flight. Should track the profile's current step.",
+      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "#2a78d6" } } },
+      "targets": [{ "expr": "callstorm_active_calls", "legendFormat": "active" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Where the latency goes: endpointing vs think+speak (p95)",
+      "description": "Splits TTFA into the agent noticing the caller stopped, and the LLM plus TTS after that. These are different teams' problems.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "lineWidth": 2, "fillOpacity": 10 } } },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum (rate(callstorm_endpointing_seconds[1m])))",
+          "legendFormat": "endpointing p95"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum (rate(callstorm_think_speak_seconds[1m])))",
+          "legendFormat": "think+speak p95"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Harness pacing drift (p99)",
+      "description": "How far the caller's audio departed from realtime. This measures the load generator, not the agent. Past ~100ms this machine is the limit on the test.",
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 17 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "lineWidth": 2, "fillOpacity": 0 },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#d03b3b", "value": 0.1 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum (rate(callstorm_harness_drift_seconds[1m])))",
+          "legendFormat": "drift p99"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Turn outcomes",
+      "description": "ok, failed, and talked_over — a turn the agent interrupted mid-sentence.",
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 17 },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 20, "stacking": { "mode": "normal" } } } },
+      "targets": [
+        { "expr": "sum by (outcome) (rate(callstorm_turns_total[1m]))", "legendFormat": "{{outcome}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Call setup outcomes",
+      "description": "A target refusing connections and one answering slowly fail differently; this separates them.",
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 17 },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 20 } } },
+      "targets": [
+        { "expr": "sum by (outcome) (rate(callstorm_calls_total[1m]))", "legendFormat": "{{outcome}}" }
+      ]
+    }
+  ]
+}
