@@ -1,0 +1,11 @@
+{
+  "name": "sweep-local",
+  "baseline": "baseline",
+  "steps": [
+    { "name": "baseline", "concurrency": 1,  "calls": 2 },
+    { "name": "c5",       "concurrency": 5,  "calls": 5 },
+    { "name": "c10",      "concurrency": 10, "calls": 10 },
+    { "name": "c25",      "concurrency": 25, "calls": 25 },
+    { "name": "c50",      "concurrency": 50, "calls": 50 }
+  ]
+}

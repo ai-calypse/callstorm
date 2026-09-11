@@ -1,0 +1,8 @@
+{
+  "name": "pipeline-smoke",
+  "baseline": "baseline",
+  "steps": [
+    { "name": "baseline", "concurrency": 2, "calls": 2 },
+    { "name": "c8",       "concurrency": 8, "calls": 8 }
+  ]
+}
