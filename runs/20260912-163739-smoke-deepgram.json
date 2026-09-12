@@ -1,0 +1,61 @@
+{
+  "profile": "smoke-deepgram",
+  "scenario": "refund-escalation",
+  "target": "ws://localhost:8080/v1/agent/converse",
+  "baseline": "c3",
+  "started_at": "2026-09-12T16:37:39.4956593-04:00",
+  "duration_s": 44.7209604,
+  "steps": [
+    {
+      "name": "c3",
+      "concurrency": 3,
+      "calls": 3,
+      "calls_attempted": 3,
+      "calls_connected": 3,
+      "turns_total": 15,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 15,
+        "p50_ms": 503.4,
+        "p95_ms": 513.6,
+        "p99_ms": 513.6,
+        "max_ms": 513.6
+      },
+      "endpointing": {
+        "n": 15,
+        "p50_ms": 203.5,
+        "p95_ms": 208.1,
+        "p99_ms": 208.1,
+        "max_ms": 208.1
+      },
+      "think_speak": {
+        "n": 15,
+        "p50_ms": 298.7,
+        "p95_ms": 310.3,
+        "p99_ms": 310.3,
+        "max_ms": 310.3
+      },
+      "turn_latency": {
+        "n": 15,
+        "p50_ms": 3503.4,
+        "p95_ms": 3513.6,
+        "p99_ms": 3513.6,
+        "max_ms": 3513.6
+      },
+      "worst_harness_drift_ms": 60.7,
+      "wer": {
+        "turns": 0,
+        "mean": 0,
+        "worst": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "ref_words": 0
+      },
+      "p95_ratio": 1,
+      "verdict": "pass"
+    }
+  ]
+}

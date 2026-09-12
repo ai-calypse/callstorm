@@ -20,6 +20,7 @@ import (
 	"github.com/yakshgandhi/callstorm/internal/bus"
 	"github.com/yakshgandhi/callstorm/internal/chart"
 	"github.com/yakshgandhi/callstorm/internal/config"
+	"github.com/yakshgandhi/callstorm/internal/judge"
 	"github.com/yakshgandhi/callstorm/internal/loadgen"
 	"github.com/yakshgandhi/callstorm/internal/metrics"
 	"github.com/yakshgandhi/callstorm/internal/scenario"
@@ -48,6 +49,10 @@ type opts struct {
 	metricsLinger  time.Duration
 	kafkaBrokers   string
 	kafkaTopic     string
+	judge          bool
+	judgeCalls     int
+	judgeBackend   string
+	judgeModel     string
 }
 
 func main() {
@@ -66,6 +71,13 @@ func main() {
 		"keep /metrics up this long after the run, so the last step can be scraped")
 	flag.StringVar(&o.kafkaBrokers, "kafka", "", "comma-separated Kafka brokers to publish turn events to")
 	flag.StringVar(&o.kafkaTopic, "kafka-topic", bus.DefaultTopic, "topic for per-turn events")
+	flag.BoolVar(&o.judge, "judge", false,
+		"score sampled conversations against the scenario's success_criteria")
+	flag.IntVar(&o.judgeCalls, "judge-calls", 1,
+		"conversations to judge per step (0 = every call)")
+	flag.StringVar(&o.judgeBackend, "judge-backend", "auto",
+		"who judges: groq, claude-code, or auto (groq when GROQ_API_KEY is set)")
+	flag.StringVar(&o.judgeModel, "judge-model", "", "model to judge with (default: the backend's own)")
 	flag.Parse()
 
 	if err := run(o); err != nil {
@@ -229,6 +241,14 @@ func runLoad(ctx context.Context, o opts, sc *scenario.Scenario, apiKey string) 
 
 	printLoadReport(rep, jsonPath, csvPath, svgPath, callsPath)
 
+	if o.judge {
+		if err := judgeRun(ctx, o, sc, rep, runID); err != nil {
+			// A judge that could not run is not a failed load test. The
+			// latency numbers above stand on their own.
+			fmt.Fprintf(os.Stderr, "judge: %v\n", err)
+		}
+	}
+
 	// A step's turns land in the registry as that step ends, and a scrape that
 	// arrives after the process has exited gets nothing at all. The breakpoint
 	// is by definition the last step, so exiting immediately drops exactly the
@@ -352,6 +372,21 @@ func printLoadReport(rep *loadgen.Report, jsonPath, csvPath, svgPath, callsPath 
 		}
 	}
 	fmt.Printf("harness      %.0fms worst-case pacing drift across the run\n", worst)
+
+	// A degraded step is already marked in the report, but the report is a
+	// file and this is what a person actually reads. A step whose harness fell
+	// behind realtime can still say "pass", because the verdict grades the
+	// agent against the baseline -- and that verdict is exactly what should
+	// not be trusted when the load generator, not the agent, was the limit.
+	for _, s := range rep.Steps {
+		if s.HarnessDegraded {
+			fmt.Printf("             SUSPECT: step %s drifted %.0fms, past the %dms limit.\n",
+				s.Name, s.WorstDriftMs, loadgen.MaxHealthyDriftMs)
+			fmt.Printf("             This machine could not hold realtime pacing, so that step\n")
+			fmt.Printf("             measures the harness rather than the agent. Re-run it on a\n")
+			fmt.Printf("             quieter machine or at lower concurrency before believing it.\n")
+		}
+	}
 	fmt.Printf("duration     %.0fs\n", rep.Duration)
 	fmt.Printf("\nreport       %s\n", jsonPath)
 	fmt.Printf("csv          %s\n", csvPath)
@@ -361,6 +396,176 @@ func printLoadReport(rep *loadgen.Report, jsonPath, csvPath, svgPath, callsPath 
 	if callsPath != "" {
 		fmt.Printf("calls        %s\n", callsPath)
 	}
+}
+
+// judgeRun scores a sample of the run's conversations against the scenario's
+// success criteria.
+//
+// It runs after the load, never during it: judging competes for nothing while
+// calls are in flight, and a slow grader must not become the thing the run is
+// measuring.
+//
+// It samples rather than judging everything. Each judgement is a model call, so
+// grading all 76 calls of a sweep costs 76 of them for what is almost always
+// the same verdict repeated. The default is one conversation per step, which is
+// enough to catch an agent that behaves differently under load; -judge-calls 0
+// grades all of them when that is the question being asked.
+func judgeRun(ctx context.Context, o opts, sc *scenario.Scenario, rep *loadgen.Report, runID string) error {
+	if len(sc.SuccessCriteria) == 0 {
+		return fmt.Errorf("scenario %s defines no success_criteria, so there is nothing to judge", sc.Name)
+	}
+
+	sampled := sampleCalls(rep.Calls, o.judgeCalls)
+	if len(sampled) == 0 {
+		return fmt.Errorf("no completed conversations to judge")
+	}
+
+	model, describe, err := judgeModel(o)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("\njudging      %d of %d conversations against %d criteria (%s)\n",
+		len(sampled), len(rep.Calls), len(sc.SuccessCriteria), describe)
+
+	j := judge.Judge{Model: model}
+
+	judgements := make([]judge.Judgement, 0, len(sampled))
+	for _, c := range sampled {
+		var ex []judge.Exchange
+		for _, t := range c.Turns {
+			ex = append(ex, judge.Exchange{Turn: t.Turn, Caller: t.CallerText, Agent: t.AgentText})
+		}
+		g := j.Score(ctx, ex, sc.SuccessCriteria)
+		g.Step, g.RequestID = c.Step, c.RequestID
+		judgements = append(judgements, g)
+	}
+
+	path := filepath.Join(o.outDir, runID+"-judgements.json")
+	b, err := json.MarshalIndent(judgements, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(path, b, 0o644); err != nil {
+		return err
+	}
+
+	printJudgements(judgements, path)
+	return nil
+}
+
+// judgeModel picks the grader and reports which one, because a verdict is only
+// as readable as the thing that produced it.
+//
+// Groq is preferred when a key is present: it is an HTTP call that works from
+// CI or a worker, and it constrains the reply to a schema. Claude Code runs on
+// a Claude subscription with no API credits, but needs the CLI installed and
+// logged in, so it is a laptop-only answer.
+func judgeModel(o opts) (judge.Model, string, error) {
+	backend := o.judgeBackend
+	groqKey := os.Getenv("GROQ_API_KEY")
+
+	if backend == "" || backend == "auto" {
+		backend = "claude-code"
+		if groqKey != "" {
+			backend = "groq"
+		}
+	}
+
+	switch backend {
+	case "groq":
+		if groqKey == "" {
+			return nil, "", fmt.Errorf("judge-backend groq needs GROQ_API_KEY in %s or the environment", o.envPath)
+		}
+		model := o.judgeModel
+		if model == "" {
+			model = judge.DefaultGroqModel
+		}
+		return judge.Groq{APIKey: groqKey, Model: model}, "groq " + model, nil
+
+	case "claude-code":
+		model := o.judgeModel
+		if model == "" {
+			model = "claude-sonnet-5"
+		}
+		return judge.ClaudeCode{Model: model}, "claude code " + model, nil
+
+	default:
+		return nil, "", fmt.Errorf("unknown judge-backend %q: want groq, claude-code or auto", backend)
+	}
+}
+
+// sampleCalls takes the first n conversations of each step. n <= 0 takes all.
+func sampleCalls(calls []loadgen.CallRecord, n int) []loadgen.CallRecord {
+	if n <= 0 {
+		return calls
+	}
+	seen := map[string]int{}
+	var out []loadgen.CallRecord
+	for _, c := range calls {
+		if seen[c.Step] >= n {
+			continue
+		}
+		seen[c.Step]++
+		out = append(out, c)
+	}
+	return out
+}
+
+func printJudgements(js []judge.Judgement, path string) {
+	// Criteria are reported separately rather than as one score. "Passed 3 of
+	// 4" says nothing useful; which one failed is the whole finding.
+	type tally struct{ met, total, unjudged int }
+	byCriterion := map[string]*tally{}
+	var order []string
+
+	failed, unjudged := 0, 0
+	for _, g := range js {
+		if g.Err != "" {
+			unjudged++
+			continue
+		}
+		if !g.Met() {
+			failed++
+		}
+		for _, o := range g.Outcomes {
+			t, ok := byCriterion[o.Criterion]
+			if !ok {
+				t = &tally{}
+				byCriterion[o.Criterion] = t
+				order = append(order, o.Criterion)
+			}
+			t.total++
+			if o.Met {
+				t.met++
+			}
+		}
+	}
+
+	fmt.Println()
+	for _, c := range order {
+		t := byCriterion[c]
+		mark := "ok  "
+		if t.met < t.total {
+			mark = "FAIL"
+		}
+		fmt.Printf("%s  %d/%d  %s\n", mark, t.met, t.total, c)
+	}
+
+	judged := len(js) - unjudged
+	fmt.Printf("\ntask success %d of %d conversations met every criterion\n", judged-failed, judged)
+	if unjudged > 0 {
+		// Kept apart from a failure: not knowing is not the same as the agent
+		// getting it wrong.
+		fmt.Printf("unjudged     %d conversations the judge could not score\n", unjudged)
+		for _, g := range js {
+			if g.Err != "" {
+				fmt.Printf("             %s: %s\n", g.Step, g.Err)
+				break
+			}
+		}
+	}
+	fmt.Printf("judgements   %s\n", path)
 }
 
 // writeCalls records every conversation the run produced, one JSON object per

@@ -18,11 +18,11 @@ const (
 
 	minSetupSuccess = 0.97 // call setup success below this fails outright
 
-	// maxHealthyDriftMs is how far the caller's audio may drift from realtime
+	// MaxHealthyDriftMs is how far the caller's audio may drift from realtime
 	// before the harness itself, rather than the agent, is the thing being
 	// measured. One 20ms frame of slack is normal; five is a warning that this
 	// step's numbers describe the load generator's limits.
-	maxHealthyDriftMs = 100
+	MaxHealthyDriftMs = 100
 )
 
 // Summary is the percentile spread of one metric over one step.
@@ -224,7 +224,7 @@ func buildStepReport(step Step, outcomes []callOutcome) StepReport {
 	r.ThinkSpeak = summarize(thinkSpeak)
 	r.TurnLatency = summarize(turnLatency)
 	r.WorstDriftMs = math.Round(float64(worstDrift.Microseconds())/1000*10) / 10
-	r.HarnessDegraded = math.Abs(r.WorstDriftMs) > maxHealthyDriftMs
+	r.HarnessDegraded = math.Abs(r.WorstDriftMs) > MaxHealthyDriftMs
 
 	r.WER = WERStats{
 		Turns:         werTurns,

@@ -19,6 +19,12 @@ type Scenario struct {
 
 	Target Target `json:"target"`
 	Turns  []Turn `json:"turns"`
+
+	// SuccessCriteria is what the agent had to actually do, in plain language.
+	// Latency says how fast the agent was; these say whether it was any use.
+	// Each is judged separately and has to cite the turn it was decided on, so
+	// a verdict can be checked rather than taken on trust.
+	SuccessCriteria []string `json:"success_criteria,omitempty"`
 }
 
 // Target configures the agent under test. Phase 1 stands up a Deepgram Voice
