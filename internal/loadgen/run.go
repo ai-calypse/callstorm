@@ -157,7 +157,7 @@ func runStep(ctx context.Context, cfg Config, step Step) []callOutcome {
 // process-wide cached, so every subsequent caller shares the same audio.
 func warmCache(cfg Config) error {
 	for i, t := range cfg.Scenario.Turns {
-		if _, _, err := cfg.TTS.Synthesize(cfg.Scenario.CallerVoice, t.Say); err != nil {
+		if _, _, err := worker.Synthesize(cfg.TTS, cfg.Scenario, t.Say, cfg.SampleRate); err != nil {
 			return fmt.Errorf("warm cache, turn %d: %w", i+1, err)
 		}
 	}

@@ -21,6 +21,11 @@ type Scenario struct {
 	Target Target `json:"target"`
 	Turns  []Turn `json:"turns"`
 
+	// Pacing shapes how the caller speaks. Voice and script make a persona
+	// recognisable; pacing is what the agent's turn detection actually reacts
+	// to, which is why it lives in the harness rather than in the prompt.
+	Pacing Pacing `json:"pacing,omitempty"`
+
 	// SuccessCriteria is what the agent had to actually do, in plain language.
 	// Latency says how fast the agent was; these say whether it was any use.
 	// Each is judged separately and has to cite the turn it was decided on, so
@@ -38,6 +43,26 @@ type Target struct {
 	ThinkModel  string `json:"think_model"`
 	ListenModel string `json:"listen_model"`
 }
+
+// Pacing is how the caller delivers a line, as distinct from what it says.
+type Pacing struct {
+	// SentencePause is silence inserted between the sentences of one caller
+	// line, for a caller who stops to think mid-thought.
+	//
+	// It is the standard way to catch an agent whose endpointing is tuned too
+	// aggressively: it hears the gap, decides the caller has finished, and
+	// starts talking over the rest of the sentence. The harness already
+	// records that as the caller yielding, so a persona that pauses turns a
+	// tuning mistake into a measurement.
+	//
+	// The line is still one utterance and one turn. The pause is inside it.
+	SentencePause string `json:"sentence_pause,omitempty"`
+
+	sentencePause time.Duration
+}
+
+// Pause is the parsed SentencePause, or zero for a caller who does not pause.
+func (p Pacing) Pause() time.Duration { return p.sentencePause }
 
 // Turn is one thing the caller says.
 type Turn struct {
@@ -107,6 +132,16 @@ func (s *Scenario) validate() error {
 			}
 			t.bargeIn = d
 		}
+	}
+	if s.Pacing.SentencePause != "" {
+		d, err := time.ParseDuration(s.Pacing.SentencePause)
+		if err != nil {
+			return fmt.Errorf("pacing.sentence_pause %q: %w", s.Pacing.SentencePause, err)
+		}
+		if d < 0 {
+			return fmt.Errorf("pacing.sentence_pause must not be negative, got %s", s.Pacing.SentencePause)
+		}
+		s.Pacing.sentencePause = d
 	}
 	if s.Target.Voice == "" {
 		s.Target.Voice = "aura-2-apollo-en"

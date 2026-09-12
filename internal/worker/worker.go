@@ -119,7 +119,7 @@ func Run(ctx context.Context, cfg Config) (*Result, error) {
 	utterances := make([][]byte, len(cfg.Scenario.Turns))
 	cacheHits := 0
 	for i, t := range cfg.Scenario.Turns {
-		pcm, cached, err := cfg.TTS.Synthesize(cfg.Scenario.CallerVoice, t.Say)
+		pcm, cached, err := Synthesize(cfg.TTS, cfg.Scenario, t.Say, cfg.SampleRate)
 		if err != nil {
 			return nil, fmt.Errorf("synthesize turn %d: %w", i+1, err)
 		}

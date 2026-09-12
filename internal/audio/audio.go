@@ -27,6 +27,19 @@ func FrameBytes(sampleRate int) int {
 }
 
 // Duration is how long pcm takes to play at sampleRate.
+// Silence returns d of silent 16-bit PCM.
+//
+// Exact zeroes matter: the pump and the reference agent both treat an all-zero
+// frame as the line being open but quiet, which is how a caller's pause is told
+// apart from the caller having finished.
+func Silence(d time.Duration, sampleRate int) []byte {
+	n := int(d.Seconds() * float64(sampleRate))
+	if n < 0 {
+		n = 0
+	}
+	return make([]byte, n*2)
+}
+
 func Duration(pcm []byte, sampleRate int) time.Duration {
 	samples := len(pcm) / bytesPerSample
 	return time.Duration(float64(samples) / float64(sampleRate) * float64(time.Second))
