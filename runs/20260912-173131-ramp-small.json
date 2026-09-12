@@ -1,0 +1,189 @@
+{
+  "profile": "ramp-small",
+  "scenario": "refund-escalation",
+  "target": "",
+  "baseline": "c1",
+  "started_at": "2026-09-12T17:31:31.1598138-04:00",
+  "duration_s": 127.0719238,
+  "steps": [
+    {
+      "name": "c1",
+      "concurrency": 1,
+      "calls": 1,
+      "calls_attempted": 1,
+      "calls_connected": 0,
+      "turns_total": 0,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 0,
+      "ttfa": {
+        "n": 0,
+        "p50_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "endpointing": {
+        "n": 0,
+        "p50_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "think_speak": {
+        "n": 0,
+        "p50_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "turn_latency": {
+        "n": 0,
+        "p50_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "worst_harness_drift_ms": 0,
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 0,
+        "mean": 0,
+        "worst": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "ref_words": 0
+      },
+      "p95_ratio": 0,
+      "verdict": "fail",
+      "errors": {
+        "agent never delivered its greeting": 1
+      }
+    },
+    {
+      "name": "c2",
+      "concurrency": 2,
+      "calls": 2,
+      "calls_attempted": 2,
+      "calls_connected": 2,
+      "turns_total": 10,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 10,
+        "p50_ms": 843.2,
+        "p95_ms": 3173.7,
+        "p99_ms": 3173.7,
+        "max_ms": 3173.7
+      },
+      "endpointing": {
+        "n": 10,
+        "p50_ms": 296.3,
+        "p95_ms": 476.8,
+        "p99_ms": 476.8,
+        "max_ms": 476.8
+      },
+      "think_speak": {
+        "n": 10,
+        "p50_ms": 544.4,
+        "p95_ms": 2928.1,
+        "p99_ms": 2928.1,
+        "max_ms": 2928.1
+      },
+      "turn_latency": {
+        "n": 10,
+        "p50_ms": 4265,
+        "p95_ms": 5744.3,
+        "p99_ms": 5744.3,
+        "max_ms": 5744.3
+      },
+      "worst_harness_drift_ms": 448.4,
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 10,
+        "mean": 0.035211267605633804,
+        "worst": 0.07142857142857142,
+        "substitutions": 0,
+        "deletions": 5,
+        "insertions": 0,
+        "ref_words": 142
+      },
+      "harness_degraded": true,
+      "p95_ratio": 0,
+      "verdict": "n/a"
+    },
+    {
+      "name": "c3",
+      "concurrency": 3,
+      "calls": 3,
+      "calls_attempted": 3,
+      "calls_connected": 3,
+      "turns_total": 15,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 15,
+        "p50_ms": 817.3,
+        "p95_ms": 1026.2,
+        "p99_ms": 1026.2,
+        "max_ms": 1026.2
+      },
+      "endpointing": {
+        "n": 15,
+        "p50_ms": 304.1,
+        "p95_ms": 619,
+        "p99_ms": 619,
+        "max_ms": 619
+      },
+      "think_speak": {
+        "n": 15,
+        "p50_ms": 517.7,
+        "p95_ms": 639.4,
+        "p99_ms": 639.4,
+        "max_ms": 639.4
+      },
+      "turn_latency": {
+        "n": 15,
+        "p50_ms": 3746.2,
+        "p95_ms": 5983.5,
+        "p99_ms": 5983.5,
+        "max_ms": 5983.5
+      },
+      "worst_harness_drift_ms": 1425.9,
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 15,
+        "mean": 0.028169014084507043,
+        "worst": 0.07142857142857142,
+        "substitutions": 0,
+        "deletions": 6,
+        "insertions": 0,
+        "ref_words": 213
+      },
+      "harness_degraded": true,
+      "p95_ratio": 0,
+      "verdict": "n/a"
+    }
+  ]
+}

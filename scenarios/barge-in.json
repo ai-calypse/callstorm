@@ -10,8 +10,8 @@
     "listen_model": "nova-3"
   },
   "success_criteria": [
-    "The agent stops talking and listens when the caller interrupts it",
-    "The agent issues a refund after the caller turns down the replacement"
+    "The agent issues a refund after the caller turns down the replacement",
+    "The agent tells the caller how long the refund takes to reach their card"
   ],
   "turns": [
     { "say": "Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up." },

@@ -1,0 +1,50 @@
+[
+  {
+    "step": "c3",
+    "request_id": "01a0978c-1e82-7b33-9c1f-083c13861f79",
+    "outcomes": [
+      {
+        "criterion": "The agent asks the caller for an order number before discussing the specific order",
+        "met": true,
+        "evidence": "turn 1: \"Can you provide me with your order number, please?\""
+      },
+      {
+        "criterion": "The agent issues a refund by the end of the call",
+        "met": true,
+        "evidence": "turn 3: \"I can issue a refund for you. Confirming the refund now.\""
+      }
+    ]
+  },
+  {
+    "step": "c3",
+    "request_id": "01a0978c-1e82-7ae1-bbe2-42763efec475",
+    "outcomes": [
+      {
+        "criterion": "The agent asks the caller for an order number before discussing the specific order",
+        "met": true,
+        "evidence": "turn 1: \"Please provide your order number.\""
+      },
+      {
+        "criterion": "The agent issues a refund by the end of the call",
+        "met": true,
+        "evidence": "turn 3: \"I can process a refund for you now.\""
+      }
+    ]
+  },
+  {
+    "step": "c3",
+    "request_id": "01a0978c-1e82-7451-b489-c9aa8ff38fa3",
+    "outcomes": [
+      {
+        "criterion": "The agent asks the caller for an order number before discussing the specific order",
+        "met": true,
+        "evidence": "turn 1: \"Please provide your order number to look it up.\""
+      },
+      {
+        "criterion": "The agent issues a refund by the end of the call",
+        "met": true,
+        "evidence": "turn 3: \"I can process a refund for you.\""
+      }
+    ]
+  }
+]

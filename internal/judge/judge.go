@@ -72,6 +72,7 @@ You are given a conversation and a list of criteria the agent was required to me
 
 Rules:
 - Judge only what the transcript shows. Do not assume an agent did something off-transcript.
+- You are reading words, not listening to a call. A transcript carries no timing and no audio behaviour, so nothing about how fast the agent replied, whether it paused, or whether it stopped when interrupted can be decided here. If a criterion asks for one of those, say so in the evidence and mark it not met: those are measured directly elsewhere, and guessing at them from text produces a confident wrong answer.
 - Quote the conversation as evidence for every verdict, naming the turn.
 - A criterion is met only if the transcript positively shows it. Absence of evidence is not met.
 - Ignore speed, wording and politeness unless a criterion asks about them.

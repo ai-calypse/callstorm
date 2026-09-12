@@ -1,0 +1,69 @@
+{
+  "profile": "smoke-deepgram",
+  "scenario": "refund-bargein",
+  "target": "",
+  "baseline": "c3",
+  "started_at": "2026-09-12T17:34:06.2150959-04:00",
+  "duration_s": 46.7736087,
+  "steps": [
+    {
+      "name": "c3",
+      "concurrency": 3,
+      "calls": 3,
+      "calls_attempted": 3,
+      "calls_connected": 3,
+      "turns_total": 15,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 15,
+        "p50_ms": 801.5,
+        "p95_ms": 3593.4,
+        "p99_ms": 3593.4,
+        "max_ms": 3593.4
+      },
+      "endpointing": {
+        "n": 15,
+        "p50_ms": 304.1,
+        "p95_ms": 3107.7,
+        "p99_ms": 3107.7,
+        "max_ms": 3107.7
+      },
+      "think_speak": {
+        "n": 15,
+        "p50_ms": 485.7,
+        "p95_ms": 701.6,
+        "p99_ms": 701.6,
+        "max_ms": 701.6
+      },
+      "turn_latency": {
+        "n": 9,
+        "p50_ms": 4480.9,
+        "p95_ms": 5142,
+        "p99_ms": 5142,
+        "max_ms": 5142
+      },
+      "worst_harness_drift_ms": 399.9,
+      "barge_in": {
+        "turns": 6,
+        "yielded": 6,
+        "yield_p50_ms": 487.3,
+        "yield_p95_ms": 775.7,
+        "worst_ms": 775.7
+      },
+      "wer": {
+        "turns": 15,
+        "mean": 0.023474178403755867,
+        "worst": 0.07142857142857142,
+        "substitutions": 0,
+        "deletions": 5,
+        "insertions": 0,
+        "ref_words": 213
+      },
+      "harness_degraded": true,
+      "p95_ratio": 1,
+      "verdict": "pass"
+    }
+  ]
+}
