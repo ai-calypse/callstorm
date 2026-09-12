@@ -1,0 +1,231 @@
+// Command dashboard serves run history and report cards.
+//
+// The terminal shows you one run as it happens and the artifacts keep every run
+// forever, but neither answers the question a team actually asks: is this agent
+// getting worse? That needs runs side by side, which is what this is for.
+//
+// It reads the run directory directly rather than a database. At a few hundred
+// runs the directory is the index, and standing up a store to answer questions
+// nobody has asked yet would be building for a scale that does not exist.
+package main
+
+import (
+	"embed"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"io/fs"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/yakshgandhi/callstorm/internal/loadgen"
+)
+
+//go:embed ui/*
+var ui embed.FS
+
+func main() {
+	var (
+		runsDir = flag.String("runs", "runs", "directory of run artifacts")
+		addr    = flag.String("addr", ":8090", "listen address")
+	)
+	flag.Parse()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/runs", listRuns(*runsDir))
+	mux.HandleFunc("GET /api/runs/{id}", getRun(*runsDir))
+	mux.HandleFunc("GET /api/runs/{id}/calls", getCalls(*runsDir))
+
+	pages, err := newFS()
+	if err != nil {
+		log.Fatal(err)
+	}
+	mux.Handle("/", http.FileServer(pages))
+
+	log.Printf("dashboard on http://localhost%s  runs=%s", *addr, *runsDir)
+	if err := http.ListenAndServe(*addr, mux); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func newFS() (http.FileSystem, error) {
+	sub, err := fs.Sub(ui, "ui")
+	if err != nil {
+		return nil, err
+	}
+	return http.FS(sub), nil
+}
+
+// summary is one row of run history: enough to decide which run to open,
+// without reading every report in the directory into memory.
+type summary struct {
+	ID        string    `json:"id"`
+	Profile   string    `json:"profile"`
+	Scenario  string    `json:"scenario"`
+	Target    string    `json:"target"`
+	StartedAt time.Time `json:"started_at"`
+	Duration  float64   `json:"duration_s"`
+
+	Steps       int     `json:"steps"`
+	Verdict     string  `json:"verdict"`
+	Breakpoint  string  `json:"breakpoint,omitempty"`
+	PeakConc    int     `json:"peak_concurrency"`
+	BaselineP95 float64 `json:"baseline_p95_ms"`
+	WorstP95    float64 `json:"worst_p95_ms"`
+	WERMean     float64 `json:"wer_mean"`
+	Degraded    bool    `json:"harness_degraded"`
+}
+
+func listRuns(dir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		reports, err := filepath.Glob(filepath.Join(dir, "*.json"))
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		// Nested directories hold earlier runs too.
+		nested, _ := filepath.Glob(filepath.Join(dir, "*", "*.json"))
+		reports = append(reports, nested...)
+
+		out := []summary{}
+		for _, p := range reports {
+			// Sidecars are not reports.
+			if strings.HasSuffix(p, "-judgements.json") {
+				continue
+			}
+			rep, err := readReport(p)
+			if err != nil || rep.Profile == "" {
+				// A single-call artifact has no profile; it is not run history.
+				continue
+			}
+			out = append(out, summarize(p, rep))
+		}
+		sort.Slice(out, func(i, j int) bool { return out[i].StartedAt.After(out[j].StartedAt) })
+		writeJSON(w, out)
+	}
+}
+
+func summarize(path string, rep *loadgen.Report) summary {
+	s := summary{
+		ID:        strings.TrimSuffix(filepath.Base(path), ".json"),
+		Profile:   rep.Profile,
+		Scenario:  rep.Scenario,
+		Target:    rep.Target,
+		StartedAt: rep.StartedAt,
+		Duration:  rep.Duration,
+		Steps:     len(rep.Steps),
+		Verdict:   "pass",
+	}
+	for _, st := range rep.Steps {
+		if st.Concurrency > s.PeakConc {
+			s.PeakConc = st.Concurrency
+		}
+		if st.TTFA.P95Ms > s.WorstP95 {
+			s.WorstP95 = st.TTFA.P95Ms
+		}
+		if st.Name == rep.Baseline {
+			s.BaselineP95 = st.TTFA.P95Ms
+		}
+		if st.WER.Mean > s.WERMean {
+			s.WERMean = st.WER.Mean
+		}
+		if st.HarnessDegraded {
+			s.Degraded = true
+		}
+		// The worst verdict in the run is the run's verdict: a sweep that
+		// failed anywhere did not pass.
+		switch st.Verdict {
+		case "fail":
+			s.Verdict = "fail"
+		case "warn":
+			if s.Verdict != "fail" {
+				s.Verdict = "warn"
+			}
+		}
+	}
+	if bp := rep.Breakpoint(); bp != nil {
+		s.Breakpoint = fmt.Sprintf("%s at %d concurrent", bp.Name, bp.Concurrency)
+	}
+	return s
+}
+
+func getRun(dir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		p, err := resolve(dir, r.PathValue("id"), ".json")
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		b, err := os.ReadFile(p)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(b)
+	}
+}
+
+func getCalls(dir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		p, err := resolve(dir, r.PathValue("id")+"-calls", ".jsonl")
+		if err != nil {
+			writeJSON(w, []any{})
+			return
+		}
+		b, err := os.ReadFile(p)
+		if err != nil {
+			writeJSON(w, []any{})
+			return
+		}
+		out := []json.RawMessage{}
+		for _, line := range strings.Split(string(b), "\n") {
+			if strings.TrimSpace(line) == "" {
+				continue
+			}
+			out = append(out, json.RawMessage(line))
+		}
+		writeJSON(w, out)
+	}
+}
+
+// resolve turns a run id into a path inside dir, refusing anything that tries
+// to climb out of it.
+func resolve(dir, id, ext string) (string, error) {
+	if id == "" || strings.ContainsAny(id, `/\`) || strings.Contains(id, "..") {
+		return "", fmt.Errorf("bad id")
+	}
+	candidates, _ := filepath.Glob(filepath.Join(dir, id+ext))
+	nested, _ := filepath.Glob(filepath.Join(dir, "*", id+ext))
+	candidates = append(candidates, nested...)
+	if len(candidates) == 0 {
+		return "", fmt.Errorf("not found")
+	}
+	return candidates[0], nil
+}
+
+func readReport(path string) (*loadgen.Report, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var rep loadgen.Report
+	if err := json.Unmarshal(b, &rep); err != nil {
+		return nil, err
+	}
+	return &rep, nil
+}
+
+func writeJSON(w http.ResponseWriter, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(v)
+}
+
+func httpError(w http.ResponseWriter, err error) {
+	http.Error(w, err.Error(), http.StatusInternalServerError)
+}
