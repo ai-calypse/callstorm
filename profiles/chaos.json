@@ -1,0 +1,7 @@
+{
+  "name": "chaos",
+  "baseline": "c8",
+  "steps": [
+    { "name": "c8", "concurrency": 8, "calls": 16 }
+  ]
+}

@@ -89,10 +89,11 @@ func main() {
 		*name, *brokers, *group, *slots, *cacheDir)
 
 	var (
-		wg       sync.WaitGroup
-		sem      = make(chan struct{}, *slots)
-		placed   atomic.Int64
-		failures atomic.Int64
+		wg        sync.WaitGroup
+		sem       = make(chan struct{}, *slots)
+		placed    atomic.Int64
+		failures  atomic.Int64
+		abandoned atomic.Int64
 	)
 
 	for ctx.Err() == nil {
@@ -110,6 +111,22 @@ func main() {
 				defer func() { <-sem }()
 
 				res := place(ctx, job.Assignment, apiKey, synth, mx)
+
+				// A call that died because this worker is shutting down did
+				// not fail: nothing was learned about the agent. Reporting it
+				// as a failure would turn a pod being killed into a step that
+				// scored 69% setup and blamed the target for it.
+				//
+				// So say nothing and commit nothing. The assignment stays
+				// uncommitted and the group hands it to a surviving pod, which
+				// is the whole reason commits are manual.
+				if ctx.Err() != nil && !complete(res) {
+					abandoned.Add(1)
+					log.Printf("abandoning %s/%d for redelivery: worker is shutting down",
+						res.Step, res.Seq)
+					return
+				}
+
 				if res.Err != "" {
 					failures.Add(1)
 				}
@@ -117,8 +134,8 @@ func main() {
 
 				// Completing uses a background context on purpose: a worker
 				// being shut down still owes the dispatcher an answer for the
-				// call it just finished, and a cancelled context here would
-				// lose it.
+				// call it actually finished, and a cancelled context here
+				// would lose it.
 				done, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
 				defer cancel()
 				if err := w.Complete(done, res, job); err != nil {
@@ -130,7 +147,27 @@ func main() {
 
 	log.Printf("worker %s draining %d in flight", *name, len(sem))
 	wg.Wait()
-	log.Printf("worker %s done: %d calls placed, %d failed", *name, placed.Load(), failures.Load())
+	log.Printf("worker %s done: %d calls placed, %d failed, %d abandoned for redelivery",
+		*name, placed.Load(), failures.Load(), abandoned.Load())
+}
+
+// complete reports whether a call actually ran to the end.
+//
+// A cancelled call usually comes back without an error at all: the call itself
+// succeeded, and the cancellation shows up as failed turns inside it. Checking
+// only the error missed that, and a killed pod still contributed half-finished
+// conversations to the run -- five turns marked "cancelled" that said nothing
+// about the agent and everything about the pod.
+func complete(res bus.CallResult) bool {
+	if res.Err != "" {
+		return false
+	}
+	for _, t := range res.Turns {
+		if t.Failed {
+			return false
+		}
+	}
+	return len(res.Turns) > 0
 }
 
 // place runs one assignment and shapes whatever happened into a result.
