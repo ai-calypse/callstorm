@@ -63,6 +63,10 @@ type Result struct {
 	AgentAudioKB   float64 `json:"agent_audio_kb"`
 	SynthCacheHits int     `json:"synth_cache_hits"`
 
+	// SynthLines is how many distinct caller lines were rendered, which is more
+	// than the number of turns whenever a scenario has branches.
+	SynthLines int `json:"synth_lines"`
+
 	// Recording is the mixed two-sided call audio.
 	Recording  []byte `json:"-"`
 	SampleRate int    `json:"sample_rate"`
@@ -97,6 +101,11 @@ type worker struct {
 	// curTurn lets readLoop attribute each server event to the turn in
 	// progress, so the saved event log is queryable per turn.
 	curTurn atomic.Int64
+
+	// lastAgentText is what the agent said most recently, including its
+	// greeting. Branching reads it to decide the caller's next line, which is
+	// the difference between a caller who responds and one who recites.
+	lastAgentText string
 }
 
 // Run places one call and returns its measurements.
@@ -113,22 +122,27 @@ func Run(ctx context.Context, cfg Config) (*Result, error) {
 
 	w := &worker{cfg: cfg, events: make(chan srvEvent, 256)}
 
-	// Synthesize every caller line before the call starts. Synthesizing
-	// mid-call would put Aura's latency inside the window we are attributing
-	// to the agent under test.
-	utterances := make([][]byte, len(cfg.Scenario.Turns))
+	// Every caller line is rendered before the call starts, branches included,
+	// not only the ones this call will end up taking. Synthesizing mid-call
+	// would put Aura's latency inside the window being attributed to the agent
+	// under test, so the cost of a branch never taken is paid once and gladly.
+	lines := cfg.Scenario.Lines()
+	utterances := make(map[string][]byte, len(lines))
 	cacheHits := 0
-	for i, t := range cfg.Scenario.Turns {
-		pcm, cached, err := Synthesize(cfg.TTS, cfg.Scenario, t.Say, cfg.SampleRate)
-		if err != nil {
-			return nil, fmt.Errorf("synthesize turn %d: %w", i+1, err)
+	for _, say := range lines {
+		if _, done := utterances[say]; done {
+			continue
 		}
-		utterances[i] = pcm
+		pcm, cached, err := Synthesize(cfg.TTS, cfg.Scenario, say, cfg.SampleRate)
+		if err != nil {
+			return nil, fmt.Errorf("synthesize %q: %w", say, err)
+		}
+		utterances[say] = pcm
 		if cached {
 			cacheHits++
 		}
 	}
-	w.printf("synthesized %d caller turns (%d from cache)\n", len(utterances), cacheHits)
+	w.printf("synthesized %d caller lines (%d from cache)\n", len(utterances), cacheHits)
 
 	startedAt := time.Now()
 	if err := w.connect(ctx); err != nil {
@@ -154,16 +168,22 @@ func Run(ctx context.Context, cfg Config) (*Result, error) {
 		}
 	}
 
-	for i, pcm := range utterances {
+	for i, t := range cfg.Scenario.Turns {
 		// A turn that barges in changes the turn before it: that reply has to
 		// be cut short so the interruption lands while the agent is talking.
 		var interruptAfter time.Duration
 		if i+1 < len(cfg.Scenario.Turns) {
 			interruptAfter = cfg.Scenario.Turns[i+1].BargeIn()
 		}
-		barging := cfg.Scenario.Turns[i].BargeIn() > 0
+		barging := t.BargeIn() > 0
 
-		m := w.runTurn(ctx, i+1, pcm, cfg.Scenario.Turns[i].Say, interruptAfter, barging)
+		say, matched := t.Choose(w.lastAgentText)
+		if matched != "" {
+			w.printf("  (branch: agent said %q)\n", matched)
+		}
+
+		m := w.runTurn(ctx, i+1, utterances[say], say, interruptAfter, barging)
+		m.Branch = matched
 		m.Finalize()
 		turns = append(turns, m)
 		if cfg.OnTurn != nil {
@@ -189,6 +209,7 @@ func Run(ctx context.Context, cfg Config) (*Result, error) {
 		CallDurationMs: float64(total.Milliseconds()),
 		AgentAudioKB:   float64(w.agentBytes.Load()) / 1024,
 		SynthCacheHits: cacheHits,
+		SynthLines:     len(utterances),
 		Recording:      w.rec.PCM(),
 		SampleRate:     cfg.SampleRate,
 	}, nil

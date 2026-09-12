@@ -161,6 +161,10 @@ type TurnMetric struct {
 	// large value and is reported as a failure rather than a good score.
 	BargeInYield time.Duration `json:"-"`
 
+	// Branch records which condition selected this line, when the caller had
+	// alternatives. Empty means the default line was used.
+	Branch string `json:"branch,omitempty"`
+
 	// BargedIn marks a turn that interrupted the agent, so a zero yield can be
 	// told apart from a turn that never tried.
 	BargedIn bool `json:"barged_in,omitempty"`

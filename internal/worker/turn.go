@@ -29,6 +29,9 @@ func (w *worker) awaitGreeting(ctx context.Context) error {
 			case metrics.AgentTranscript:
 				text = joinText(text, ev.text)
 			case metrics.AgentAudioDone:
+				// The greeting counts as something the agent said, so turn 1
+				// can branch on it like any other reply.
+				w.lastAgentText = text
 				w.printf("\n  agent: %s\n", text)
 				w.waitPlayout(ctx, ev.playout)
 				return nil
@@ -212,6 +215,10 @@ collect:
 	if playoutEnd != 0 {
 		m.AgentSpeech = playoutEnd - firstAudio
 		m.TurnLatency = playoutEnd - callerEnd
+	}
+
+	if m.AgentText != "" {
+		w.lastAgentText = m.AgentText
 	}
 
 	w.reportTurn(m)

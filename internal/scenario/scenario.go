@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -79,12 +80,61 @@ type Turn struct {
 	// number reports.
 	BargeInAfter string `json:"barge_in_after,omitempty"`
 
+	// Branch replaces Say when the agent's previous reply matches. The first
+	// matching branch wins, and Say is the fallback when none do.
+	//
+	// A scripted caller who ignores what the agent just said produces the kind
+	// of nonsense that reads as an agent failure but is really a test failure:
+	// declining a replacement that was never offered, thanking someone for a
+	// refund they refused. Branching keeps the caller responsive without
+	// giving up a fixed script, which is what makes runs comparable.
+	Branch []Branch `json:"branch,omitempty"`
+
 	bargeIn time.Duration
+}
+
+// Branch is an alternative line, chosen by what the agent last said.
+type Branch struct {
+	// IfAgentSaid matches case-insensitively anywhere in the agent's previous
+	// reply. Substring rather than regex on purpose: a scenario is read by
+	// people deciding whether a run was fair, and a wrong answer has to be
+	// explainable by pointing at the transcript.
+	IfAgentSaid string `json:"if_agent_said"`
+	Say         string `json:"say"`
 }
 
 // BargeIn is the parsed BargeInAfter, or zero when this turn waits its proper
 // turn to speak.
 func (t Turn) BargeIn() time.Duration { return t.bargeIn }
+
+// Lines returns every line the caller could possibly speak, defaults and all
+// branches alike.
+//
+// Every one of them is synthesized before the call starts. Synthesizing a
+// branch at the moment it is chosen would put the text-to-speech round trip
+// inside the window being attributed to the agent, so the cost of a branch
+// never taken is paid once and gladly.
+func (s *Scenario) Lines() []string {
+	var out []string
+	for _, t := range s.Turns {
+		out = append(out, t.Say)
+		for _, b := range t.Branch {
+			out = append(out, b.Say)
+		}
+	}
+	return out
+}
+
+// Choose picks the line for a turn given what the agent last said.
+func (t Turn) Choose(agentSaid string) (say string, matched string) {
+	said := strings.ToLower(agentSaid)
+	for _, b := range t.Branch {
+		if strings.Contains(said, strings.ToLower(b.IfAgentSaid)) {
+			return b.Say, b.IfAgentSaid
+		}
+	}
+	return t.Say, ""
+}
 
 // Load reads and validates a scenario file.
 func Load(path string) (*Scenario, error) {
@@ -131,6 +181,14 @@ func (s *Scenario) validate() error {
 				return fmt.Errorf("turn 1 cannot barge in: there is no reply in progress to interrupt")
 			}
 			t.bargeIn = d
+		}
+		for j, b := range t.Branch {
+			if b.IfAgentSaid == "" {
+				return fmt.Errorf("turn %d branch %d: if_agent_said is required", i+1, j+1)
+			}
+			if b.Say == "" {
+				return fmt.Errorf("turn %d branch %d: say is required", i+1, j+1)
+			}
 		}
 	}
 	if s.Pacing.SentencePause != "" {

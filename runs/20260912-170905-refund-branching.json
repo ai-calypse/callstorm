@@ -1,0 +1,351 @@
+{
+  "scenario": "refund-branching",
+  "persona": "Customer who reacts to what the agent actually offers, rather than reciting a script past it.",
+  "request_id": "01a09773-da16-7183-a312-5bc4614f5001",
+  "started_at": "2026-09-12T17:09:05.3794206-04:00",
+  "turns": [
+    {
+      "turn": 1,
+      "caller_text": "Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.",
+      "agent_text": "Can you provide me with your order number, please?",
+      "heard_text": "Hi. Yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.",
+      "failed": false,
+      "ttfa_ms": 902.47,
+      "endpointing_ms": 304.72,
+      "think_speak_ms": 597.74,
+      "agent_speech_ms": 2600,
+      "turn_latency_ms": 3502.47,
+      "pacing_drift_ms": 15.9
+    },
+    {
+      "turn": 2,
+      "caller_text": "Sure, it's four four eight one two. It was a pair of wireless headphones.",
+      "agent_text": "I'll arrange a replacement shipment for your wireless headphones.",
+      "heard_text": "Sure. It's four four eight one two. Was a pair of wireless headphones.",
+      "failed": false,
+      "ttfa_ms": 783.62,
+      "endpointing_ms": 304.68,
+      "think_speak_ms": 478.95,
+      "agent_speech_ms": 3800,
+      "turn_latency_ms": 4583.62,
+      "pacing_drift_ms": 15.64
+    },
+    {
+      "turn": 3,
+      "caller_text": "I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?",
+      "agent_text": "I can issue a refund for you. Confirming that now.",
+      "heard_text": "I'd rather not wait around for another shipment, Can I just get my money back instead?",
+      "failed": false,
+      "ttfa_ms": 822.73,
+      "endpointing_ms": 314.29,
+      "think_speak_ms": 508.44,
+      "agent_speech_ms": 3720.39,
+      "turn_latency_ms": 4543.12,
+      "pacing_drift_ms": 84.41
+    },
+    {
+      "turn": 4,
+      "caller_text": "Okay. And how long is that going to take to actually show up on my card?",
+      "agent_text": "A refund takes five to seven business days to reach your card.",
+      "heard_text": "Okay, and how long is that going to take to actually show up on my card?",
+      "failed": false,
+      "ttfa_ms": 858.79,
+      "endpointing_ms": 292.7,
+      "think_speak_ms": 566.08,
+      "agent_speech_ms": 4360,
+      "turn_latency_ms": 5218.79,
+      "pacing_drift_ms": 36.74
+    },
+    {
+      "turn": 5,
+      "caller_text": "Alright, that works. Thanks for sorting it out.",
+      "agent_text": "You're welcome.",
+      "heard_text": "Alright. That works. Thanks for sorting it out.",
+      "failed": false,
+      "ttfa_ms": 3631.99,
+      "endpointing_ms": 3134.08,
+      "think_speak_ms": 497.91,
+      "agent_speech_ms": 1280,
+      "turn_latency_ms": 4911.99,
+      "pacing_drift_ms": 18.16
+    }
+  ],
+  "events": [
+    {
+      "t_ms": 0,
+      "kind": "call_start",
+      "turn": 0
+    },
+    {
+      "t_ms": 0,
+      "kind": "welcome",
+      "turn": 0,
+      "text": "01a09773-da16-7183-a312-5bc4614f5001"
+    },
+    {
+      "t_ms": 98.36,
+      "kind": "settings_applied",
+      "turn": 0
+    },
+    {
+      "t_ms": 162.53,
+      "kind": "agent_first_audio",
+      "turn": 0,
+      "bytes": 960
+    },
+    {
+      "t_ms": 162.53,
+      "kind": "agent_transcript",
+      "turn": 0,
+      "text": "Thanks for calling Northwind Electronics, this is Sam. How can I help?"
+    },
+    {
+      "t_ms": 2310.86,
+      "kind": "agent_audio_done",
+      "turn": 0
+    },
+    {
+      "t_ms": 4881.71,
+      "kind": "caller_speech_start",
+      "turn": 1,
+      "text": "Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up."
+    },
+    {
+      "t_ms": 5579.33,
+      "kind": "user_started_speaking",
+      "turn": 1
+    },
+    {
+      "t_ms": 5775.2,
+      "kind": "user_transcript",
+      "turn": 1,
+      "text": "Hi."
+    },
+    {
+      "t_ms": 6409.16,
+      "kind": "user_started_speaking",
+      "turn": 1
+    },
+    {
+      "t_ms": 6496.77,
+      "kind": "user_transcript",
+      "turn": 1,
+      "text": "Yeah."
+    },
+    {
+      "t_ms": 7229.36,
+      "kind": "user_started_speaking",
+      "turn": 1
+    },
+    {
+      "t_ms": 10497.61,
+      "kind": "caller_speech_end",
+      "turn": 1
+    },
+    {
+      "t_ms": 10802.34,
+      "kind": "user_transcript",
+      "turn": 1,
+      "text": "I'm calling because something I ordered about three weeks ago still hasn't turned up."
+    },
+    {
+      "t_ms": 11400.08,
+      "kind": "agent_first_audio",
+      "turn": 1,
+      "bytes": 960
+    },
+    {
+      "t_ms": 11415.18,
+      "kind": "agent_transcript",
+      "turn": 1,
+      "text": "Can you provide me with your order number, please?"
+    },
+    {
+      "t_ms": 12565.96,
+      "kind": "agent_audio_done",
+      "turn": 1
+    },
+    {
+      "t_ms": 14001.54,
+      "kind": "caller_speech_start",
+      "turn": 2,
+      "text": "Sure, it's four four eight one two. It was a pair of wireless headphones."
+    },
+    {
+      "t_ms": 14612.62,
+      "kind": "user_started_speaking",
+      "turn": 2
+    },
+    {
+      "t_ms": 17372.51,
+      "kind": "user_transcript",
+      "turn": 2,
+      "text": "Sure. It's four four eight one two."
+    },
+    {
+      "t_ms": 17880.15,
+      "kind": "user_started_speaking",
+      "turn": 2
+    },
+    {
+      "t_ms": 19377.18,
+      "kind": "caller_speech_end",
+      "turn": 2
+    },
+    {
+      "t_ms": 19681.85,
+      "kind": "user_transcript",
+      "turn": 2,
+      "text": "Was a pair of wireless headphones."
+    },
+    {
+      "t_ms": 20160.8,
+      "kind": "agent_first_audio",
+      "turn": 2,
+      "bytes": 960
+    },
+    {
+      "t_ms": 20180.5,
+      "kind": "agent_transcript",
+      "turn": 2,
+      "text": "I'll arrange a replacement shipment for your wireless headphones."
+    },
+    {
+      "t_ms": 21851.51,
+      "kind": "agent_audio_done",
+      "turn": 2
+    },
+    {
+      "t_ms": 23962.74,
+      "kind": "caller_speech_start",
+      "turn": 3,
+      "text": "I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?"
+    },
+    {
+      "t_ms": 24441.98,
+      "kind": "user_started_speaking",
+      "turn": 3
+    },
+    {
+      "t_ms": 29247.15,
+      "kind": "caller_speech_end",
+      "turn": 3
+    },
+    {
+      "t_ms": 29561.44,
+      "kind": "user_transcript",
+      "turn": 3,
+      "text": "I'd rather not wait around for another shipment, Can I just get my money back instead?"
+    },
+    {
+      "t_ms": 30069.88,
+      "kind": "agent_first_audio",
+      "turn": 3,
+      "bytes": 960
+    },
+    {
+      "t_ms": 30083.62,
+      "kind": "agent_transcript",
+      "turn": 3,
+      "text": "I can issue a refund for you."
+    },
+    {
+      "t_ms": 32192.09,
+      "kind": "agent_transcript",
+      "turn": 3,
+      "text": "Confirming that now."
+    },
+    {
+      "t_ms": 32347.66,
+      "kind": "agent_audio_done",
+      "turn": 3
+    },
+    {
+      "t_ms": 33791.37,
+      "kind": "caller_speech_start",
+      "turn": 4,
+      "text": "Okay. And how long is that going to take to actually show up on my card?"
+    },
+    {
+      "t_ms": 34358.66,
+      "kind": "user_started_speaking",
+      "turn": 4
+    },
+    {
+      "t_ms": 38308.11,
+      "kind": "caller_speech_end",
+      "turn": 4
+    },
+    {
+      "t_ms": 38600.81,
+      "kind": "user_transcript",
+      "turn": 4,
+      "text": "Okay, and how long is that going to take to actually show up on my card?"
+    },
+    {
+      "t_ms": 39167.41,
+      "kind": "agent_first_audio",
+      "turn": 4,
+      "bytes": 960
+    },
+    {
+      "t_ms": 39167.41,
+      "kind": "agent_transcript",
+      "turn": 4,
+      "text": "A refund takes five to seven business days to reach your card."
+    },
+    {
+      "t_ms": 41164.39,
+      "kind": "agent_audio_done",
+      "turn": 4
+    },
+    {
+      "t_ms": 43527.25,
+      "kind": "caller_speech_start",
+      "turn": 5,
+      "text": "Alright, that works. Thanks for sorting it out."
+    },
+    {
+      "t_ms": 44272.08,
+      "kind": "user_started_speaking",
+      "turn": 5
+    },
+    {
+      "t_ms": 46465.41,
+      "kind": "caller_speech_end",
+      "turn": 5
+    },
+    {
+      "t_ms": 49599.49,
+      "kind": "user_transcript",
+      "turn": 5,
+      "text": "Alright. That works. Thanks for sorting it out."
+    },
+    {
+      "t_ms": 50098.39,
+      "kind": "agent_first_audio",
+      "turn": 5,
+      "bytes": 960
+    },
+    {
+      "t_ms": 50110.81,
+      "kind": "agent_transcript",
+      "turn": 5,
+      "text": "You're welcome."
+    },
+    {
+      "t_ms": 50673.83,
+      "kind": "agent_audio_done",
+      "turn": 5
+    },
+    {
+      "t_ms": 51377.82,
+      "kind": "call_end",
+      "turn": 0
+    }
+  ],
+  "call_duration_ms": 51377,
+  "agent_audio_kb": 960,
+  "synth_cache_hits": 7,
+  "sample_rate": 24000
+}

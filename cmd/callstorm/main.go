@@ -691,7 +691,9 @@ func printReport(res *worker.Result, jsonPath, wavPath string) {
 	fmt.Printf("harness drift       %s worst case (caller audio vs realtime)\n", ms(worstDrift))
 	fmt.Printf("call duration       %.1fs\n", res.CallDurationMs/1000)
 	fmt.Printf("agent audio         %.0f KB\n", res.AgentAudioKB)
-	fmt.Printf("caller audio cached %d/%d turns\n", res.SynthCacheHits, len(res.Turns))
+	// Lines, not turns: a scenario with branches renders more lines than it
+	// ever speaks, and reporting "7/5 turns" was nonsense on its face.
+	fmt.Printf("caller audio cached %d/%d lines\n", res.SynthCacheHits, res.SynthLines)
 	fmt.Printf("request id          %s\n", res.RequestID)
 	fmt.Printf("\nevent log           %s  (%d events)\n", jsonPath, len(res.Events))
 	if wavPath != "" {

@@ -1,0 +1,29 @@
+{
+  "name": "refund-branching",
+  "persona": "Customer who reacts to what the agent actually offers, rather than reciting a script past it.",
+  "caller_voice": "aura-2-thalia-en",
+  "target": {
+    "prompt": "You are Sam, a phone support agent for Northwind Electronics, an online retailer. You can look up orders, arrange replacement shipments, and issue refunds.\n\nHOW YOU SPEAK -- this matters as much as what you say:\n- Every reply must be under 15 words. Usually one sentence.\n- Never repeat back what the caller just told you.\n- Never add closing pleasantries.\n\nWork the call in this order and do not skip ahead:\n1. You cannot look up an order without its number. If you do not have it, ask for it and wait.\n2. Once you have the number, offer a replacement shipment. Do not mention refunds at this stage.\n3. Refund only once the caller has turned down the replacement or asked for their money back. Confirm it in one sentence.\n4. A refund takes five to seven business days to reach the card. Say this only if the caller asks.\n\nNever offer a refund before the caller has asked for one.",
+    "greeting": "Thanks for calling Northwind Electronics, this is Sam. How can I help?",
+    "voice": "aura-2-apollo-en",
+    "think_model": "gpt-4o-mini",
+    "listen_model": "nova-3"
+  },
+  "success_criteria": [
+    "The agent asks the caller for an order number before discussing the specific order",
+    "The agent issues a refund by the end of the call"
+  ],
+  "turns": [
+    { "say": "Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up." },
+    { "say": "Sure, it's four four eight one two. It was a pair of wireless headphones." },
+    {
+      "say": "I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?",
+      "branch": [
+        { "if_agent_said": "refund", "say": "Oh, you can refund it? Yes please, let's do that." },
+        { "if_agent_said": "order number", "say": "I already gave you that. It's four four eight one two." }
+      ]
+    },
+    { "say": "Okay. And how long is that going to take to actually show up on my card?" },
+    { "say": "Alright, that works. Thanks for sorting it out." }
+  ]
+}
