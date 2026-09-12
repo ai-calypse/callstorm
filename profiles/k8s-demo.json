@@ -1,0 +1,9 @@
+{
+  "name": "k8s-demo",
+  "baseline": "c2",
+  "steps": [
+    { "name": "c2", "concurrency": 2, "calls": 4 },
+    { "name": "c6", "concurrency": 6, "calls": 12 },
+    { "name": "c12", "concurrency": 12, "calls": 24 }
+  ]
+}

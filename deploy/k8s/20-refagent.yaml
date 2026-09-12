@@ -1,0 +1,44 @@
+# The agent under test, in-cluster.
+#
+# Running the calibrated reference agent rather than a real one means a chaos
+# run can be repeated as often as it takes without a bill, and its injected
+# latency is known, so a number that comes out wrong is the cluster's fault
+# rather than an ambiguity about the agent.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: refagent
+  namespace: callstorm
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: refagent }
+  template:
+    metadata:
+      labels: { app: refagent }
+    spec:
+      containers:
+        - name: refagent
+          image: callstorm:dev
+          imagePullPolicy: IfNotPresent
+          command: ["/refagent"]
+          args: ["-addr=:8080", "-ttfa=500ms", "-endpointing=200ms", "-speech=2s"]
+          ports:
+            - { name: ws, containerPort: 8080 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            initialDelaySeconds: 2
+            periodSeconds: 3
+          resources:
+            requests: { cpu: 200m, memory: 128Mi }
+            limits:   { memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: refagent
+  namespace: callstorm
+spec:
+  selector: { app: refagent }
+  ports:
+    - { name: ws, port: 8080, targetPort: 8080 }

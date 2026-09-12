@@ -1,0 +1,55 @@
+# A Kafka-compatible broker for dispatch and telemetry.
+#
+# Storage is an emptyDir on purpose. The bus carries a run in progress, not a
+# system of record: the run artifacts are what survive, and a broker that
+# outlives its run would only redeliver last week's calls to this week's fleet.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redpanda
+  namespace: callstorm
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: redpanda }
+  template:
+    metadata:
+      labels: { app: redpanda }
+    spec:
+      containers:
+        - name: redpanda
+          image: docker.redpanda.com/redpandadata/redpanda:v24.2.7
+          args:
+            - redpanda
+            - start
+            - --smp=1
+            - --memory=1G
+            - --overprovisioned
+            - --node-id=0
+            - --check=false
+            - --kafka-addr=PLAINTEXT://0.0.0.0:9092
+            - --advertise-kafka-addr=PLAINTEXT://redpanda.callstorm.svc.cluster.local:9092
+          ports:
+            - { name: kafka, containerPort: 9092 }
+          readinessProbe:
+            tcpSocket: { port: 9092 }
+            initialDelaySeconds: 5
+            periodSeconds: 3
+          resources:
+            requests: { cpu: 200m, memory: 512Mi }
+            limits:   { memory: 1500Mi }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/redpanda/data }
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redpanda
+  namespace: callstorm
+spec:
+  selector: { app: redpanda }
+  ports:
+    - { name: kafka, port: 9092, targetPort: 9092 }

@@ -1,0 +1,66 @@
+# The worker fleet: the half of Callstorm that scales.
+#
+# Workers hold no run state. The scenario arrives in the assignment and the
+# caller audio is baked into the image, so a pod that joins mid-run is useful on
+# its first poll and a pod that dies is not missed.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: callstorm-worker
+  namespace: callstorm
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: callstorm-worker }
+  template:
+    metadata:
+      labels: { app: callstorm-worker }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9464"
+    spec:
+      # Long enough for a call in flight to finish and report before the pod
+      # goes. A worker killed faster than this hands its call back to the group
+      # rather than completing it -- correct either way, but slower.
+      terminationGracePeriodSeconds: 90
+      containers:
+        - name: worker
+          image: callstorm:dev
+          imagePullPolicy: IfNotPresent
+          args:
+            # No target here on purpose: which agent to call travels in the
+            # assignment, so one fleet can serve runs against different targets
+            # without a redeploy.
+            - -kafka=redpanda.callstorm.svc.cluster.local:9092
+            - -group=callstorm-workers
+            - -cache=/cache
+            - -slots=6
+            - -metrics=:9464
+          env:
+            # Present because the worker refuses to start without it. Against
+            # the in-cluster reference agent every caller line is a cache hit,
+            # so no request is ever made with it -- which is also why a real key
+            # has no business being in this cluster.
+            - name: DEEPGRAM_API_KEY
+              valueFrom:
+                secretKeyRef: { name: callstorm-credentials, key: deepgram-api-key }
+          ports:
+            - { name: metrics, containerPort: 9464 }
+          resources:
+            # The request is what the autoscaler measures against, so it is set
+            # deliberately low: a caller is mostly waiting on a socket, and
+            # sizing for peak would hide the load that should trigger a scale-up.
+            requests: { cpu: 100m, memory: 96Mi }
+            limits:   { memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: callstorm-worker
+  namespace: callstorm
+  labels: { app: callstorm-worker }
+spec:
+  clusterIP: None
+  selector: { app: callstorm-worker }
+  ports:
+    - { name: metrics, port: 9464, targetPort: 9464 }

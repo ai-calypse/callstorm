@@ -151,15 +151,21 @@ type Report struct {
 
 // CallRecord is one call's conversation, tagged with the step that placed it.
 type CallRecord struct {
-	Step      string               `json:"step"`
-	RequestID string               `json:"request_id,omitempty"`
-	Turns     []metrics.TurnMetric `json:"turns"`
+	Step      string `json:"step"`
+	RequestID string `json:"request_id,omitempty"`
+
+	// Worker names the pod that placed the call, empty when the run was not
+	// distributed. It is what lets a chaos run show which calls moved.
+	Worker string `json:"worker,omitempty"`
+
+	Turns []metrics.TurnMetric `json:"turns"`
 }
 
 // callOutcome is one completed (or failed) call, tagged with its step.
 type callOutcome struct {
 	step      string
 	requestID string
+	worker    string
 	turns     []metrics.TurnMetric
 	err       error
 }

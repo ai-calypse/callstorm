@@ -1,0 +1,4 @@
+runs/
+bin/
+.git/
+*.wav

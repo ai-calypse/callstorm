@@ -1,0 +1,38 @@
+# One run of a profile, dispatched to the worker fleet.
+#
+# The dispatcher runs in-cluster rather than from a laptop because a Kafka
+# client is handed the broker's advertised address on connect: reached through a
+# port-forward it would be told to go to redpanda.callstorm.svc.cluster.local
+# and fail to resolve it. Running it here also makes the run reproducible by
+# anyone with cluster access rather than by whoever has the repo checked out.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: callstorm-dispatch
+  namespace: callstorm
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: dispatch
+          image: callstorm:dev
+          imagePullPolicy: IfNotPresent
+          command: ["/callstorm"]
+          args:
+            - -profile=/profiles/k8s-demo.json
+            - -scenario=/scenarios/refund.json
+            - -distributed
+            - -kafka=redpanda.callstorm.svc.cluster.local:9092
+            - -target=ws://refagent.callstorm.svc.cluster.local:8080/v1/agent/converse
+            - -out=/tmp/runs
+            - -cache=/cache
+            - -env=
+          env:
+            - name: DEEPGRAM_API_KEY
+              valueFrom:
+                secretKeyRef: { name: callstorm-credentials, key: deepgram-api-key }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits:   { memory: 512Mi }

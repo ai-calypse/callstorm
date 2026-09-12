@@ -1,0 +1,41 @@
+# Scale the fleet on how hard it is working.
+#
+# CPU is a proxy, and an imperfect one: a synthetic caller spends most of a call
+# waiting on a WebSocket, so a worker can be saturated with calls while looking
+# idle. It is used here because it needs nothing beyond metrics-server, which
+# means this autoscaler actually runs rather than being aspirational YAML.
+#
+# The measurement that really describes the load is Kafka consumer lag -- calls
+# waiting for a worker to take them. deploy/k8s/41-keda-scaledobject.yaml scales
+# on that instead, and is the one to prefer where KEDA can be installed.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: callstorm-worker
+  namespace: callstorm
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: callstorm-worker
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 60 }
+  behavior:
+    scaleUp:
+      # A load test ramps deliberately, and the fleet should follow it without
+      # waiting out a stabilisation window it was never going to need.
+      stabilizationWindowSeconds: 0
+      policies:
+        - { type: Percent, value: 100, periodSeconds: 30 }
+    scaleDown:
+      # Slow on the way down: a step that has just finished is usually followed
+      # by a larger one, and dropping pods between steps would scale back up
+      # immediately.
+      stabilizationWindowSeconds: 120
+      policies:
+        - { type: Pods, value: 1, periodSeconds: 60 }

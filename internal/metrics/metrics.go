@@ -201,6 +201,29 @@ func (t *TurnMetric) Finalize() {
 	t.BargeInYieldMs = ms(t.BargeInYield)
 }
 
+// Rehydrate restores the duration fields from their millisecond mirrors.
+//
+// The durations are deliberately not serialized: the artifact carries
+// milliseconds so that anything reading a run needs no Go types. That is free
+// while a turn is passed in memory and silently lossy the moment one crosses a
+// wire, because every duration arrives as zero and a report built from it
+// reads as a run where nothing was ever measured.
+//
+// Finalize goes one way and this goes the other, so a turn that has travelled
+// is indistinguishable from one that has not.
+func (t *TurnMetric) Rehydrate() {
+	d := func(ms float64) time.Duration {
+		return time.Duration(ms * float64(time.Millisecond))
+	}
+	t.TTFA = d(t.TTFAMs)
+	t.Endpointing = d(t.EndpointingMs)
+	t.ThinkSpeak = d(t.ThinkSpeakMs)
+	t.AgentSpeech = d(t.AgentSpeechMs)
+	t.TurnLatency = d(t.TurnLatencyMs)
+	t.PacingDrift = d(t.PacingDriftMs)
+	t.BargeInYield = d(t.BargeInYieldMs)
+}
+
 // Percentile returns the nearest-rank pth percentile of ds.
 func Percentile(ds []time.Duration, p float64) time.Duration {
 	if len(ds) == 0 {

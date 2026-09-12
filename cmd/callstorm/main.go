@@ -49,6 +49,7 @@ type opts struct {
 	metricsLinger  time.Duration
 	kafkaBrokers   string
 	kafkaTopic     string
+	distributed    bool
 	judge          bool
 	judgeCalls     int
 	judgeBackend   string
@@ -71,6 +72,8 @@ func main() {
 		"keep /metrics up this long after the run, so the last step can be scraped")
 	flag.StringVar(&o.kafkaBrokers, "kafka", "", "comma-separated Kafka brokers to publish turn events to")
 	flag.StringVar(&o.kafkaTopic, "kafka-topic", bus.DefaultTopic, "topic for per-turn events")
+	flag.BoolVar(&o.distributed, "distributed", false,
+		"place calls through a worker fleet over Kafka instead of in this process")
 	flag.BoolVar(&o.judge, "judge", false,
 		"score sampled conversations against the scenario's success_criteria")
 	flag.IntVar(&o.judgeCalls, "judge-calls", 1,
@@ -187,7 +190,7 @@ func runLoad(ctx context.Context, o opts, sc *scenario.Scenario, apiKey string) 
 		fmt.Printf("kafka      %s topic=%s\n", o.kafkaBrokers, o.kafkaTopic)
 	}
 
-	rep, err := loadgen.Run(ctx, loadgen.Config{
+	lg := loadgen.Config{
 		APIKey:      apiKey,
 		Scenario:    sc,
 		Profile:     profile,
@@ -199,7 +202,23 @@ func runLoad(ctx context.Context, o opts, sc *scenario.Scenario, apiKey string) 
 		Metrics:     mx,
 		Bus:         producer,
 		RunID:       runID,
-	})
+	}
+
+	var rep *loadgen.Report
+	if o.distributed {
+		if o.kafkaBrokers == "" {
+			return fmt.Errorf("-distributed needs -kafka: the fleet is reached over the bus")
+		}
+		d, derr := bus.NewDispatcher(ctx, strings.Split(o.kafkaBrokers, ","), runID)
+		if derr != nil {
+			return derr
+		}
+		defer d.Close()
+		fmt.Printf("dispatch   %s  run=%s\n", o.kafkaBrokers, runID)
+		rep, err = loadgen.RunDistributed(ctx, lg, d, runID)
+	} else {
+		rep, err = loadgen.Run(ctx, lg)
+	}
 	if err != nil {
 		return err
 	}
