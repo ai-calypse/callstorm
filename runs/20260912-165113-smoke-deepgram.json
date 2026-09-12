@@ -1,0 +1,61 @@
+{
+  "profile": "smoke-deepgram",
+  "scenario": "refund-escalation",
+  "target": "",
+  "baseline": "c3",
+  "started_at": "2026-09-12T16:51:13.8228478-04:00",
+  "duration_s": 49.678899200000004,
+  "steps": [
+    {
+      "name": "c3",
+      "concurrency": 3,
+      "calls": 3,
+      "calls_attempted": 3,
+      "calls_connected": 3,
+      "turns_total": 15,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 15,
+        "p50_ms": 825.8,
+        "p95_ms": 1082.1,
+        "p99_ms": 1082.1,
+        "max_ms": 1082.1
+      },
+      "endpointing": {
+        "n": 15,
+        "p50_ms": 300,
+        "p95_ms": 318,
+        "p99_ms": 318,
+        "max_ms": 318
+      },
+      "think_speak": {
+        "n": 15,
+        "p50_ms": 554.3,
+        "p95_ms": 764.1,
+        "p99_ms": 764.1,
+        "max_ms": 764.1
+      },
+      "turn_latency": {
+        "n": 15,
+        "p50_ms": 3854.1,
+        "p95_ms": 5912.2,
+        "p99_ms": 5912.2,
+        "max_ms": 5912.2
+      },
+      "worst_harness_drift_ms": 52.4,
+      "wer": {
+        "turns": 15,
+        "mean": 0.028169014084507043,
+        "worst": 0.07142857142857142,
+        "substitutions": 0,
+        "deletions": 6,
+        "insertions": 0,
+        "ref_words": 213
+      },
+      "p95_ratio": 1,
+      "verdict": "pass"
+    }
+  ]
+}
