@@ -7,11 +7,47 @@ TTS, listens to what it says back, and stamps every instant on both sides of the
 conversation. It answers one question: **at what concurrency does this agent
 stop meeting its own baseline?**
 
-**Status: Phase 3.** Single calls, concurrency profiles, a calibrated reference
+**Status: Phase 4.** Single calls, concurrency profiles, a calibrated reference
 target, live Prometheus metrics, per-turn events over Kafka, and a judgement
 engine: transcript accuracy, barge-in yield, caller personas, branching scripts
-and an LLM judge scoring task success. Kubernetes and a run-history store are
-not built yet.
+and an LLM judge scoring task success. Runs distribute across a Kubernetes
+worker fleet with autoscaling, chaos-tested; a run-history dashboard reads the
+artifacts. A dedicated analytics store is deliberately deferred.
+
+## Running a sweep across a fleet
+
+```bash
+kubectl apply -f deploy/k8s/           # broker, target, workers, autoscaler
+kubectl apply -f deploy/k8s/50-dispatch-job.yaml
+./bin/dashboard -runs runs             # history and report cards on :8090
+```
+
+Callers used to be goroutines in one process, which meant scaling that binary
+to ten replicas would have run ten independent sweeps, each with its own
+baseline. Workers now take assignments from Kafka and publish results back.
+
+**The dispatcher still decides what the load is.** It keeps a sliding window of
+exactly a step's concurrency in flight and releases another assignment only
+when one returns, so a step's percentiles describe that concurrency rather than
+however many replicas happen to exist. Workers are capacity; without that
+window the achieved load would be a property of the cluster and a sweep would
+be measuring the autoscaler.
+
+**Workers hold no run state.** The scenario travels in the assignment and the
+caller audio is baked into the image, so a pod that joins mid-run is useful on
+its first poll -- and a scaled fleet never pays the text-to-speech bill twice.
+
+**An assignment commits only after its result is published.** A pod killed
+mid-call leaves it uncommitted and the group hands that call to a survivor.
+Force-killing a pod mid-step, no grace period: the step finished at 100% setup
+with no failed turns, and the reference agent recorded 18 connections for a
+16-call step. Two calls were placed twice. That is the deliberate trade --
+at-least-once delivery costs duplicates and never loses a call.
+
+That behaviour had to be earned. The first chaos run scored 69% setup and a
+failing verdict, because a dying worker reported its cancelled calls as
+results: a pod being killed had been recorded as the agent failing. Calls
+interrupted by shutdown are now abandoned rather than reported.
 
 ## Whether the agent was any good, not just quick
 
