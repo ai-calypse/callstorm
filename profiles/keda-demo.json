@@ -1,0 +1,7 @@
+{
+  "name": "keda-demo",
+  "baseline": "c24",
+  "steps": [
+    { "name": "c24", "concurrency": 24, "calls": 72 }
+  ]
+}
