@@ -1,0 +1,72 @@
+{
+  "profile": "smoke-deepgram",
+  "scenario": "refund-bargein",
+  "target": "",
+  "baseline": "c3",
+  "started_at": "2026-09-12T17:13:34.7341924-04:00",
+  "duration_s": 23.8113516,
+  "steps": [
+    {
+      "name": "c3",
+      "concurrency": 3,
+      "calls": 3,
+      "calls_attempted": 3,
+      "calls_connected": 1,
+      "turns_total": 1,
+      "turns_failed": 1,
+      "turns_yielded": 0,
+      "setup_success": 0.3333333333333333,
+      "ttfa": {
+        "n": 0,
+        "p50_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "endpointing": {
+        "n": 0,
+        "p50_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "think_speak": {
+        "n": 0,
+        "p50_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "turn_latency": {
+        "n": 0,
+        "p50_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "worst_harness_drift_ms": 0,
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 0,
+        "mean": 0,
+        "worst": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "ref_words": 0
+      },
+      "p95_ratio": 0,
+      "verdict": "fail",
+      "errors": {
+        "audio pump: failed to write msg: failed to write frame: use of closed network connection": 1,
+        "dial wss://agent.deepgram.com/v1/agent/converse: failed to W": 2
+      }
+    }
+  ]
+}

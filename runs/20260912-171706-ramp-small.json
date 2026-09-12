@@ -1,0 +1,196 @@
+{
+  "profile": "ramp-small",
+  "scenario": "refund-escalation",
+  "target": "",
+  "baseline": "c1",
+  "started_at": "2026-09-12T17:17:06.9852731-04:00",
+  "duration_s": 90.430856,
+  "steps": [
+    {
+      "name": "c1",
+      "concurrency": 1,
+      "calls": 1,
+      "calls_attempted": 1,
+      "calls_connected": 1,
+      "turns_total": 1,
+      "turns_failed": 1,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 0,
+        "p50_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "endpointing": {
+        "n": 0,
+        "p50_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "think_speak": {
+        "n": 0,
+        "p50_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "turn_latency": {
+        "n": 0,
+        "p50_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "worst_harness_drift_ms": 0,
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 0,
+        "mean": 0,
+        "worst": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "ref_words": 0
+      },
+      "p95_ratio": 0,
+      "verdict": "n/a",
+      "errors": {
+        "Listen engine is not outputting transcripts. Double check that you are sending audio, and that it matches the format in your audio input settings.": 1
+      }
+    },
+    {
+      "name": "c2",
+      "concurrency": 2,
+      "calls": 2,
+      "calls_attempted": 2,
+      "calls_connected": 0,
+      "turns_total": 0,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 0,
+      "ttfa": {
+        "n": 0,
+        "p50_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "endpointing": {
+        "n": 0,
+        "p50_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "think_speak": {
+        "n": 0,
+        "p50_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "turn_latency": {
+        "n": 0,
+        "p50_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "worst_harness_drift_ms": 0,
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 0,
+        "mean": 0,
+        "worst": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "ref_words": 0
+      },
+      "p95_ratio": 0,
+      "verdict": "fail",
+      "errors": {
+        "agent rejected Settings: CLIENT_MESSAGE_TIMEOUT We waited to": 1,
+        "dial wss://agent.deepgram.com/v1/agent/converse: failed to W": 1
+      }
+    },
+    {
+      "name": "c3",
+      "concurrency": 3,
+      "calls": 3,
+      "calls_attempted": 3,
+      "calls_connected": 1,
+      "turns_total": 1,
+      "turns_failed": 1,
+      "turns_yielded": 0,
+      "setup_success": 0.3333333333333333,
+      "ttfa": {
+        "n": 0,
+        "p50_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "endpointing": {
+        "n": 0,
+        "p50_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "think_speak": {
+        "n": 0,
+        "p50_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "turn_latency": {
+        "n": 0,
+        "p50_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "worst_harness_drift_ms": 0,
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 0,
+        "mean": 0,
+        "worst": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "ref_words": 0
+      },
+      "p95_ratio": 0,
+      "verdict": "fail",
+      "errors": {
+        "We did not receive audio within our timeout. Please make sure you are sending binary messages containing user speech.": 1,
+        "agent never delivered its greeting": 1,
+        "agent rejected Settings: CLIENT_MESSAGE_TIMEOUT We waited to": 1
+      }
+    }
+  ]
+}

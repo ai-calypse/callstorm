@@ -1,0 +1,50 @@
+[
+  {
+    "step": "c3",
+    "request_id": "01a09778-9662-7c73-bb0d-852e2de36ba8",
+    "outcomes": [
+      {
+        "criterion": "The agent stops talking and listens when the caller interrupts it",
+        "met": false,
+        "evidence": "turn 1: \"caller: Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.\""
+      },
+      {
+        "criterion": "The agent issues a refund after the caller turns down the replacement",
+        "met": false,
+        "evidence": "turn 1: \"caller: Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.\""
+      }
+    ]
+  },
+  {
+    "step": "c3",
+    "request_id": "01a09778-9fab-79d1-a411-016282c647bd",
+    "outcomes": [
+      {
+        "criterion": "The agent stops talking and listens when the caller interrupts it",
+        "met": false,
+        "evidence": "turn 1: \"caller: Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.\""
+      },
+      {
+        "criterion": "The agent issues a refund after the caller turns down the replacement",
+        "met": false,
+        "evidence": "turn 1: \"caller: Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.\""
+      }
+    ]
+  },
+  {
+    "step": "c3",
+    "request_id": "01a09778-d68c-7f40-a39c-3213929aa8ee",
+    "outcomes": [
+      {
+        "criterion": "The agent stops talking and listens when the caller interrupts it",
+        "met": false,
+        "evidence": "turn 1: \"caller: Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.\""
+      },
+      {
+        "criterion": "The agent issues a refund after the caller turns down the replacement",
+        "met": false,
+        "evidence": "turn 1: \"caller: Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.\""
+      }
+    ]
+  }
+]

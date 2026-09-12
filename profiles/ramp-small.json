@@ -1,0 +1,9 @@
+{
+  "name": "ramp-small",
+  "baseline": "c1",
+  "steps": [
+    { "name": "c1", "concurrency": 1, "calls": 1 },
+    { "name": "c2", "concurrency": 2, "calls": 2 },
+    { "name": "c3", "concurrency": 3, "calls": 3 }
+  ]
+}
