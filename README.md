@@ -7,9 +7,64 @@ TTS, listens to what it says back, and stamps every instant on both sides of the
 conversation. It answers one question: **at what concurrency does this agent
 stop meeting its own baseline?**
 
-**Status: Phase 2.** Single calls, concurrency profiles, a calibrated reference
-target, live Prometheus metrics, and per-turn events over Kafka. Kubernetes,
-personas, WER and the LLM judge are not built yet.
+**Status: Phase 3.** Single calls, concurrency profiles, a calibrated reference
+target, live Prometheus metrics, per-turn events over Kafka, and a judgement
+engine: transcript accuracy, barge-in yield, caller personas, branching scripts
+and an LLM judge scoring task success. Kubernetes and a run-history store are
+not built yet.
+
+## Whether the agent was any good, not just quick
+
+Latency says how fast an agent was. These say whether it did its job.
+
+```bash
+./bin/callstorm -profile profiles/smoke-deepgram.json -judge
+```
+
+**Transcript accuracy (WER).** What the caller actually said, against what the
+agent's speech-to-text reported hearing. The caller's script is genuine ground
+truth -- Callstorm generated that audio from known text -- so this is not one
+transcription being graded against another. It catches the failure no latency
+number can: on a live run the caller read out order "four four eight one two",
+nova-3 heard "four four eight two", and the agent thanked them for the order
+number and carried on toward refunding an order that was never named.
+
+Turns the agent talked over are excluded. The caller stopped mid-sentence, so
+the rest of the script was never spoken and charging it to the agent's hearing
+would invent errors.
+
+**Task success.** Scenarios carry `success_criteria` in plain language, and a
+sampled conversation from each step is judged against them. Every verdict must
+quote the turn it was decided on: a judge that can assert without citing is an
+oracle, and an oracle is the one number in a run nobody can check. A judge that
+fails to run is recorded apart from a criterion that was not met, because "the
+agent got it wrong" and "we could not tell" are different results.
+
+Two backends. `groq` is an HTTP call that works from CI and constrains the
+reply to a JSON schema. `claude-code` spends a Claude subscription instead of
+API credits, but needs the CLI installed and logged in.
+
+**Barge-in.** A caller line with `barge_in_after` starts that long into the
+agent's previous reply instead of waiting for it to finish, and the turn records
+how long the agent kept talking. An agent that answers in 300ms and then will
+not stop when interrupted has taken the floor from the person paying for the
+call, and every other metric says it did well. `refagent -yield` injects a known
+value so the measurement is calibrated: 400ms injected measured 420ms and 437ms,
+the overshoot being the agent checking between audio chunks.
+
+**Personas.** A persona that is only a different voice and script is already
+just another scenario file. `pacing.sentence_pause` inserts silence between the
+sentences of a line, for a caller who stops to think mid-thought. Against the
+reference agent with a 150ms hangover, a caller pausing 900ms mid-line was
+talked over on 5 turns out of 5, every one with negative endpointing. The same
+agent configuration passes the non-pausing scenario cleanly.
+
+**Branching.** A turn can carry alternatives chosen by what the agent just
+said, so the caller responds instead of reciting. Matching is a case-insensitive
+substring rather than a regex, because a scenario is read by people deciding
+whether a run was fair. Every branch is synthesized before the call starts,
+including ones never taken -- rendering a line when it is chosen would put the
+text-to-speech round trip inside the window attributed to the agent.
 
 ## Quickstart
 
