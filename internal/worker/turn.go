@@ -57,11 +57,23 @@ func (w *worker) awaitGreeting(ctx context.Context) error {
 // caller fell silent, and playoutEnd, the moment the agent's audio finishes
 // playing. Everything on the report card is a difference between instants
 // inside that window.
-func (w *worker) runTurn(ctx context.Context, idx int, pcm []byte, say string) metrics.TurnMetric {
-	m := metrics.TurnMetric{Turn: idx, CallerText: say}
+//
+// interruptAfter cuts this turn's collection short once the agent has been
+// speaking that long, so the next caller line can interrupt it. barging marks
+// this turn as the interrupting one, which changes how it starts: it keeps the
+// previous reply's pending events, because the instant that reply stops is the
+// measurement.
+func (w *worker) runTurn(ctx context.Context, idx int, pcm []byte, say string,
+	interruptAfter time.Duration, barging bool) metrics.TurnMetric {
 
-	// Anything still queued belongs to the previous turn.
-	w.drain()
+	m := metrics.TurnMetric{Turn: idx, CallerText: say, BargedIn: barging}
+
+	// Anything still queued belongs to the previous turn -- except when this
+	// turn is interrupting one, where the previous reply is still in flight and
+	// the event announcing it stopped is the whole point of the turn.
+	if !barging {
+		w.drain()
+	}
 	w.curTurn.Store(int64(idx))
 
 	w.printf("\n  caller: %s\n", say)
@@ -76,6 +88,15 @@ func (w *worker) runTurn(ctx context.Context, idx int, pcm []byte, say string) m
 
 	var callerEnd, firstAudio, userTranscript, playoutEnd time.Duration
 	speaking := true
+
+	// interrupt fires once the agent has been talking long enough for the next
+	// caller line to cut in. It is armed when the agent's audio starts, not
+	// when the turn starts, so the offset means "into the reply" rather than
+	// "into the wait for one".
+	interrupt := time.NewTimer(time.Hour)
+	interrupt.Stop()
+	defer interrupt.Stop()
+	armed := false
 
 	// natural distinguishes an utterance the pump played to its end from one
 	// that was cut short. Only the former says anything about harness pacing:
@@ -119,6 +140,10 @@ collect:
 			case metrics.AgentFirstAudio:
 				if firstAudio == 0 {
 					firstAudio = ev.at
+					if interruptAfter > 0 && !armed {
+						armed = true
+						interrupt.Reset(interruptAfter)
+					}
 				}
 				if speaking {
 					m.CallerYielded = true
@@ -131,16 +156,30 @@ collect:
 				m.AgentText = joinText(m.AgentText, ev.text)
 
 			case metrics.AgentAudioDone:
-				// Ignore a stray done that arrives before any audio.
 				if firstAudio != 0 {
 					playoutEnd = ev.playout
 					break collect
+				}
+				// No audio of our own yet. On an interrupting turn this is the
+				// previous reply falling silent, which is exactly what was
+				// being measured: how long the agent kept going after being
+				// cut off. On any other turn it is a stray, and ignored.
+				if barging && m.BargeInYield == 0 {
+					m.BargeInYield = ev.at - callerStart
+					w.log.MarkAt(ev.at, metrics.AgentYielded, idx, "")
 				}
 
 			case metrics.ServerError:
 				m.Failed, m.FailReason = true, ev.text
 				break collect
 			}
+
+		case <-interrupt.C:
+			// The next caller line is about to cut in. Stop collecting so it
+			// can start on time. This turn's reply never finished, so its
+			// playout and speech length are deliberately left unmeasured
+			// rather than guessed at.
+			break collect
 
 		case err := <-w.pump.err():
 			m.Failed, m.FailReason = true, fmt.Sprintf("audio pump: %v", err)
@@ -211,6 +250,13 @@ func (w *worker) reportTurn(m metrics.TurnMetric) {
 	}
 	line := fmt.Sprintf("  ttfa %-8s (endpointing %-8s + think/speak %-8s)  agent spoke %s",
 		ms(m.TTFA), ms(m.Endpointing), ms(m.ThinkSpeak), ms(m.AgentSpeech))
+	if m.BargedIn {
+		if m.BargeInYield > 0 {
+			line += fmt.Sprintf("  <- barged in, agent yielded in %s", ms(m.BargeInYield))
+		} else {
+			line += "  <- barged in, agent NEVER yielded"
+		}
+	}
 	if m.FailReason != "" {
 		line += "  <- " + m.FailReason
 	}

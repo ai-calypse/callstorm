@@ -54,6 +54,7 @@ type config struct {
 	degrade     time.Duration
 	failRate    float64
 	bargeIn     time.Duration
+	yield       time.Duration
 	logPath     string
 }
 
@@ -95,6 +96,8 @@ func main() {
 	flag.Float64Var(&cfg.failRate, "fail-rate", 0, "probability [0,1] that a turn errors instead of replying")
 	flag.DurationVar(&cfg.bargeIn, "barge-in", 0,
 		"if set, reply this long after the caller STARTS talking, deliberately talking over them")
+	flag.DurationVar(&cfg.yield, "yield", 0,
+		"stop speaking this long after the caller starts talking over us (0 = never yield)")
 	flag.StringVar(&cfg.logPath, "log", "", "write per-turn timing JSON here on shutdown")
 	flag.Parse()
 
@@ -165,6 +168,14 @@ type session struct {
 
 	sampleRate int
 	turn       atomic.Int64
+
+	// speakingNow and stopSpeak implement yielding the floor. A caller talking
+	// over this agent sets stopSpeak after the configured delay, and the
+	// speech loop checks it between chunks. That makes the yield an injected,
+	// known quantity, which is the only reason a measured barge-in yield can
+	// be trusted.
+	speakingNow atomic.Bool
+	stopSpeak   atomic.Bool
 }
 
 func serve(ctx context.Context, conn *websocket.Conn, id int) error {
@@ -259,6 +270,14 @@ func (s *session) listen(ctx context.Context) error {
 				replied = false
 				voiceStart = now
 				bargeArmed = cfg.bargeIn > 0
+
+				// The caller has cut in while this agent was mid-reply.
+				if cfg.yield > 0 && s.speakingNow.Load() {
+					go func() {
+						sleepFor(ctx, cfg.yield)
+						s.stopSpeak.Store(true)
+					}()
+				}
 			}
 			lastVoice = now.Add(frameLength)
 
@@ -345,7 +364,10 @@ func (s *session) reply(ctx context.Context, text string, anchor time.Time, barg
 
 	firstAudioAt := time.Now()
 	_ = s.sendJSON(ctx, map[string]string{"type": "AgentStartedSpeaking"})
+	s.stopSpeak.Store(false)
+	s.speakingNow.Store(true)
 	s.streamSpeech(ctx)
+	s.speakingNow.Store(false)
 	_ = s.sendJSON(ctx, map[string]string{"type": "AgentAudioDone"})
 
 	timingMu.Lock()
@@ -377,6 +399,10 @@ func (s *session) streamSpeech(ctx context.Context) {
 		err := s.conn.Write(ctx, websocket.MessageBinary, pcm[off:end])
 		s.writeMu.Unlock()
 		if err != nil {
+			return
+		}
+		// Yielding the floor: stop mid-reply because the caller cut in.
+		if s.stopSpeak.Load() {
 			return
 		}
 		if end < len(pcm) {

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 )
 
 // Scenario is one synthetic caller placing one call.
@@ -41,7 +42,24 @@ type Target struct {
 // Turn is one thing the caller says.
 type Turn struct {
 	Say string `json:"say"`
+
+	// BargeInAfter makes this line interrupt the agent, starting the given
+	// duration after the agent began replying to the previous turn instead of
+	// waiting for that reply to finish. "800ms" cuts in most of the way
+	// through an opening sentence.
+	//
+	// It is how the caller behaves when the agent is being long-winded, and it
+	// is the only way to measure how fast an agent yields the floor -- an
+	// agent that keeps talking over a customer is broken in a way no latency
+	// number reports.
+	BargeInAfter string `json:"barge_in_after,omitempty"`
+
+	bargeIn time.Duration
 }
+
+// BargeIn is the parsed BargeInAfter, or zero when this turn waits its proper
+// turn to speak.
+func (t Turn) BargeIn() time.Duration { return t.bargeIn }
 
 // Load reads and validates a scenario file.
 func Load(path string) (*Scenario, error) {
@@ -71,9 +89,23 @@ func (s *Scenario) validate() error {
 	if len(s.Turns) == 0 {
 		return fmt.Errorf("scenario has no turns")
 	}
-	for i, t := range s.Turns {
+	for i := range s.Turns {
+		t := &s.Turns[i]
 		if t.Say == "" {
 			return fmt.Errorf("turn %d has empty say", i+1)
+		}
+		if t.BargeInAfter != "" {
+			d, err := time.ParseDuration(t.BargeInAfter)
+			if err != nil {
+				return fmt.Errorf("turn %d: barge_in_after %q: %w", i+1, t.BargeInAfter, err)
+			}
+			if d <= 0 {
+				return fmt.Errorf("turn %d: barge_in_after must be positive, got %s", i+1, t.BargeInAfter)
+			}
+			if i == 0 {
+				return fmt.Errorf("turn 1 cannot barge in: there is no reply in progress to interrupt")
+			}
+			t.bargeIn = d
 		}
 	}
 	if s.Target.Voice == "" {

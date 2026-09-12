@@ -335,6 +335,30 @@ func printLoadReport(rep *loadgen.Report, jsonPath, csvPath, svgPath, callsPath 
 		}
 	}
 
+	anyBarge := false
+	for _, s := range rep.Steps {
+		if s.BargeIn.Turns > 0 {
+			anyBarge = true
+		}
+	}
+	if anyBarge {
+		fmt.Printf("\n%-12s %-9s %-9s %-9s %s\n", "step", "barge-ins", "yielded", "yield p50", "yield p95")
+		for _, s := range rep.Steps {
+			b := s.BargeIn
+			if b.Turns == 0 {
+				continue
+			}
+			note := ""
+			if b.Yielded < b.Turns {
+				// The headline failure: the agent was interrupted and carried
+				// on regardless.
+				note = fmt.Sprintf("   <- %d never yielded", b.Turns-b.Yielded)
+			}
+			fmt.Printf("%-12s %-9d %-9d %-9s %s%s\n",
+				s.Name, b.Turns, b.Yielded, msf(b.YieldP50Ms), msf(b.YieldP95Ms), note)
+		}
+	}
+
 	anyWER := false
 	for _, s := range rep.Steps {
 		if s.WER.Turns > 0 {

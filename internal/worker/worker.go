@@ -155,7 +155,15 @@ func Run(ctx context.Context, cfg Config) (*Result, error) {
 	}
 
 	for i, pcm := range utterances {
-		m := w.runTurn(ctx, i+1, pcm, cfg.Scenario.Turns[i].Say)
+		// A turn that barges in changes the turn before it: that reply has to
+		// be cut short so the interruption lands while the agent is talking.
+		var interruptAfter time.Duration
+		if i+1 < len(cfg.Scenario.Turns) {
+			interruptAfter = cfg.Scenario.Turns[i+1].BargeIn()
+		}
+		barging := cfg.Scenario.Turns[i].BargeIn() > 0
+
+		m := w.runTurn(ctx, i+1, pcm, cfg.Scenario.Turns[i].Say, interruptAfter, barging)
 		m.Finalize()
 		turns = append(turns, m)
 		if cfg.OnTurn != nil {

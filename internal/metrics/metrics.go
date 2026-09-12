@@ -21,6 +21,7 @@ const (
 	CallerSpeechStart Kind = "caller_speech_start"
 	CallerSpeechEnd   Kind = "caller_speech_end"
 	CallerYielded     Kind = "caller_yielded"
+	AgentYielded      Kind = "agent_yielded"
 	UserStartedSpeak  Kind = "user_started_speaking"
 	UserTranscript    Kind = "user_transcript"
 	AgentThinking     Kind = "agent_thinking"
@@ -150,6 +151,20 @@ type TurnMetric struct {
 	// agent started talking over them, which is what a real caller does.
 	CallerYielded bool `json:"caller_yielded,omitempty"`
 
+	// BargeInYield is how long the agent kept talking after this turn's caller
+	// cut in on it. It is only measured on a turn that deliberately
+	// interrupted, and it is the number that says whether an agent can be
+	// stopped: one that keeps going has taken the floor away from the person
+	// paying for the call.
+	//
+	// Zero means the agent was never observed to stop, which is worse than a
+	// large value and is reported as a failure rather than a good score.
+	BargeInYield time.Duration `json:"-"`
+
+	// BargedIn marks a turn that interrupted the agent, so a zero yield can be
+	// told apart from a turn that never tried.
+	BargedIn bool `json:"barged_in,omitempty"`
+
 	Failed     bool   `json:"failed"`
 	FailReason string `json:"fail_reason,omitempty"`
 
@@ -160,6 +175,9 @@ type TurnMetric struct {
 	AgentSpeechMs float64 `json:"agent_speech_ms"`
 	TurnLatencyMs float64 `json:"turn_latency_ms"`
 	PacingDriftMs float64 `json:"pacing_drift_ms"`
+
+	// BargeInYieldMs is the millisecond mirror of BargeInYield.
+	BargeInYieldMs float64 `json:"barge_in_yield_ms,omitempty"`
 }
 
 // Finalize populates the millisecond mirrors from the duration fields.
@@ -176,6 +194,7 @@ func (t *TurnMetric) Finalize() {
 	t.AgentSpeechMs = ms(t.AgentSpeech)
 	t.TurnLatencyMs = ms(t.TurnLatency)
 	t.PacingDriftMs = ms(t.PacingDrift)
+	t.BargeInYieldMs = ms(t.BargeInYield)
 }
 
 // Percentile returns the nearest-rank pth percentile of ds.

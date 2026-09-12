@@ -75,6 +75,9 @@ type StepReport struct {
 
 	WorstDriftMs float64 `json:"worst_harness_drift_ms"`
 
+	// BargeIn is how the agent behaved when the caller cut in on it.
+	BargeIn BargeInStats `json:"barge_in"`
+
 	// WER is how accurately the agent heard this step's callers. It is the one
 	// failure no latency number can show: an agent can answer fast, fluently,
 	// and to a question nobody asked.
@@ -91,6 +94,23 @@ type StepReport struct {
 	Verdict  string  `json:"verdict"`
 
 	Errors map[string]int `json:"errors,omitempty"`
+}
+
+// BargeInStats is how an agent handled being interrupted, over one step.
+type BargeInStats struct {
+	// Turns is how many caller lines deliberately cut in. Zero means the
+	// scenario never tried, not that the agent behaved well.
+	Turns int `json:"turns"`
+
+	// Yielded is how many of those the agent actually stopped for. The gap
+	// between the two is the finding: an agent that keeps talking has taken
+	// the floor from the person paying for the call, and no latency number
+	// reports it.
+	Yielded int `json:"yielded"`
+
+	YieldP50Ms float64 `json:"yield_p50_ms"`
+	YieldP95Ms float64 `json:"yield_p95_ms"`
+	WorstMs    float64 `json:"worst_ms"`
 }
 
 // WERStats is transcript accuracy over one step.
@@ -154,6 +174,9 @@ func buildStepReport(step Step, outcomes []callOutcome) StepReport {
 	var (
 		werTurns, werSubs, werDels, werIns, werRefWords int
 		werWorst                                        float64
+
+		bargeTurns int
+		yields     []time.Duration
 	)
 
 	for _, o := range outcomes {
@@ -174,6 +197,15 @@ func buildStepReport(step Step, outcomes []callOutcome) StepReport {
 			}
 			if t.CallerYielded {
 				r.TurnsYielded++
+			}
+			if t.BargedIn {
+				bargeTurns++
+				// A zero yield is an agent never seen to stop. Recording it as
+				// a duration would average it in as if it were instant, which
+				// is the opposite of what happened.
+				if t.BargeInYield > 0 {
+					yields = append(yields, t.BargeInYield)
+				}
 			}
 			if abs(t.PacingDrift) > abs(worstDrift) {
 				worstDrift = t.PacingDrift
@@ -225,6 +257,15 @@ func buildStepReport(step Step, outcomes []callOutcome) StepReport {
 	r.TurnLatency = summarize(turnLatency)
 	r.WorstDriftMs = math.Round(float64(worstDrift.Microseconds())/1000*10) / 10
 	r.HarnessDegraded = math.Abs(r.WorstDriftMs) > MaxHealthyDriftMs
+
+	yieldSummary := summarize(yields)
+	r.BargeIn = BargeInStats{
+		Turns:      bargeTurns,
+		Yielded:    len(yields),
+		YieldP50Ms: yieldSummary.P50Ms,
+		YieldP95Ms: yieldSummary.P95Ms,
+		WorstMs:    yieldSummary.MaxMs,
+	}
 
 	r.WER = WERStats{
 		Turns:         werTurns,

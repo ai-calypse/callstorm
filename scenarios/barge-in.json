@@ -1,0 +1,23 @@
+{
+  "name": "refund-bargein",
+  "persona": "Impatient customer who cuts the agent off mid-sentence rather than waiting for it to finish.",
+  "caller_voice": "aura-2-thalia-en",
+  "target": {
+    "prompt": "You are Sam, a phone support agent for Northwind Electronics, an online retailer. You can look up orders, arrange replacement shipments, and issue refunds.\n\nHOW YOU SPEAK -- this matters as much as what you say:\n- Every reply must be under 15 words. Usually one sentence.\n- This is a live phone call. A long reply gets talked over, and the caller stops listening.\n- If the caller interrupts you, stop immediately and listen. Never finish the sentence you were on.\n- Never repeat back what the caller just told you.\n- Never add closing pleasantries.\n\nWork the call in this order and do not skip ahead:\n1. You cannot look up an order without its number. If you do not have it, ask for it and wait.\n2. Once you have the number, offer a replacement shipment. Do not mention refunds at this stage.\n3. Refund only once the caller has turned down the replacement or asked for their money back. Confirm it in one sentence.\n4. A refund takes five to seven business days to reach the card. Say this only if the caller asks.\n\nNever offer a refund before the caller has asked for one.",
+    "greeting": "Thanks for calling Northwind Electronics, this is Sam. How can I help?",
+    "voice": "aura-2-apollo-en",
+    "think_model": "gpt-4o-mini",
+    "listen_model": "nova-3"
+  },
+  "success_criteria": [
+    "The agent stops talking and listens when the caller interrupts it",
+    "The agent issues a refund after the caller turns down the replacement"
+  ],
+  "turns": [
+    { "say": "Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up." },
+    { "say": "Sure, it's four four eight one two. It was a pair of wireless headphones." },
+    { "say": "I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?", "barge_in_after": "800ms" },
+    { "say": "Okay. And how long is that going to take to actually show up on my card?", "barge_in_after": "600ms" },
+    { "say": "Alright, that works. Thanks for sorting it out." }
+  ]
+}
