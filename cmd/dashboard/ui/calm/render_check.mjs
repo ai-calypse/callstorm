@@ -73,14 +73,14 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
 // The page frame the demo has: heading, run picker, summary, tabs, below-note.
 {
   const html = page1(run, "run", "load");
-  has(html, "eyebrow AGENT EVALUATION", "AGENT EVALUATION");
-  has(html, "page heading", "A clearer picture of your agent.");
+  has(html, "eyebrow TEST RESULTS", "TEST RESULTS");
+  has(html, "page heading", "What did your phone assistant achieve?");
   has(html, "run history button", "Run history");
   has(html, "run picker names the run", "Run · run");
   has(html, "at a glance", "AT A GLANCE");
-  has(html, "within baseline stat", "Within its baseline");
-  has(html, "task success stat", "Task success");
-  has(html, "cost stat", "Cost / call");
+  has(html, "within baseline stat", "Calls handled at once");
+  has(html, "task success stat", "Tasks completed");
+  has(html, "cost stat", "Cost per call attempt");
   has(html, "explore the evidence", "What would you like to understand?");
   has(html, "how is this measured", "How is this measured?");
   has(html, "view findings", "View findings");
@@ -94,7 +94,7 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
 // Load and latency: the chart, the selection, the takeaway, the evidence.
 {
   const html = page1(run, "run", "load");
-  has(html, "question", "How much load can this agent take");
+  has(html, "question", "Does the assistant get slower as more people call?");
   has(html, "p95 polyline drawn", "<polyline");
   has(html, "fail line labelled", "2× baseline · fail");
   has(html, "range control", "Inspect load");
@@ -176,7 +176,7 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
   has(jh, "criterion met rate", "67%");
   has(jh, "observation quotes the judge", "Missed at turn 2");
   has(jh, "task success stat is a rate", "66.7");
-  has(jh, "headline counts the job", "Did the job 2 of 3 times");
+  has(jh, "headline counts the job", "2 of 3 reviewed calls completed the task.");
   const ev = drawer("evidence", judged, "judged", "quality");
   has(ev, "task card", "Did it actually do the job?");
   has(ev, "heard versus done", "Are the calls it misheard the calls it failed?");
@@ -408,7 +408,7 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
   has(render(mod.Trend, { runs: index }), "trend drawn", "WORST P95 · LAST 3 RUNS");
   has(render(mod.RunList, { runs: [], sel: null, onPick() {} }), "empty history says so", "No runs yet");
   const side = render(mod.Sidebar, { count: 3, target: "ws://agent.example:8080/v1", who: "Yaksh Gandhi", onOverview() {}, onRuns() {}, onAbout() {} });
-  has(side, "sidebar nav counts runs", "Evaluation runs");
+  has(side, "sidebar nav counts runs", "Test history");
   has(side, "sidebar workspace host", "agent.example:8080");
 }
 
