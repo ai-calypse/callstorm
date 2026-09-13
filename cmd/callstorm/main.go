@@ -61,6 +61,7 @@ type opts struct {
 	impairments    string
 	impairDev      string
 	suite          string
+	rejudge        string
 }
 
 func main() {
@@ -95,6 +96,8 @@ func main() {
 	flag.StringVar(&o.impairDev, "impair-dev", "eth0", "interface the impairment is applied to")
 	flag.StringVar(&o.suite, "suite", "",
 		"name of the load test this run is part of; runs sharing it read as one test")
+	flag.StringVar(&o.rejudge, "rejudge", "",
+		"judge a run already placed, from its report and calls file, instead of placing calls; needs its -scenario")
 	flag.Parse()
 
 	if err := run(o); err != nil {
@@ -136,6 +139,9 @@ func run(o opts) error {
 			sc.Target.ListenModel, sc.Target.ThinkModel, sc.Target.Voice)
 	}
 
+	if o.rejudge != "" {
+		return rejudge(ctx, o, sc)
+	}
 	if o.profilePath != "" {
 		return runLoad(ctx, o, sc, apiKey)
 	}
@@ -885,6 +891,68 @@ func writeCalls(path string, calls []loadgen.CallRecord) error {
 		}
 	}
 	return f.Close()
+}
+
+// rejudge judges a run that was already placed, from the report and calls file
+// it wrote. A judge that could not run at the time -- an image without
+// certificate roots, a provider outage -- should not cost the calls again.
+func rejudge(ctx context.Context, o opts, sc *scenario.Scenario) error {
+	b, err := os.ReadFile(o.rejudge)
+	if err != nil {
+		return err
+	}
+	var rep loadgen.Report
+	if err := json.Unmarshal(b, &rep); err != nil {
+		return fmt.Errorf("read %s: %w", o.rejudge, err)
+	}
+	// The script has to be the one the calls were placed with. The criteria may
+	// have changed since -- rewording them is what rejudging is for -- so a
+	// changed file is reported rather than refused.
+	if rep.Scenario != sc.Name {
+		return fmt.Errorf("%s was placed with scenario %s, not %s", o.rejudge, rep.Scenario, sc.Name)
+	}
+	if rep.ScenarioHash != "" && rep.ScenarioHash != loadgen.Fingerprint(sc) {
+		fmt.Printf("scenario   %s has changed since this run; judging against its current criteria\n", o.scenarioPath)
+	}
+	dir := filepath.Dir(o.rejudge)
+	runID := strings.TrimSuffix(filepath.Base(o.rejudge), ".json")
+	if rep.Calls, err = readCalls(filepath.Join(dir, runID+"-calls.jsonl")); err != nil {
+		return err
+	}
+	o.outDir = dir
+	path, err := judgeRun(ctx, o, sc, &rep, runID)
+	if err != nil {
+		return err
+	}
+	out, err := json.MarshalIndent(&rep, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(o.rejudge, out, 0o644); err != nil {
+		return err
+	}
+	printTaskSuccess(rep.Judge, path)
+	return nil
+}
+
+// readCalls reads a calls file back, one conversation per line.
+func readCalls(path string) ([]loadgen.CallRecord, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	var calls []loadgen.CallRecord
+	dec := json.NewDecoder(f)
+	for dec.More() {
+		var c loadgen.CallRecord
+		if err := dec.Decode(&c); err != nil {
+			return nil, fmt.Errorf("read %s: %w", path, err)
+		}
+		calls = append(calls, c)
+	}
+	return calls, nil
 }
 
 func writeArtifacts(outDir, runID string, res *worker.Result) (jsonPath, wavPath string, err error) {
