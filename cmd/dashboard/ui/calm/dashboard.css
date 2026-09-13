@@ -497,3 +497,29 @@ dialog::backdrop { background: #22282045; backdrop-filter: blur(3px); }
 tr.total td { border-top: 1px solid var(--cs-border-strong); font-weight: 500; }
 @media (max-width: 760px) { .range-control.pricing { grid-template-columns: 1fr; } }
 
+/* ---- Written analysis: a model's reading of the run, checked against it ---- */
+.insights { margin-top: 22px; padding: 22px 24px; background: var(--cs-surface); border: 1px solid var(--cs-border); border-radius: var(--cs-radius-card); }
+.suite .insights { margin-top: 18px; padding: 18px 20px; background: var(--cs-surface-detail); }
+.insights.none { padding: 14px 20px; }
+.insights.none .quiet, .insights[aria-busy="true"] .quiet { margin: 6px 0 0; }
+.insights-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.insights-head h2 { margin: 6px 0 0; max-width: 62ch; text-wrap: balance; }
+.insights-head .quiet-h { color: var(--cs-text-secondary); }
+.insight-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-top: 18px; }
+.insight-row { border: 1px solid var(--cs-border); border-radius: 10px; padding: 16px 18px; background: var(--cs-surface); display: flex; flex-direction: column; gap: 8px; }
+.insight-tags { display: flex; align-items: center; gap: 8px; }
+.tab-symbol.small { width: 22px; height: 22px; font-size: 14px; }
+.insight-cat { font: 400 11px/1.5 var(--cs-font-mono); letter-spacing: 1.2px; text-transform: uppercase; color: var(--cs-text-caption); }
+.insight-row h3 { font-size: 17px; letter-spacing: -.3px; line-height: 1.35; }
+.insight-finding { margin: 0; font-size: 14px; line-height: 1.6; }
+.insight-why { margin: 0; font-size: 13px; line-height: 1.6; color: var(--cs-text-secondary); }
+.insight-row .reading-act { margin-top: 4px; }
+.insight-row .reading-act p { font-size: 13px; }
+.insight-evidence { margin-top: 2px; }
+.insight-evidence summary { cursor: pointer; font-size: 12px; color: var(--cs-olive); }
+.insight-evidence ul { margin: 8px 0 0; padding-left: 18px; font-size: 12px; line-height: 1.6; color: var(--cs-text-secondary); }
+.insights-foot { margin-top: 16px; display: flex; flex-direction: column; gap: 6px; }
+.dropped summary { cursor: pointer; font-size: 12px; color: var(--cs-warning-text); }
+.dropped ul { margin: 8px 0 0; padding-left: 18px; font-size: 12px; line-height: 1.6; color: var(--cs-text-secondary); }
+.dropped li b { font-weight: 400; color: var(--cs-ink); }
+

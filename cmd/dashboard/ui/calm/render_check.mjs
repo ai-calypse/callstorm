@@ -446,6 +446,45 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
   check("no suite strip on a plain run", !page1(run, "run", "load").includes("SUITE ·"));
 }
 
+// The written analysis: a model's reading of the run, every number checked,
+// dropped claims counted; on a run above the questions, on a suite under the parts.
+{
+  const analysis = {
+    kind: "run", subject: "run", runs: ["run"], generated_at: "2026-09-13T20:00:00Z", model: "gemini-3.5-flash",
+    headline: "The agent holds its baseline to 15 concurrent calls but talks over the caller once in eight turns.",
+    insights: [
+      { title: "Think/speak grows with load, endpointing does not", category: "latency", severity: "medium",
+        evidence: ["think/speak p95 rose from 420ms at c1 to 640ms at c15", "endpointing p95 held between 200ms and 230ms"],
+        finding: "The reply, not the listening, is what slows down.", why_it_matters: "A faster silence threshold would change nothing.", next_step: "Stream the voice so audio starts before the sentence is finished." },
+      { title: "Every graded call did the job", category: "quality", severity: "info", evidence: ["20 of 20 met every criterion"], finding: "Task success is not the limit here.", why_it_matters: "", next_step: "" },
+    ],
+    rejected: [{ title: "Setup success fell to 90% at c15", reason: "the data holds 100% setup success at every step" }],
+  };
+  const html = page1(run, "run", "load", { initialInsights: analysis });
+  has(html, "analysis headline", "talks over the caller once in eight turns");
+  has(html, "model named", "GEMINI-3.5-FLASH");
+  has(html, "insight title", "Think/speak grows with load, endpointing does not");
+  has(html, "severity badge", 'class="cs-badge cs-badge-warning">medium');
+  has(html, "evidence listed", "endpointing p95 held between 200ms and 230ms");
+  has(html, "next step", "Stream the voice so audio starts");
+  has(html, "dropped claims counted", "1 claim dropped for citing numbers the data does not hold");
+  has(html, "dropped claim reason", "the data holds 100% setup success at every step");
+  check("analysis sits above the questions", html.indexOf("talks over the caller") < html.indexOf("What would you like to understand?"));
+  has(page1(run, "run", "load", { initialInsights: null }), "no analysis says how to get one", "No written analysis for this run");
+  has(page1(run, "run", "load"), "analysis loading state", "Looking for a written analysis");
+  // On a suite, the suite's analysis sits under the parts table.
+  const suite = "deepgram-full-test";
+  const parts = [
+    { id: "s1", suite, profile: "sweep", scenario: "a", started_at: "2026-09-13T16:44:00Z", verdict: "pass", steps: 5, peak_concurrency: 40, worst_p95_ms: 1200, target: "t" },
+    { id: "s2", suite, profile: "sweep", scenario: "b", started_at: "2026-09-13T17:10:00Z", verdict: "fail", steps: 5, peak_concurrency: 40, worst_p95_ms: 3100, breakpoint: "c40 at 40 concurrent", target: "t" },
+  ];
+  const sa = { ...analysis, kind: "suite", subject: suite, runs: ["s1", "s2"], headline: "Two of five scenarios break at five concurrent calls.", rejected: [] };
+  const sp = render(mod.Report, { rep: { ...run, id: "s2", profile: "sweep", scenario: "b" }, id: "s2", refs: REFS, runs: [parts[1], parts[0], ...index], prev: null, initialInsights: null, initialSuiteInsights: sa, onOpenRuns() {}, onPick() {} });
+  has(sp, "suite analysis headline", "Two of five scenarios break at five concurrent calls.");
+  check("suite analysis sits under the parts table", sp.indexOf("Two of five scenarios") > sp.indexOf("parts, one test") && sp.indexOf("Two of five scenarios") < sp.indexOf("AT A GLANCE"));
+  has(sp, "suite analysis notes its run count", "from 2 runs");
+}
+
 // The reference sections the original page opens with, kept on the page.
 {
   const gl = render(mod.Glossary, {});
