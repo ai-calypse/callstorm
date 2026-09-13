@@ -24,6 +24,7 @@ const realError = console.error;
 console.error = (...a) => { warnings.push(String(a[0])); realError(...a); };
 
 const run = JSON.parse(fs.readFileSync(RUN, "utf8"));
+const REFS = JSON.parse(fs.readFileSync("../../../internal/loadgen/references.json", "utf8"));
 const id = path.basename(RUN, ".json");
 const index = [{
   id, profile: run.profile, scenario: run.scenario, target: run.target,
@@ -45,7 +46,7 @@ globalThis.fetch = async (url) => ({
   json: async () => (url.includes("/runs/") ? run : index),
 });
 
-const mod = new Function(src + "\n;return { App, ReportCard, ComponentShare, CostChart, GradeScale, PhaseTable, TaskSuccessCard, ImpairmentHeatmap, NodeScores, IntegrityCard, Appendix, bandOf, BANDS };")();
+const mod = new Function(src + "\n;return { App, ReportCard, ComponentShare, CostChart, ReferenceLines, placeRef, PhaseTable, TaskSuccessCard, ImpairmentHeatmap, NodeScores, IntegrityCard, Appendix };")();
 
 // useEffect does not run during renderToString, so the components are driven
 // directly with the data the fetch would have produced. That is the point:
@@ -87,7 +88,7 @@ stub.useEffect = () => {};
 globalThis.React = stub;
 const mod2 = new Function(src + "\n;return { ReportCard };")();
 const card = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod2.ReportCard, { id }));
+  React.createElement(mod2.ReportCard, { refs: REFS, id }));
 
 const wantCard = [
   ["conversation heading", "How the calls sounded"],
@@ -150,7 +151,7 @@ for (const s of old.steps) { delete s.conversation; delete s.cost; }
 seeded = 0;
 current = old;
 const legacy = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod2.ReportCard, { id }));
+  React.createElement(mod2.ReportCard, { refs: REFS, id }));
 
 const wantLegacy = [
   ["legacy run explains missing conversation data", "predates talk ratio"],
@@ -164,31 +165,47 @@ for (const [name, needle] of wantLegacy) {
 }
 
 
-// The absolute grade. Rendered from the fixture's own steps, then checked
-// against the grade Go wrote into the report: two implementations of the same
-// three thresholds is exactly the kind of pair that drifts apart silently.
-const grade = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod.GradeScale, { steps: run.steps }));
+// Reference lines on two clocks, rendered from the fixture's own steps against
+// the real published list. A line whose citation or clock goes missing fails
+// here rather than in front of a reader.
+const refsHtml = ReactDOMServer.renderToStaticMarkup(
+  React.createElement(mod.ReferenceLines, { steps: run.steps, refs: REFS }));
 
 for (const [name, needle] of [
-  ["grade card", "without comparing it to itself"],
-  ["names the natural band", "NATURAL"],
-  ["explains where the bands come from", "200ms of"],
-  ["grade reading present", "read-do"],
-  ["band scale is drawn", "<rect"],
-  ["each step is placed on it", "<circle"],
+  ["reference card", "Where this run sits against what others have published"],
+  ["draws the end-of-speech clock", "From true end of speech"],
+  ["draws the detection clock", "From detection"],
+  ["says none of them decides the verdict", "none of them decides pass or fail"],
+  ["starts from where real agents are", "Start from where real agents are"],
+  ["an observed range is shaded", "<rect"],
 ]) {
-  const ok = grade.includes(needle);
+  const ok = refsHtml.includes(needle);
   if (!ok) bad++;
   console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
 }
+{
+  // Every citation is named with its date, and linked wherever a URL is known.
+  const cites = REFS.flatMap(r => r.cites);
+  const named = cites.filter(c => refsHtml.includes(`${c.source}, ${c.title}`) && refsHtml.includes(c.published) &&
+    (!c.url || refsHtml.includes(`href="${c.url.replace(/&/g, "&amp;")}"`))).length;
+  const ok = cites.length > 0 && named === cites.length;
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${named} of ${cites.length} citations named with their date`);
 
-for (const s of run.steps) {
-  if (!s.grade || !s.grade.typical) continue;
-  const js = mod.bandOf(s.ttfa.p50_ms);
-  const agree = js === s.grade.typical;
-  if (!agree) bad++;
-  console.log(`${agree ? "ok  " : "FAIL"}  ${s.name}: page grades ${s.ttfa.p50_ms}ms as ${js}, report says ${s.grade.typical}`);
+  // Every step on both clocks: a p50 and a p95 dot per clock with samples.
+  const want = run.steps.filter(s => s.ttfa && s.ttfa.n > 0)
+    .reduce((a, s) => a + ["ttfa", "think_speak"].filter(k => s[k] && s[k].n > 0).length * 2, 0);
+  const dots = (refsHtml.match(/<circle/g) || []).length;
+  const drawn = dots === want;
+  if (!drawn) bad++;
+  console.log(`${drawn ? "ok  " : "FAIL"}  ${dots} dots for ${want} step, clock and percentile readings`);
+}
+{
+  const none = ReactDOMServer.renderToStaticMarkup(
+    React.createElement(mod.ReferenceLines, { steps: run.steps, refs: [] }));
+  const ok = none.includes("No reference lines loaded");
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  a page without the list says so`);
 }
 
 // Phase shape. A plain ramp has nothing to say and must say nothing: a card
@@ -356,7 +373,7 @@ for (const [name, needle] of [
 
 // A second fixture: a real six-phase run against the reference agent, where
 // the injected latency is known in advance. It is here because the first
-// fixture predates the phase model and the absolute grade, so every assertion
+// fixture predates the phase model and the known-answer placements, so every assertion
 // about those would have passed by never running -- the same shape of
 // non-check that let the conversation card ship hidden.
 //
@@ -367,10 +384,10 @@ const phased = JSON.parse(fs.readFileSync("testdata/run-phases.json", "utf8"));
 seeded = 0;
 current = phased;
 const phasedCard = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod2.ReportCard, { id: "run-phases" }));
+  React.createElement(mod2.ReportCard, { refs: REFS, id: "run-phases" }));
 
 for (const [name, needle] of [
-  ["grade card renders inside the report", "without comparing it to itself"],
+  ["reference card renders inside the report", "Where this run sits against what others have published"],
   ["phase card renders inside the report", "over its own duration"],
   ["spike phase is named", ">spike<"],
   ["soak phase is named", ">soak<"],
@@ -384,39 +401,22 @@ for (const [name, needle] of [
   console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
 }
 
-// Two implementations of the same three thresholds, one in Go and one on the
-// page. This is the pair that drifts apart silently, so it is checked on every
-// step of a run whose report actually carries the Go answer.
-let graded = 0;
-for (const s of phased.steps) {
-  if (!s.grade || !s.grade.typical) continue;
-  graded++;
-  for (const [which, jsBand, goBand, v] of [
-    ["p50", mod.bandOf(s.ttfa.p50_ms), s.grade.typical, s.ttfa.p50_ms],
-    ["p95", mod.bandOf(s.ttfa.p95_ms), s.grade.worst, s.ttfa.p95_ms],
-  ]) {
-    if (jsBand === goBand) continue;
-    bad++;
-    console.log(`FAIL  ${s.name} ${which} ${v}ms: page says ${jsBand}, report says ${goBand}`);
-  }
-}
+// The known answer, restated against the published lines. The reference agent
+// was given a capacity of 6 and 25ms per caller past it, so from end of speech
+// the baseline ramp sits near 400ms and the spike near 850ms: both past the
+// human marker and both under the production median, which is arithmetic
+// rather than opinion.
 {
-  const ok = graded === phased.steps.length;
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  grade agreement checked on ${graded} of ${phased.steps.length} steps`);
-}
-
-// The known-answer check, restated on the page: the reference agent was given
-// a capacity of 6 and 25ms of degradation per caller past it, so 24 concurrent
-// must land in the breakdown band and 4 concurrent must not.
-{
+  const human = REFS.find(r => r.kind === "perceptual");
+  const observed = REFS.find(r => r.kind === "observed");
   const spike = phased.steps.find(s => s.phase && s.phase.kind === "spike");
   const ramp = phased.steps.find(s => s.name === phased.baseline);
-  const right = spike && ramp &&
-    mod.bandOf(spike.ttfa.p50_ms) === "breakdown" &&
-    mod.bandOf(ramp.ttfa.p50_ms) === "acceptable";
+  const p50 = (r, s) => mod.placeRef(r, s).find(m => m.percentile === 50);
+  const right = human && observed && spike && ramp &&
+    p50(human, ramp).over && p50(human, spike).over &&
+    p50(observed, ramp).value_ms < observed.ms && p50(observed, spike).value_ms < observed.ms;
   if (!right) bad++;
-  console.log(`${right ? "ok  " : "FAIL"}  the injected latency lands in the band it should (${ramp && Math.round(ramp.ttfa.p50_ms)}ms then ${spike && Math.round(spike.ttfa.p50_ms)}ms)`);
+  console.log(`${right ? "ok  " : "FAIL"}  the injected latency lands where it should against the published lines (${ramp && Math.round(ramp.ttfa.p50_ms)}ms then ${spike && Math.round(spike.ttfa.p50_ms)}ms)`);
 }
 
 // The same run with a judge block attached, to prove the task card mounts
@@ -426,7 +426,7 @@ withJudge.judge = judged;
 seeded = 0;
 current = withJudge;
 const judgedCard = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod2.ReportCard, { id: "run-judged" }));
+  React.createElement(mod2.ReportCard, { refs: REFS, id: "run-judged" }));
 for (const [name, needle] of [
   ["task card mounts in the full report", "Did it actually do the job"],
   ["and brings its finding with it", "Mishearing is costing it the task"],
@@ -447,6 +447,7 @@ for (const [name, needle] of [
   ["a run before node scoring says so", "predates per-node scoring"],
   ["the appendix mounts in the report", "How every number is computed"],
   ["the appendix gives the percentile formula", "⌈p ÷ 100 × n⌉"],
+  ["the appendix maps published boundaries onto Callstorm's clocks", "ASR finalization"],
 ]) {
   const ok = card.includes(needle);
   if (!ok) bad++;
@@ -546,7 +547,7 @@ const realMatrix = JSON.parse(fs.readFileSync("testdata/run-matrix.json", "utf8"
 seeded = 0;
 current = realMatrix;
 const matrixCard = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod2.ReportCard, { id: "run-matrix" }));
+  React.createElement(mod2.ReportCard, { refs: REFS, id: "run-matrix" }));
 for (const [name, needle] of [
   ["heatmap mounts in the full report", "Load against network"],
   ["every default cohort is a row", ">moderate<"],
@@ -584,7 +585,7 @@ for (const [name, needle] of [
 // Every reading rendered above, scanned together: a glue bug in one card is
 // the same bug in all of them, and a check that only looks at the first is how
 // the last one ships broken.
-const ALL = [card, legacy, grade, drifted, stuck, nojudge, task, thinHtml, phasedCard, judgedCard, heat, nodes, dup, lost, matrixCard].join(String.fromCharCode(10));
+const ALL = [card, legacy, refsHtml, drifted, stuck, nojudge, task, thinHtml, phasedCard, judgedCard, heat, nodes, dup, lost, matrixCard].join(String.fromCharCode(10));
 const prose = [...ALL.matchAll(/<div class="read[^"]*">([\s\S]*?)<\/div>/g)]
   // Inline tags are dropped rather than spaced out: <b> and <code> sit inside
   // sentences, so replacing them with a space would invent gaps the reader

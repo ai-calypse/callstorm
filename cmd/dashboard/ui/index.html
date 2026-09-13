@@ -145,13 +145,7 @@
   .subhead { padding-block:26px 0; border-bottom:none; }
   .subhead h1 { font-size:20px; }
 
-  /* The absolute scale. Four bands a wait can fall into, with each step placed
-     on it. Every other verdict on this page is relative to the run's own
-     baseline, which is the right way to find degradation and no way at all to
-     answer "is this any good" -- that question has an absolute answer. */
-  .bandbar { display:flex; margin-top:16px; height:22px; border-radius:2px; overflow:hidden; }
-  .bandbar div { display:flex; align-items:center; justify-content:center; font-size:10px;
-                 letter-spacing:.06em; text-transform:uppercase; color:#08171B; min-width:0; overflow:hidden; }
+  /* A key beneath a chart: swatches beside plain text, so no mark is read by colour alone. */
   .bandkey { display:flex; gap:16px; flex-wrap:wrap; font-size:11px; color:var(--ink-2); margin-top:9px; }
   .bandkey i { width:10px; height:10px; border-radius:2px; display:inline-block; margin-right:6px; vertical-align:-1px; }
 
@@ -328,9 +322,12 @@ const GLOSSARY = [
   ["Cost per turn",
    "Billable agent-minutes for the step, divided by the turns in it.",
    "Voice agents bill by the minute, so latency is a price. Verbosity is the same bill in a different disguise."],
-  ["Latency grade",
-   "Where a wait lands on an absolute scale: natural under 300ms, acceptable to 500, sluggish to 800, breakdown past that.",
-   "The verdict elsewhere is relative to this run's own baseline, so it can pass every step of an agent that was never fast. This cannot."],
+  ["Two clocks",
+   "Every step is timed twice: from the instant the caller actually stopped talking, and from the instant the agent's transcript of the caller arrived.",
+   "Published latency numbers start the timer at different instants. A number is only comparable with another taken on the same clock."],
+  ["Reference lines",
+   "Thresholds and observations other people have published, each drawn on the clock its source defined, with its source and date.",
+   "Where this agent sits against real deployments and vendor targets. They disagree with each other, so none of them is the verdict."],
   ["Phase",
    "What a step is for: smoke, ramp, stress, spike, soak or recovery. A spike jumps straight to peak, a soak holds one load for a long time, a recovery drops back to baseline afterwards.",
    "A profile of ramps only asks how much at once. It never asks what a sudden jump does, what an hour does, or whether the agent comes back."],
@@ -770,132 +767,169 @@ function readBarge(rows) {
   };
 }
 
-// The absolute scale, mirroring internal/loadgen/phase.go. Every other verdict
-// on this page is relative to the run's own baseline, which is the right way
-// to find degradation and no way at all to answer "is this any good" -- and a
-// caller asking that question has an absolute answer in mind.
+// Reference lines: what other people have published, each read on the clock
+// its source defined.
 //
-// Computed here rather than read off the report so that runs recorded before
-// the grade existed are graded too. The render check asserts the two agree.
-const BANDS = [
-  ["natural", 0, 300, "var(--pass)",
-   "Indistinguishable from a person taking their turn. People leave about 200ms between turns."],
-  ["acceptable", 300, 500, "color-mix(in srgb, var(--pass) 40%, var(--warn))",
-   "Noticeable if you listen for it, tolerated by callers who are not."],
-  ["sluggish", 500, 800, "var(--warn)",
-   "The caller notices every turn. A long call starts to feel like hard work."],
-  ["breakdown", 800, Infinity, "var(--fail)",
-   "The caller wonders whether the line dropped, and starts talking again over the answer."],
+// This replaced a single absolute grade. That grade presented one vendor's
+// latency bands as if they were settled, and applied them on a different clock
+// from the vendor's own; the same acronym is published with different
+// thresholds measured between different instants. So no line here is a verdict.
+// Each carries its source, its date and its source's boundary, and is drawn
+// only on the clock that boundary matches. The verdict stays relative.
+//
+// The lines live in internal/loadgen/references.json, served as
+// api/references.json. A run records the lines it was read against; a run
+// recorded before them is read against the served list.
+const fmtS = v => (v >= 1000 ? `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}s` : `${Math.round(v)}ms`);
+const lineText = r => (r.to_ms > 0 ? `${fmtS(r.ms)} to ${fmtS(r.to_ms)}` : fmtS(r.ms));
+const CLOCKS = [
+  ["end_of_speech", "From true end of speech", "ttfa"],
+  ["detection", "From detection", "think_speak"],
 ];
-const bandOf = v => (v > 0 ? (BANDS.find(b => v < b[2]) || BANDS[BANDS.length - 1])[0] : "");
-const bandColor = name => (BANDS.find(b => b[0] === name) || [, , , "var(--mute)"])[3];
+const KIND_ORDER = ["observed", "target", "perceptual"];
+const KIND_LABEL = { observed: "where agents are", target: "published target", perceptual: "human reference" };
 
-// GradeScale places each step on that scale: a filled dot for the wait a
-// caller usually got, a hollow one for the wait at p95.
-function GradeScale({ steps }) {
-  const rows = steps.filter(s => s.ttfa && s.ttfa.p50_ms > 0);
+// placeRef mirrors loadgen.Place: the step's value on the line's own clock and
+// percentile, or p50 and p95 both when the source states no percentile.
+function placeRef(r, s) {
+  const sum = s[r.axis === "detection" ? "think_speak" : "ttfa"];
+  if (!sum || !(sum.n > 0)) return [];
+  const top = r.to_ms > 0 ? r.to_ms : r.ms;
+  const key = { 50: "p50_ms", 90: "p90_ms", 95: "p95_ms", 99: "p99_ms" };
+  return (r.percentile ? [r.percentile] : [50, 95]).map(p => {
+    const v = sum[key[p]] || 0;
+    return { percentile: p, value_ms: v, over: v > top };
+  });
+}
+
+function ReferenceLines({ steps, refs }) {
+  const rows = steps.filter(s => s.ttfa && s.ttfa.n > 0);
   if (rows.length === 0) return null;
+  const lines = (refs || []).slice().sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind));
+  if (lines.length === 0) {
+    return html`
+      <div className="card">
+        <div className="eyebrow">Reference lines</div>
+        <h2>No reference lines loaded</h2>
+        <div className="note">
+          The published lines are read from <code>api/references.json</code>, and it did not load.
+          The verdict above does not depend on them.
+        </div>
+      </div>`;
+  }
 
-  const W = 640, LEFT = 104, RIGHT = 16, BAR = 24, GAP = 34, ROW = 22;
-  const H = BAR + GAP + rows.length * ROW;
-  const axis = Math.max(1000, ...rows.map(s => s.ttfa.p95_ms)) * 1.06;
-  const x = v => LEFT + (Math.min(v, axis) / axis) * (W - LEFT - RIGHT);
-  const worst = rows.reduce((a, s) => (s.ttfa.p50_ms > a.ttfa.p50_ms ? s : a), rows[0]);
+  const W = 640, LEFT = 104, RIGHT = 20, ROW = 20, GAP = 26, LABEL = 12;
+  const vals = [];
+  for (const [, , key] of CLOCKS) for (const s of rows) if (s[key] && s[key].n > 0) vals.push(s[key].p95_ms);
+  for (const r of lines) vals.push(r.to_ms > 0 ? r.to_ms : r.ms);
+  const axis = Math.max(...vals) * 1.08;
+  const x = v => LEFT + (Math.min(Math.max(v, 0), axis) / axis) * (W - LEFT - RIGHT);
+  let cursor = 0;
+  const panels = CLOCKS.map(([id, title, key]) => {
+    const onAxis = lines.filter(r => r.axis === id);
+    const top = cursor;
+    const rowsTop = top + 20 + onAxis.length * LABEL + 8;
+    const bottom = rowsTop + rows.length * ROW;
+    cursor = bottom + GAP;
+    return { id, title, key, onAxis, top, rowsTop, bottom };
+  });
+  const H = cursor - GAP + 22;
 
   return html`
     <div className="card">
-      <div className="eyebrow">Absolute grade</div>
-      <h2>Is this fast, without comparing it to itself?</h2>
+      <div className="eyebrow">Reference lines</div>
+      <h2>Where this run sits against what others have published</h2>
       <div className="read-why" style=${{marginTop:"8px",maxWidth:"78ch"}}>
-        The verdict everywhere else on this page is relative: each step against this run's own
-        baseline. That finds degradation and says nothing about whether the agent was ever good.
-        These four bands come from how people take turns in conversation, so they do not move
-        when the agent does.
+        Every step is drawn twice: timed from the instant the caller actually stopped talking, and
+        from the instant the agent's transcript of the caller arrived. Published thresholds disagree,
+        often because they start the clock at different instants, so each line is drawn only on the
+        clock its source defined, with the source beside it.
       </div>
       <svg viewBox="0 0 ${W} ${H}" style=${{width:"100%",height:"auto",marginTop:"14px"}}>
-        ${BANDS.filter(b => b[1] < axis).map(b => {
-          const x0 = x(b[1]), x1 = x(Math.min(b[2], axis));
-          return html`<g key=${b[0]}>
-            <rect x=${x0} y="0" width=${Math.max(x1 - x0, 0)} height=${BAR} fill=${b[3]} opacity="0.85"/>
-            ${x1 - x0 > 62 && html`<text x=${(x0 + x1) / 2} y=${BAR / 2 + 4} fontSize="9.5"
-              textAnchor="middle" fill="#08171B">${b[0].toUpperCase()}</text>`}
-          </g>`;
-        })}
-        ${[300, 500, 800].filter(v => v < axis).map(v => html`
-          <text key=${v} x=${x(v)} y=${BAR + 13} fontSize="10" textAnchor="middle"
-            fill="var(--mute)">${v}ms</text>`)}
-        ${rows.map((s, i) => {
-          const y = BAR + GAP + i * ROW;
-          const p50 = s.ttfa.p50_ms, p95 = s.ttfa.p95_ms;
-          return html`<g key=${s.name}>
-            <text x="0" y=${y + 4} fontSize="11" fill="var(--ink-2)">${s.name}</text>
-            <line x1=${LEFT} y1=${y} x2=${W - RIGHT} y2=${y} stroke="var(--rule-soft)" strokeWidth="1"/>
-            <line x1=${x(p50)} y1=${y} x2=${x(p95)} y2=${y} stroke="var(--ink-2)" strokeWidth="1.5"/>
-            <circle cx=${x(p95)} cy=${y} r="4.5" fill="var(--surface)"
-              stroke=${bandColor(bandOf(p95))} strokeWidth="2">
-              <title>${s.name + " p95 " + Math.round(p95) + "ms, " + bandOf(p95)}</title>
-            </circle>
-            <circle cx=${x(p50)} cy=${y} r="5" fill=${bandColor(bandOf(p50))}>
-              <title>${s.name + " p50 " + Math.round(p50) + "ms, " + bandOf(p50)}</title>
-            </circle>
-          </g>`;
-        })}
+        ${panels.map(p => html`<g key=${p.id}>
+          <text x="0" y=${p.top + 12} fontSize="11" fontWeight="600" fill="var(--ink)">${p.title}</text>
+          ${p.onAxis.map((r, i) => html`<g key=${r.id}>
+            ${r.to_ms > 0
+              ? html`<rect x=${x(r.ms)} y=${p.top + 18} width=${Math.max(x(r.to_ms) - x(r.ms), 2)} height=${p.bottom - p.top - 18} fill="var(--ref)" opacity="0.18"/>`
+              : html`<line x1=${x(r.ms)} y1=${p.top + 18} x2=${x(r.ms)} y2=${p.bottom} stroke="var(--ink-2)" strokeWidth="1" strokeDasharray=${r.kind === "perceptual" ? "1 3" : "4 3"}/>`}
+            <text x=${Math.min(x(r.ms) + 4, W - RIGHT - 170)} y=${p.top + 20 + (i + 1) * LABEL} fontSize="9.5" fill="var(--ink-2)">${r.label} · ${lineText(r)}</text>
+          </g>`)}
+          ${rows.map((s, i) => {
+            const sum = s[p.key];
+            const y = p.rowsTop + i * ROW + ROW / 2;
+            if (!sum || !(sum.n > 0)) {
+              return html`<text key=${s.name} x="0" y=${y + 4} fontSize="10" fill="var(--mute)">${s.name} · no samples</text>`;
+            }
+            return html`<g key=${s.name}>
+              <text x="0" y=${y + 4} fontSize="11" fill="var(--ink-2)">${s.name}</text>
+              <line x1=${x(sum.p50_ms)} y1=${y} x2=${x(sum.p95_ms)} y2=${y} stroke="var(--signal)" strokeWidth="1.5"/>
+              <circle cx=${x(sum.p95_ms)} cy=${y} r="4.5" fill="var(--surface)" stroke="var(--signal)" strokeWidth="2">
+                <title>${s.name + " p95 " + Math.round(sum.p95_ms) + "ms, " + p.title.toLowerCase()}</title>
+              </circle>
+              <circle cx=${x(sum.p50_ms)} cy=${y} r="5" fill="var(--signal)">
+                <title>${s.name + " p50 " + Math.round(sum.p50_ms) + "ms, " + p.title.toLowerCase()}</title>
+              </circle>
+            </g>`;
+          })}
+        </g>`)}
+        <text x=${LEFT} y=${H - 6} fontSize="10" fill="var(--mute)">0</text>
+        <text x=${W - RIGHT} y=${H - 6} fontSize="10" textAnchor="end" fill="var(--mute)">${fmtS(axis / 1.08)}</text>
       </svg>
       <div className="bandkey">
-        <span><i style=${{background:"var(--ink-2)",borderRadius:"50%"}}></i>filled dot = p50, the usual wait</span>
-        <span><i style=${{background:"var(--surface)",border:"2px solid var(--ink-2)",borderRadius:"50%"}}></i>hollow dot = p95, the bad turn</span>
+        <span><i style=${{background:"var(--signal)",borderRadius:"50%"}}></i>filled dot = p50</span>
+        <span><i style=${{background:"var(--surface)",border:"2px solid var(--signal)",borderRadius:"50%"}}></i>hollow dot = p95</span>
+        <span><i style=${{background:"var(--ref)",opacity:0.35}}></i>shaded = an observed range</span>
       </div>
       <div className="tablewrap gloss">
         <table>
+          <thead><tr><th>Line</th><th>Its source's boundary</th><th>Why it sits on this clock</th><th>This run</th></tr></thead>
           <tbody>
-            ${BANDS.map(b => html`
-              <tr key=${b[0]}>
-                <td><span style=${{color:b[3]}}>&#9679;</span> ${b[0]}</td>
-                <td>${b[2] === Infinity ? `over ${b[1]}ms` : `${b[1]} to ${b[2]}ms`}</td>
-                <td>${b[4]}</td>
-              </tr>`)}
+            ${lines.map(r => {
+              const marks = rows.flatMap(s => placeRef(r, s).map(m => ({ ...m, step: s.name })));
+              const over = marks.filter(m => m.over);
+              return html`<tr key=${r.id}>
+                <td><b>${r.label}</b><span className="quote">${lineText(r)}${r.percentile ? ` at p${r.percentile}` : ", no percentile stated"} · ${r.axis === "detection" ? "from detection" : "from end of speech"} · ${KIND_LABEL[r.kind] || r.kind}</span>${(r.cites || []).map(c => html`<span key=${c.source + c.title} className="quote">${c.url ? html`<a href=${c.url}>${c.source}, ${c.title}</a>` : `${c.source}, ${c.title}`}, ${c.published}</span>`)}</td>
+                <td>${r.boundary}</td>
+                <td>${r.placement}</td>
+                <td>${marks.length === 0 ? "no samples on this clock" : over.length === 0 ? "every step under" : `over at ${over.map(m => `${m.step} p${m.percentile} ${fmtS(m.value_ms)}`).join(", ")}`}</td>
+              </tr>`;
+            })}
           </tbody>
         </table>
       </div>
-      <${Reading} ...${readGrade(rows, worst)}/>
+      <${Reading} ...${readReferences(rows, lines)}/>
     </div>`;
 }
 
-function readGrade(rows, worst) {
-  const best = rows.reduce((a, s) => (s.ttfa.p50_ms < a.ttfa.p50_ms ? s : a), rows[0]);
-  const bestBand = bandOf(best.ttfa.p50_ms), worstBand = bandOf(worst.ttfa.p50_ms);
-  const everGood = bestBand === "natural" || bestBand === "acceptable";
+function readReferences(rows, lines) {
+  const marksOf = r => rows.flatMap(s => placeRef(r, s).map(m => ({ ...m, step: s.name })));
+  const worst = r => marksOf(r).reduce((a, m) => (!a || m.value_ms > a.value_ms ? m : a), null);
+  const best = r => marksOf(r).reduce((a, m) => (!a || m.value_ms < a.value_ms ? m : a), null);
+  const src = r => (r.cites && r.cites[0] ? r.cites[0].source : "its source");
+  const observed = lines.find(r => r.kind === "observed");
+  const human = lines.find(r => r.kind === "perceptual");
+  const targets = lines.filter(r => r.kind === "target");
+  const o = observed && worst(observed);
+  const h = human && best(human);
+
+  const verdict = !o
+    ? html`<b>Read against ${lines.length} published lines</b>, each on its own clock.`
+    : o.value_ms < observed.ms
+    ? html`<b>Faster than agents in production.</b> Its slowest typical wait was ${fmtS(o.value_ms)} at ${o.step}, under the ${lineText(observed)} median ${src(observed)} observed in real deployments.`
+    : o.over
+    ? html`<b>Slower than agents in production.</b> Its slowest typical wait was ${fmtS(o.value_ms)} at ${o.step}, past the ${lineText(observed)} median ${src(observed)} observed in real deployments.`
+    : html`<b>About where agents in production are.</b> Its slowest typical wait was ${fmtS(o.value_ms)} at ${o.step}, inside the ${lineText(observed)} median ${src(observed)} observed in real deployments.`;
+
+  const targetText = targets.map(r => {
+    const w = worst(r);
+    if (!w) return `${r.label} has no samples on its clock`;
+    return `${r.label} ${w.over ? "was crossed" : "held"}, worst ${fmtS(w.value_ms)} at ${w.step} p${w.percentile}`;
+  }).join("; ");
 
   return {
-    verdict: !everGood
-      ? html`<b>It was never fast, not even unloaded.</b> Its best
-             step, ${best.name} at ${best.concurrency} concurrent, still made the caller
-             wait ${ms(best.ttfa.p50_ms)} on a typical turn — ${bestBand} before any load
-             was applied.`
-      : worstBand === "natural"
-      ? html`<b>Every step sounded like a person.</b> Even at ${worst.concurrency} concurrent the
-             usual turn came back in ${ms(worst.ttfa.p50_ms)}, inside the 300ms a human pause takes.`
-      : html`<b>It starts ${bestBand} and ends ${worstBand}.</b> ${ms(best.ttfa.p50_ms)} on a
-             typical turn at ${best.concurrency} concurrent,
-             and ${ms(worst.ttfa.p50_ms)} at ${worst.concurrency}.`,
-    why: html`These bands do not come from this agent or any other. People leave roughly 200ms of
-      silence between turns in ordinary conversation, so a reply inside 300ms lands where a human
-      one would; past about 800ms the pause stops reading as thinking and starts reading as a
-      problem with the line. That is why a run can pass every relative verdict on this page and
-      still be graded a breakdown throughout: passing means "no worse than it was", and this asks
-      a different question.`,
-    act: !everGood
-      ? html`<b>Capacity will not fix this.</b> The floor is the problem, and the floor is set by
-             the model, the voice and the network rather than by how many calls are in flight.
-             Split the wait below to see which half owns it before buying anything.`
-      : worstBand === "natural"
-      ? html`Nothing to fix. Push the profile higher: you have found how good this agent is, not
-             how much of it there is.`
-      : html`<b>This one is capacity.</b> It was ${bestBand} when unloaded, so the agent can do the
-             job — it stops being able to somewhere
-             between ${best.concurrency} and ${worst.concurrency} concurrent. Size below that,
-             or find the half that saturates
-             in the split further down.`,
+    verdict: verdict,
+    why: html`Start from where real agents are, not from where a person would be. Against the published targets: ${targetText || "none loaded"}.${h ? ` On the ${human.label.toLowerCase()} at ${lineText(human)}, where a person would answer, this agent's fastest typical wait was ${fmtS(h.value_ms)}.` : ""} These numbers come from different vendors measuring between different instants, so each is drawn only on the clock its source defined, and none of them decides pass or fail.`,
+    act: html`<b>Quote a latency with its clock.</b> A p95 says nothing until it says where the timer started. This page gives every step on both clocks, and the appendix shows which published boundaries each Callstorm number spans. Pass and fail are still decided against this run's own baseline.`,
   };
 }
 
@@ -1531,7 +1565,8 @@ const APPENDIX = [
   ["Setup success", "calls that reached a conversation ÷ calls attempted", "Per step."],
   ["Verdict", "r = step p95 TTFA ÷ baseline step p95 TTFA. Pass r ≤ 1.5, warn r ≤ 2, fail r > 2 or setup < 97%", "In an impairment matrix every cohort's r uses the clean cohort's baseline step."],
   ["Breakpoint", "first step, in profile order, whose verdict is fail", "One per run, and one per cohort in a matrix."],
-  ["Latency grade", "under 300ms natural, under 500ms acceptable, under 800ms sluggish, otherwise breakdown", "Typical grades p50; at worst grades p95."],
+  ["Two clocks", "from end of speech = TTFA; from detection = think/speak = t(first audio) − t(agent's transcript of the caller)", "Every step is reported on both."],
+  ["Reference line", "the step's value on the line's clock and percentile, compared with the line, or with the top of a range", "p50 and p95 both when the source states no percentile. Never a verdict."],
   ["Drift", "(p50 of the later half − p50 of the earlier half) ÷ p50 of the earlier half", "Halves split by call start. +15% or more drifting, −15% or less settling. Each half needs 10 turns."],
   ["Recovered", "recovery step r ≤ 1.2", "Recovery runs at the baseline's own concurrency."],
   ["Pacing drift", "(t(caller end) − t(caller start)) − length of the caller's audio", "Measures the harness. A step whose worst drift exceeds 100ms either way is marked suspect."],
@@ -1548,7 +1583,22 @@ const APPENDIX = [
   ["Dispatch integrity", "came back = distinct (step, seq) results; duplicates = results for a call already back; missing = dispatched − came back at the step deadline; late = results for a step already closed", "Callstorm's own pipeline, not the target's events."],
 ];
 
-function Appendix() {
+// Cekura's published boundary table, with what Callstorm measures against each
+// row. Callstorm sees an agent from outside, so it splits the wait in two and no
+// further; this says which published rows each half contains.
+const BOUNDARIES = [
+  ["Endpointing delay", "Last detected user speech", "End-of-turn decision", "Inside Callstorm's endpointing, which starts earlier: at the true end of speech, before anything was detected."],
+  ["ASR finalization", "End-of-turn decision", "Final transcript available", "Inside Callstorm's endpointing, which ends when that transcript arrives. Not separable from outside the agent."],
+  ["LLM TTFT", "Model request sent", "First output token", "Inside think/speak. Not separable from outside the agent."],
+  ["Tool latency", "Tool request sent", "Tool result available", "Inside think/speak. Not separable today."],
+  ["TTS first-byte", "Speakable text sent to TTS", "First audio bytes received", "Inside think/speak. Not separable from outside the agent."],
+  ["TTFA", "A defined turn boundary", "First playable/audible audio", "Callstorm's TTFA, with the boundary set at the true end of speech. It ends when the first audio byte arrives, not when it plays."],
+  ["End-to-end response", "User finishes speaking", "Agent begins speaking", "Callstorm's TTFA is this row, ended at arrival rather than at audible start."],
+  ["Interruption stop time", "Caller begins barge-in", "Agent audio stops", "Callstorm's barge-in yield, ended when the agent's audio stops arriving."],
+];
+
+function Appendix({ refs }) {
+  const cekura = (refs || []).flatMap(r => r.cites || []).find(c => c.source === "Cekura");
   return html`
     <div className="card">
       <div className="eyebrow">Appendix</div>
@@ -1567,10 +1617,23 @@ function Appendix() {
           </tbody>
         </table>
       </div>
+      <h2 style=${{marginTop:"26px"}}>Whose boundary each number spans</h2>
+      <div className="read-why" style=${{marginTop:"8px",maxWidth:"78ch"}}>
+        The first three columns are ${cekura && cekura.url ? html`<a href=${cekura.url}>Cekura's published boundary table</a>` : "Cekura's published boundary table"}${cekura ? ` (${cekura.title}, ${cekura.published})` : ""}, the only published attempt found to pin these metrics to start and end instants. The last column is what Callstorm measures against each row. Both Callstorm halves also carry the network in each direction, which none of the rows separates.
+      </div>
+      <div className="tablewrap gloss">
+        <table>
+          <thead><tr><th>Published metric</th><th>Starts</th><th>Ends</th><th>In Callstorm</th></tr></thead>
+          <tbody>
+            ${BOUNDARIES.map(([m, a, b, c]) => html`
+              <tr key=${m}><td>${m}</td><td>${a}</td><td>${b}</td><td>${c}</td></tr>`)}
+          </tbody>
+        </table>
+      </div>
     </div>`;
 }
 
-function ReportCard({ id }) {
+function ReportCard({ id, refs }) {
   const [rep, setRep] = useState(null);
   const [err, setErr] = useState(null);
 
@@ -1640,7 +1703,7 @@ function ReportCard({ id }) {
     </div>
 
     <${ImpairmentHeatmap} rep=${rep}/>
-    <${GradeScale} steps=${steps}/>
+    <${ReferenceLines} steps=${steps} refs=${rep.references || refs}/>
     <${PhaseTable} steps=${steps}/>
 
     ${conv.length === 0 && steps.length > 0 && html`
@@ -1744,15 +1807,17 @@ function ReportCard({ id }) {
 
     <${IntegrityCard} integrity=${rep.integrity}/>
     <${NodeScores} rep=${rep}/>
-    <${Appendix}/>`;
+    <${Appendix} refs=${rep.references || refs}/>`;
 }
 
 function App() {
   const [runs, setRuns] = useState([]);
   const [sel, setSel] = useState(null);
+  const [refs, setRefs] = useState([]);
   const [err, setErr] = useState(null);
 
   useEffect(() => {
+    fetch("api/references.json").then(r => (r.ok ? r.json() : [])).then(setRefs).catch(() => setRefs([]));
     fetch("api/runs.json").then(r => r.json())
       .then(rs => { setRuns(rs); if (rs.length) setSel(rs[0].id); })
       .catch(e => setErr(String(e)));
@@ -1828,7 +1893,7 @@ function App() {
               </button>`)}
           </div>
         </div>
-        <div><${ReportCard} id=${sel}/></div>
+        <div><${ReportCard} id=${sel} refs=${refs}/></div>
       </div>
     </div>`;
 }

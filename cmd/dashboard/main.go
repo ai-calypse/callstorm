@@ -51,6 +51,12 @@ func main() {
 	// A wildcard has to be a whole path segment, so the extension is stripped
 	// in the handler rather than written into the pattern.
 	mux.HandleFunc("GET /api/runs/{id}", getRun(*runsDir))
+	// The published reference lines, served from the same embedded file the
+	// CLI reads, so the page cannot quote a different source from the report.
+	mux.HandleFunc("GET /api/references.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(loadgen.ReferencesJSON())
+	})
 	mux.HandleFunc("POST /api/clienterror", clientError)
 
 	pages, err := newFS()
@@ -103,6 +109,9 @@ func exportStatic(runsDir, dst string) error {
 		return err
 	}
 	if err := os.WriteFile(filepath.Join(dst, "api", "runs.json"), index, 0o644); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(dst, "api", "references.json"), loadgen.ReferencesJSON(), 0o644); err != nil {
 		return err
 	}
 
