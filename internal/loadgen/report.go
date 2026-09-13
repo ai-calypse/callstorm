@@ -8,9 +8,11 @@ import (
 	"github.com/yakshgandhi/callstorm/internal/metrics"
 )
 
-// Verdict thresholds follow the published voice-agent load-testing guidance:
-// score a step by how far it has degraded relative to the baseline step, not
-// against an absolute latency target, because a target that is generous for one
+// The fail line follows the degradation rule in Coval's load-testing
+// methodology (March 2026), p95 within 2x the baseline at peak; the warn line
+// at 1.5x is Callstorm's own. A step is scored by how far it has degraded
+// relative to the baseline step, not against an absolute latency target,
+// because published targets disagree and a target that is generous for one
 // agent is unreachable for another.
 const (
 	warnRatio = 1.5 // p95 up to 1.5x baseline passes
@@ -94,12 +96,6 @@ type StepReport struct {
 	// failure no latency number can show: an agent can answer fast, fluently,
 	// and to a question nobody asked.
 	WER WERStats `json:"wer"`
-
-	// Grade is where this step falls on the absolute latency scale, reported
-	// beside the relative verdict because the two answer different questions.
-	// A run can pass every step against its own baseline and still be graded a
-	// breakdown throughout -- which is the finding a relative score hides.
-	Grade Grade `json:"grade"`
 
 	// Phase is how the step behaved across its own duration: the shape a
 	// single percentile flattens away.
@@ -187,6 +183,11 @@ type Report struct {
 	// Integrity is whether the harness's own event pipeline delivered what it
 	// sent. Absent when the run used no pipeline to check.
 	Integrity *Integrity `json:"integrity,omitempty"`
+
+	// References are the published lines this run was read against, copied in
+	// at the time it ran. The list will change as vendors publish, and a
+	// report should still say what it was compared with.
+	References []Reference `json:"references,omitempty"`
 
 	// Calls is every conversation the run produced, kept out of the report
 	// card and written alongside it. The report card answers how fast the
@@ -339,7 +340,6 @@ func buildStepReportAt(step Step, outcomes []callOutcome, ratePerMinute float64)
 	r.Conversation = summarizeConversation(outcomes)
 	r.Cost = summarizeCost(outcomes, ratePerMinute)
 	r.Phase = summarizePhase(step, outcomes)
-	gradeStep(&r)
 
 	// A step held for a duration was configured with no call count, so the
 	// report supplies the one it actually placed. Otherwise every consumer

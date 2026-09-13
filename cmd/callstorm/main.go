@@ -281,6 +281,8 @@ func runLoad(ctx context.Context, o opts, sc *scenario.Scenario, apiKey string) 
 		return err
 	}
 
+	rep.References = loadgen.References()
+
 	if producer != nil {
 		produced, dropped := producer.Flush(ctx)
 		fmt.Printf("kafka      published %d turn events, dropped %d", produced, dropped)
@@ -484,7 +486,7 @@ func printLoadReport(rep *loadgen.Report, jsonPath, csvPath, svgPath, callsPath 
 		}
 	}
 
-	printGrades(rep)
+	printReferences(rep)
 	printPhases(rep)
 	printConversation(rep)
 	printComponentShare(rep)
@@ -991,19 +993,55 @@ func msf(f float64) string {
 	return fmt.Sprintf("%.0fms", f)
 }
 
-// printGrades places every step on the absolute scale, beside the relative
-// verdict rather than instead of it.
+// printReferences reports every step on two clocks and reads the published
+// reference lines against the clock each was defined on.
 //
-// The verdict above answers "did this degrade", which is the right question
-// for finding a breakpoint and the wrong one for deciding whether to ship. A
-// run can pass every step against its own baseline while every step is a wait
-// no caller would sit through, and only an absolute band says so.
-func printGrades(rep *loadgen.Report) {
-	fmt.Printf("\nhow it sounds  under 300ms natural, to 500ms acceptable, to 800ms sluggish, past that breakdown\n")
-	fmt.Printf("%-12s %-10s %-13s %-10s %s\n", "step", "p50", "usually", "p95", "at worst")
+// Vendors publish latency thresholds under the same names measured between
+// different instants, so a threshold is only readable on the clock it was
+// defined against. Callstorm records two: from the caller's true end of speech,
+// and from the agent's transcript of the caller. None of the lines is the
+// verdict; the verdict above stays relative to the run's own baseline.
+func printReferences(rep *loadgen.Report) {
+	fmt.Printf("\ntwo clocks   from the caller's true end of speech (TTFA), and from the agent's transcript of the caller (think/speak)\n")
+	fmt.Printf("%-12s %-12s %-12s %-12s %s\n", "step", "speech p50", "speech p95", "detect p50", "detect p95")
 	for _, s := range rep.Steps {
-		fmt.Printf("%-12s %-10s %-13s %-10s %s\n",
-			s.Name, msf(s.TTFA.P50Ms), dash(s.Grade.Typical), msf(s.TTFA.P95Ms), dash(s.Grade.Worst))
+		fmt.Printf("%-12s %-12s %-12s %-12s %s\n", s.Name,
+			msf(s.TTFA.P50Ms), msf(s.TTFA.P95Ms), msf(s.ThinkSpeak.P50Ms), msf(s.ThinkSpeak.P95Ms))
+	}
+	if len(rep.References) == 0 {
+		return
+	}
+
+	fmt.Printf("\nreference    published lines, each read on its own clock; none of them is the verdict\n")
+	for _, r := range rep.References {
+		line := fmt.Sprintf("%.0fms", r.Ms)
+		if r.ToMs > 0 {
+			line = fmt.Sprintf("%.0f-%.0fms", r.Ms, r.ToMs)
+		}
+		clock := "speech"
+		if r.Axis == loadgen.AxisDetection {
+			clock = "detect"
+		}
+		cite := ""
+		if len(r.Cites) > 0 {
+			cite = fmt.Sprintf("%s, %s", r.Cites[0].Source, r.Cites[0].Published)
+		}
+		fmt.Printf("%-12s %s %s on %s  (%s)\n", r.Kind, r.Label, line, clock, cite)
+
+		var cells []string
+		for _, s := range rep.Steps {
+			for _, m := range loadgen.Place(r, s) {
+				side := "under"
+				if m.Over {
+					side = "over"
+				}
+				cells = append(cells, fmt.Sprintf("%s p%d %s %s", s.Name, m.Percentile, msf(m.ValueMs), side))
+			}
+		}
+		if len(cells) == 0 {
+			cells = []string{"no samples on this clock"}
+		}
+		fmt.Printf("%-12s %s\n", "", strings.Join(cells, " · "))
 	}
 }
 

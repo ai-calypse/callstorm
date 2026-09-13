@@ -1,0 +1,56 @@
+[
+  {
+    "id": "hamming-observed-production-p50",
+    "label": "Hamming observed production median",
+    "kind": "observed",
+    "ms": 1400,
+    "to_ms": 1700,
+    "percentile": 50,
+    "axis": "end_of_speech",
+    "boundary": "Median latency observed across more than 10 million minutes of production calls. The start and end instants are not restated beside the figure.",
+    "placement": "No boundary is stated with it, so it is read on the widest Callstorm clock: an agent under this range from true end of speech is under it on any narrower clock too.",
+    "cites": [
+      { "source": "Hamming", "title": "voice agent latency guide", "published": "2026-01" }
+    ]
+  },
+  {
+    "id": "coval-load-p95",
+    "label": "Coval p95 target under load",
+    "kind": "target",
+    "ms": 2000,
+    "percentile": 95,
+    "axis": "end_of_speech",
+    "boundary": "Response latency under load, p95 under 2s. The start and end instants are not defined beside the threshold.",
+    "placement": "No boundary is stated with it, so it is read on the widest Callstorm clock, where holding it means holding it on any narrower one.",
+    "cites": [
+      { "source": "Coval", "title": "load testing methodology", "published": "2026-03-07" }
+    ]
+  },
+  {
+    "id": "hamming-ttfw-breakdown",
+    "label": "Hamming TTFW breakdown line",
+    "kind": "target",
+    "ms": 800,
+    "percentile": 0,
+    "axis": "detection",
+    "boundary": "TTFW, from VAD silence detection to the first agent audio byte. Past 800ms is conversation breakdown. No percentile is stated.",
+    "placement": "Its clock starts at detection, so it is read on think/speak. Callstorm's detection instant is the agent's transcript arriving, later than VAD detection by transcript finalization, so this reading leans in the agent's favour.",
+    "cites": [
+      { "source": "Hamming", "title": "voice agent analytics guide", "published": "2026-02-10" }
+    ]
+  },
+  {
+    "id": "human-turn-offset",
+    "label": "Human turn-taking marker",
+    "kind": "perceptual",
+    "ms": 300,
+    "percentile": 50,
+    "axis": "end_of_speech",
+    "boundary": "People answer about 208ms after the other speaker stops, across languages. 300ms is the edge Hamming labels natural.",
+    "placement": "A human gap runs from the moment the other speaker actually stops, so it is read on the end-of-speech clock at the median. It marks what a person does; it is not a pass line.",
+    "cites": [
+      { "source": "Cekura", "title": "voice agent latency guide", "published": "2026-09-03" },
+      { "source": "Hamming", "title": "voice agent analytics guide", "published": "2026-02-10" }
+    ]
+  }
+]
