@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -15,6 +17,9 @@ import (
 // reading-comprehension one, and a small model asked to cite evidence will
 // cheerfully cite a turn that does not say what it claims.
 const DefaultGroqModel = "openai/gpt-oss-120b"
+
+// groqAttempts bounds how many times one judgement waits out a rate limit.
+const groqAttempts = 6
 
 // Groq judges over Groq's OpenAI-compatible API.
 //
@@ -35,7 +40,8 @@ type Groq struct {
 	// BaseURL defaults to Groq's public endpoint.
 	BaseURL string
 
-	// Timeout bounds one judgement. Defaults to 2 minutes.
+	// Timeout bounds one judgement, including any wait for a rate limit to
+	// clear. Defaults to 2 minutes.
 	Timeout time.Duration
 
 	HTTP *http.Client
@@ -66,6 +72,13 @@ var outcomesSchema = json.RawMessage(`{
 }`)
 
 // Complete sends one prompt and returns the model's reply.
+//
+// A rate limit is waited out rather than returned. A sweep's conversations are
+// judged back to back, which reaches the free tier's tokens-per-minute ceiling
+// within a few calls, and the ceiling clears in seconds: returning at once left
+// a judged sweep with most of its conversations unjudged. Groq says how long to
+// wait, so that is how long this waits, a bounded number of times; a limit
+// that does not clear still fails with its reason.
 func (g Groq) Complete(ctx context.Context, system, user string) (string, error) {
 	if g.APIKey == "" {
 		return "", fmt.Errorf("GROQ_API_KEY is not set")
@@ -111,19 +124,35 @@ func (g Groq) Complete(ctx context.Context, system, user string) (string, error)
 		return "", err
 	}
 
+	for attempt := 1; ; attempt++ {
+		reply, wait, err := g.send(ctx, client, base, body)
+		if err != nil && ctx.Err() == context.DeadlineExceeded {
+			return "", fmt.Errorf("judge timed out after %s", timeout)
+		}
+		if err == nil || wait == 0 || attempt == groqAttempts {
+			return reply, err
+		}
+		select {
+		case <-time.After(wait):
+		case <-ctx.Done():
+			return "", fmt.Errorf("judge timed out after %s waiting out a groq rate limit", timeout)
+		}
+	}
+}
+
+// send makes one request. wait is non-zero only for a rate limit, and is how
+// long Groq asked to be left alone.
+func (g Groq) send(ctx context.Context, client *http.Client, base string, body []byte) (reply string, wait time.Duration, err error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/chat/completions", bytes.NewReader(body))
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 	req.Header.Set("Authorization", "Bearer "+g.APIKey)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
 	if err != nil {
-		if ctx.Err() == context.DeadlineExceeded {
-			return "", fmt.Errorf("judge timed out after %s", timeout)
-		}
-		return "", err
+		return "", 0, err
 	}
 	defer resp.Body.Close()
 
@@ -139,7 +168,7 @@ func (g Groq) Complete(ctx context.Context, system, user string) (string, error)
 		} `json:"error"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return "", fmt.Errorf("groq %s: decode response: %w", resp.Status, err)
+		return "", 0, fmt.Errorf("groq %s: decode response: %w", resp.Status, err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -150,12 +179,33 @@ func (g Groq) Complete(ctx context.Context, system, user string) (string, error)
 		if resp.StatusCode == http.StatusTooManyRequests {
 			// Worth naming: the free tier's ceiling is the usual reason a
 			// sweep comes back with most of its conversations unjudged.
-			return "", fmt.Errorf("groq rate limit: %s (judge fewer calls with -judge-calls, or wait)", msg)
+			return "", retryAfter(resp.Header.Get("Retry-After"), msg),
+				fmt.Errorf("groq rate limit: %s (judge fewer calls with -judge-calls, or wait)", msg)
 		}
-		return "", fmt.Errorf("groq %s: %s", resp.Status, msg)
+		return "", 0, fmt.Errorf("groq %s: %s", resp.Status, msg)
 	}
 	if len(out.Choices) == 0 {
-		return "", fmt.Errorf("groq returned no choices")
+		return "", 0, fmt.Errorf("groq returned no choices")
 	}
-	return out.Choices[0].Message.Content, nil
+	return out.Choices[0].Message.Content, 0, nil
+}
+
+// tryAgainIn reads the wait out of Groq's message, which is more precise than
+// its Retry-After header: "Please try again in 3.63s", or "in 1m2.5s".
+var tryAgainIn = regexp.MustCompile(`try again in ((?:[0-9.]+(?:ms|h|m|s))+)`)
+
+// retryAfter is how long to wait before trying again: the message's figure,
+// else the header's whole seconds, else a few seconds. A little is added,
+// because arriving exactly as the window reopens is arriving slightly early.
+func retryAfter(header, msg string) time.Duration {
+	const margin = 250 * time.Millisecond
+	if m := tryAgainIn.FindStringSubmatch(msg); m != nil {
+		if d, err := time.ParseDuration(m[1]); err == nil {
+			return d + margin
+		}
+	}
+	if s, err := strconv.ParseFloat(strings.TrimSpace(header), 64); err == nil && s > 0 {
+		return time.Duration(s*float64(time.Second)) + margin
+	}
+	return 5 * time.Second
 }
