@@ -246,29 +246,58 @@ samples, and a p95 over a dozen turns is one unlucky call rather than a trend.
 A step with too few turns on either side reports that it could not tell, which
 is deliberately not the same answer as "steady".
 
-## Fast relative to itself, and fast in absolute terms
+## A relative verdict, and published lines on their own clocks
 
-The verdict above is relative -- each step against the run's own baseline --
-because a latency target that is generous for one agent is unreachable for
-another. That finds degradation and says nothing about whether the agent was
-ever any good, so every step is also placed on an absolute scale taken from how
-people actually take turns in conversation.
+The verdict is relative: each step's p95 against the run's own baseline. It
+warns past 1.5x and fails past 2x. The 2x line is the degradation rule in
+Coval's load-testing methodology (March 2026); the 1.5x warn line is Callstorm's
+own.
 
-```
-how it sounds  under 300ms natural, to 500ms acceptable, to 800ms sluggish, past that breakdown
-step         p50        usually       p95        at worst
-smoke        402ms      acceptable    478ms      acceptable
-ramp-c4      401ms      acceptable    465ms      acceptable
-stress-c12   553ms      sluggish      1439ms     breakdown
-spike-c24    854ms      breakdown     1048ms     breakdown
-soak-c8      452ms      acceptable    478ms      acceptable
-recover-c4   402ms      acceptable    431ms      acceptable
-```
+**There is no absolute latency grade.** Published thresholds disagree, often
+because they time different things under the same name. Hamming defines TTFW as
+call connect to first audio in one guide, and as VAD silence to first audio in
+another, with different thresholds for each. So a run is read against
+published lines instead. Each line sits on the clock its source defined and
+carries its source and date, and none of them is the verdict.
 
-The two regularly disagree, and the disagreement is the point. A live Deepgram
-sweep passes every relative verdict in this repository and is graded
-**breakdown at every step**, because its p50 never came in under 800ms even at
-one concurrent caller. Passing means "no worse than it was".
+Every step is reported on two clocks:
+
+- **From true end of speech**: TTFA, from the moment the caller's audio actually
+  stopped. Callstorm synthesized that audio, so the instant is known rather than
+  detected.
+- **From detection**: think/speak, from the moment the agent's transcript of
+  the caller arrived. That is later than voice activity detection by transcript
+  finalization, so a line placed on it is read slightly in the agent's favour.
+
+| line | kind | value | clock | source |
+|---|---|---|---|---|
+| Hamming observed production median | where agents are | p50 1.4s to 1.7s | end of speech, boundary not stated | Hamming, voice agent latency guide, January 2026 |
+| Coval p95 target under load | target | p95 under 2s | end of speech, boundary not stated | Coval, load testing methodology, 2026-03-07 |
+| Hamming TTFW breakdown line | target | 800ms, no percentile stated | detection | Hamming, voice agent analytics guide, 2026-02-10 |
+| Human turn-taking marker | human reference | p50 300ms | end of speech | Cekura, voice agent latency guide, 2026-09-03 (about 208ms human offset); the edge Hamming labels natural |
+
+A line whose source states no boundary is read on the widest clock, so holding
+it there holds it on any narrower one. A line with no stated percentile is read
+at both p50 and p95. The list is `internal/loadgen/references.json`, and every
+report copies in the lines it was read against.
+
+**Start from real agents.** Take the two live Deepgram sweeps, 20 steps between
+them:
+- **Typical wait:** 824ms to 907ms from true end of speech, 512ms to 586ms from
+  detection. That is under the 1.4s to 1.7s median Hamming observed in
+  production, under Hamming's 800ms TTFW line at the median on that line's own
+  clock, and about three times the human marker.
+- **The tail:** p95 on the detection clock was past 800ms on 7 of 10 steps.
+  Coval's 2s p95 was crossed on 4 of 10.
+
+An earlier version of this README graded the same runs "breakdown at every
+step". It had read Hamming's 800ms line on the end-of-speech clock, which is
+not the one Hamming defined.
+
+The dashboard appendix maps Cekura's published boundary table (September 2026)
+onto what Callstorm measures: which of endpointing, transcript finalization,
+model time to first token, tool latency and first TTS byte each Callstorm
+number spans. From outside the agent the wait splits in two and no further.
 
 ## Why there is a reference agent
 
@@ -318,10 +347,13 @@ completely differently:
 
 Endpointing is metronome-stable. All the tail latency lives in think + speak.
 
-Published guidance defines voice latency from *end of utterance **detected***,
-which leaves endpointing outside the breakdown. Callstorm starts from when the
-caller actually stopped, because it generated the audio and knows the ground
-truth. That is the payoff of driving the caller synthetically.
+Hamming's analytics guide (February 2026) starts TTFW at VAD silence
+*detection*, which leaves endpointing outside the number. Cekura's latency guide
+(September 2026) makes the same point from the other side: a clock that starts
+after endpointing fires hides a delay the caller still sat through. Callstorm
+starts from when the caller actually stopped, because it generated the audio and
+knows the ground truth, and reports the detection clock beside it. That is the
+payoff of driving the caller synthetically.
 
 Also reported: **`heard`**, what the agent's STT actually transcribed. When it
 diverges from what the caller said, the agent answered a different question -- a
