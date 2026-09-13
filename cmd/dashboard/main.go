@@ -51,6 +51,10 @@ func main() {
 	// A wildcard has to be a whole path segment, so the extension is stripped
 	// in the handler rather than written into the pattern.
 	mux.HandleFunc("GET /api/runs/{id}", getRun(*runsDir))
+	// The written analysis of a run, and of a suite of runs, for runs that have
+	// one. Both dashboards read these; neither writes them.
+	mux.HandleFunc("GET /api/runs/{id}/insights.json", getInsights(*runsDir, "id"))
+	mux.HandleFunc("GET /api/suites/{suite}/insights.json", getInsights(*runsDir, "suite"))
 	// The published reference lines, served from the same embedded file the
 	// CLI reads, so the page cannot quote a different source from the report.
 	mux.HandleFunc("GET /api/references.json", func(w http.ResponseWriter, r *http.Request) {
@@ -127,6 +131,19 @@ func exportStatic(runsDir, dst string) error {
 		if err := os.WriteFile(filepath.Join(dst, "api", "runs", r.ID+".json"), b, 0o644); err != nil {
 			return err
 		}
+		// The written analysis, for runs that have one.
+		if ins, err := resolve(runsDir, r.ID+"-insights", ".json"); err == nil {
+			if err := copyInto(ins, filepath.Join(dst, "api", "runs", r.ID, "insights.json")); err != nil {
+				return err
+			}
+		}
+	}
+	for _, s := range suitesOf(runs) {
+		if ins, err := resolve(runsDir, s+"-insights", ".json"); err == nil {
+			if err := copyInto(ins, filepath.Join(dst, "api", "suites", s, "insights.json")); err != nil {
+				return err
+			}
+		}
 	}
 
 	log.Printf("exported %d runs to %s", len(runs), dst)
@@ -141,7 +158,7 @@ func collect(dir string) []summary {
 
 	out := []summary{}
 	for _, p := range reports {
-		if strings.HasSuffix(p, "-judgements.json") {
+		if strings.HasSuffix(p, "-judgements.json") || strings.HasSuffix(p, "-insights.json") {
 			continue
 		}
 		rep, err := readReport(p)
@@ -283,6 +300,45 @@ func getRun(dir string) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(b)
 	}
+}
+
+// getInsights serves the written analysis of a run, or of a suite, named by
+// the path value param, for those that have one.
+func getInsights(dir, param string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		p, err := resolve(dir, r.PathValue(param)+"-insights", ".json")
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		http.ServeFile(w, r, p)
+	}
+}
+
+// copyInto copies one file into the export, making its directory.
+func copyInto(src, dst string) error {
+	b, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(dst, b, 0o644)
+}
+
+// suitesOf lists the suites the runs belong to, once each.
+func suitesOf(runs []summary) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, r := range runs {
+		if r.Suite != "" && !seen[r.Suite] {
+			seen[r.Suite] = true
+			out = append(out, r.Suite)
+		}
+	}
+	return out
 }
 
 // resolve turns a run id into a path inside dir, refusing anything that tries

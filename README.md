@@ -414,6 +414,39 @@ never talks over a slow agent.
 against the reference agent. It has a sudden rush and a slow build-up to the
 same level, a recovery step, and a steady hold.
 
+## Written analysis
+
+When `GEMINI_API_KEY` is set, every run ends with a written analysis, stored
+beside its report as `<run>-insights.json`. A run placed with `-suite` also
+rewrites `<suite>-insights.json` beside its parts, so the test's analysis reads
+every part placed so far. Both dashboards show it next to the plain-language
+answers, which stay rule-based.
+
+```bash
+./bin/callstorm -insights runs/<run>.json      # one run, and its suite
+./bin/callstorm -insights runs/<directory>     # every run and suite in it
+```
+
+The model reads a digest of each report -- steps, quality figures, the judge's
+summary and the run's reference lines -- plus figures per turn of the
+conversation from the calls log. That is where a turn slower than the rest shows
+up, which no step percentile can show. It is told to look for the patterns Coval
+and Hamming write about: where the wait goes, whether latency follows load, the
+tail breaking while the median holds, quality slipping while latency holds, a
+slow turn, scenarios that differ, and whether the test itself can be trusted.
+
+**Every number it writes is checked against the data.** A number must appear
+in the digest, rounded, or in the unit the sentence gives it in: milliseconds as
+seconds, a fraction as a percentage. A claim with any other number is dropped
+and listed as dropped, with the number, so an invented figure never reaches a
+reader looking like a measured one. Small counts written without a unit are
+exempt. Each analysis records the model, when it was written, and hashes of the
+instructions and the data it read.
+
+`-insights-model` picks the model; the default is Gemini's generally available
+Flash model. An analysis that cannot be written is reported and never fails the
+run.
+
 ## The calls log
 
 Every call a run places is written to the calls file beside its report, failed

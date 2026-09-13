@@ -708,7 +708,30 @@ for (const [name, ok] of [
   console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
 }
 
-const ALL = [card, legacy, refsHtml, drifted, stuck, nojudge, task, thinHtml, phasedCard, judgedCard, heat, nodes, dup, lost, matrixCard, agentHtml, noPong, rttCard, suiteHtml].join(String.fromCharCode(10));
+// The written analysis: what the model kept, with its evidence, and a count
+// of what the number check dropped.
+const modI = new Function(src + "\n;return { InsightsView };")();
+const insightsHtml = ReactDOMServer.renderToStaticMarkup(React.createElement(modI.InsightsView, { ins: {
+  kind: "suite", subject: "deepgram-full-test", model: "gemini-3.5-flash", generated_at: "2026-09-13T20:30:00Z",
+  headline: "Only refund slows down with load, and the closing turn of graph-reference is the slowest moment.",
+  insights: [
+    { title: "The closing turn is the slowest", category: "latency", severity: "high",
+      evidence: ["graph-reference, turn 4: ttfa_p50_ms 3166"], finding: "Replies to the thank-you take 3166ms.",
+      why_it_matters: "Callers wait at the end of the call.", next_step: "Look at what the agent does after a thank-you." },
+  ],
+  rejected: [{ title: "Invented", reason: "cites 1830, which the data does not contain" }],
+} }));
+for (const [name, ok] of [
+  ["analysis shows its headline", insightsHtml.includes("Only refund slows down with load")],
+  ["analysis shows each finding with its evidence", insightsHtml.includes("The closing turn is the slowest") && insightsHtml.includes("graph-reference, turn 4: ttfa_p50_ms 3166")],
+  ["analysis names the model that wrote it", insightsHtml.includes("Written analysis · gemini-3.5-flash")],
+  ["analysis counts what the number check dropped", insightsHtml.includes("1 claim that could not be checked was dropped")],
+]) {
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
+}
+
+const ALL = [card, legacy, refsHtml, drifted, stuck, nojudge, task, thinHtml, phasedCard, judgedCard, heat, nodes, dup, lost, matrixCard, agentHtml, noPong, rttCard, suiteHtml, insightsHtml].join(String.fromCharCode(10));
 const prose = [...ALL.matchAll(/<div class="read[^"]*">([\s\S]*?)<\/div>/g)]
   // Inline tags are dropped rather than spaced out: <b> and <code> sit inside
   // sentences, so replacing them with a space would invent gaps the reader

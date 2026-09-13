@@ -23,6 +23,7 @@ import (
 	"github.com/yakshgandhi/callstorm/internal/chart"
 	"github.com/yakshgandhi/callstorm/internal/config"
 	"github.com/yakshgandhi/callstorm/internal/impair"
+	"github.com/yakshgandhi/callstorm/internal/insights"
 	"github.com/yakshgandhi/callstorm/internal/judge"
 	"github.com/yakshgandhi/callstorm/internal/loadgen"
 	"github.com/yakshgandhi/callstorm/internal/metrics"
@@ -63,6 +64,8 @@ type opts struct {
 	suite          string
 	rejudge        string
 	labels         string
+	insightsPath   string
+	insightsModel  string
 }
 
 func main() {
@@ -101,6 +104,10 @@ func main() {
 		"judge a run already placed, from its report and calls file, instead of placing calls; needs its -scenario")
 	flag.StringVar(&o.labels, "labels", "",
 		"with -rejudge: a person's corrected copy of a judgements file; reports how often the judge agrees")
+	flag.StringVar(&o.insightsPath, "insights", "",
+		"write the analysis of a run report, or of every suite and run in a directory, with Gemini, instead of placing calls")
+	flag.StringVar(&o.insightsModel, "insights-model", insights.DefaultModel,
+		"Gemini model that writes run analyses; analyses are written after every run when GEMINI_API_KEY is set")
 	flag.Parse()
 
 	if err := run(o); err != nil {
@@ -125,6 +132,14 @@ func run(o opts) error {
 		source = o.envPath
 	}
 	fmt.Printf("credentials %s  key %s\n", source, config.Fingerprint(apiKey))
+
+	// -insights reads runs already on disk and places no calls, so it needs no
+	// scenario.
+	if o.insightsPath != "" {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+		return runInsights(ctx, o)
+	}
 
 	sc, err := scenario.Load(o.scenarioPath)
 	if err != nil {
@@ -363,6 +378,15 @@ func runLoad(ctx context.Context, o opts, sc *scenario.Scenario, apiKey string) 
 	if rep.Judge != nil {
 		printTaskSuccess(rep.Judge, judgePath)
 	}
+
+	// The analysis is written last, from the files just written, so it reads
+	// exactly what the dashboard will show. A part of a suite also rewrites the
+	// suite's analysis, so the test's reads every part placed so far.
+	suites := map[string]string{}
+	if o.suite != "" {
+		suites[o.suite] = o.outDir
+	}
+	writeInsights(ctx, o, []string{jsonPath}, suites)
 
 	// A step's turns land in the registry as that step ends, and a scrape that
 	// arrives after the process has exited gets nothing at all. The breakpoint
@@ -935,6 +959,12 @@ func rejudge(ctx context.Context, o opts, sc *scenario.Scenario) error {
 		return err
 	}
 	printTaskSuccess(rep.Judge, path)
+	// The verdicts changed, so an analysis written from the old ones is stale.
+	suites := map[string]string{}
+	if rep.Suite != "" {
+		suites[rep.Suite] = dir
+	}
+	writeInsights(ctx, o, []string{o.rejudge}, suites)
 	if o.labels != "" {
 		return printAgreement(rep.Judge, o.labels)
 	}
@@ -975,6 +1005,95 @@ func printAgreement(t *loadgen.TaskSuccess, labelsPath string) error {
 	if a.Rate() < judge.AgreementTarget {
 		fmt.Printf("  below target: read the disagreements, reword the criterion or the prompt, and rejudge.\n")
 	}
+	return nil
+}
+
+// geminiModel returns the model that writes analyses, and false when there is
+// no key: a run without one is not an error, only a run without an analysis.
+func geminiModel(o opts) (insights.Model, bool) {
+	key := os.Getenv("GEMINI_API_KEY")
+	if key == "" {
+		return nil, false
+	}
+	return insights.Gemini{APIKey: key, Model: o.insightsModel}, true
+}
+
+// writeInsights writes the analysis of each report, then of each suite, given
+// as name to directory. An analysis that cannot be written is reported and
+// does not fail the run: the measurements stand without it.
+func writeInsights(ctx context.Context, o opts, reportPaths []string, suites map[string]string) {
+	m, ok := geminiModel(o)
+	if !ok {
+		return
+	}
+	for _, p := range reportPaths {
+		d, err := insights.ForRun(p)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "insights: %v\n", err)
+			continue
+		}
+		saveInsights(ctx, o, m, d, insights.PathForRun(p))
+	}
+	for suite, dir := range suites {
+		d, err := insights.ForSuite(dir, suite)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "insights: %v\n", err)
+			continue
+		}
+		saveInsights(ctx, o, m, d, insights.PathForSuite(dir, suite))
+	}
+}
+
+func saveInsights(ctx context.Context, o opts, m insights.Model, d insights.Digest, path string) {
+	fmt.Printf("\ninsights     writing the analysis of %s %s with %s\n", d.Kind, d.Subject, o.insightsModel)
+	r, err := insights.Generate(ctx, m, o.insightsModel, d)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "insights: %s %s: %v\n", d.Kind, d.Subject, err)
+		return
+	}
+	if err := r.Write(path); err != nil {
+		fmt.Fprintf(os.Stderr, "insights: %v\n", err)
+		return
+	}
+	fmt.Printf("insights     %d kept, %d dropped by the number check  %s\n", len(r.Insights), len(r.Rejected), path)
+	if r.Headline != "" {
+		fmt.Printf("             %s\n", r.Headline)
+	}
+	for _, in := range r.Insights {
+		fmt.Printf("  %-7s %s\n", in.Severity, in.Title)
+	}
+	for _, rj := range r.Rejected {
+		fmt.Printf("  dropped %s: %s\n", rj.Title, rj.Reason)
+	}
+}
+
+// runInsights is -insights: the analysis of one report and its suite, or of
+// every run and suite in a directory. It is how runs placed before analyses
+// existed get one, and how every analysis is rewritten when the instructions
+// change.
+func runInsights(ctx context.Context, o opts) error {
+	if _, ok := geminiModel(o); !ok {
+		return fmt.Errorf("-insights needs GEMINI_API_KEY in %s or the environment", o.envPath)
+	}
+	info, err := os.Stat(o.insightsPath)
+	if err != nil {
+		return err
+	}
+	suites := map[string]string{}
+	if !info.IsDir() {
+		if d, err := insights.ForRun(o.insightsPath); err == nil {
+			if s, _ := d.Runs[0].Report["suite"].(string); s != "" {
+				suites[s] = filepath.Dir(o.insightsPath)
+			}
+		}
+		writeInsights(ctx, o, []string{o.insightsPath}, suites)
+		return nil
+	}
+	names, _ := insights.Suites(o.insightsPath)
+	for _, s := range names {
+		suites[s] = o.insightsPath
+	}
+	writeInsights(ctx, o, insights.Reports(o.insightsPath), suites)
 	return nil
 }
 

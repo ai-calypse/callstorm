@@ -56,6 +56,13 @@
   button.open { font:inherit; font-size:11px; color:var(--ink); background:none; border:1px solid var(--rule); border-radius:2px; padding:2px 8px; cursor:pointer; }
   button.open[aria-pressed="true"] { color:var(--mute); cursor:default; }
   .partlabel { margin:26px 0 10px; }
+  .insights .insight { border-top:1px solid var(--rule-soft); padding-block:12px; }
+  .insights .ihead { display:flex; flex-wrap:wrap; gap:10px; align-items:baseline; }
+  .insights .itag { font-size:10px; letter-spacing:.07em; text-transform:uppercase; color:var(--mute); }
+  .insights .sev-high .itag { color:var(--fail); }
+  .insights .sev-medium .itag { color:var(--warn); }
+  .insights p { margin:6px 0; }
+  .insights .iev { margin:6px 0 6px 18px; padding:0; font-size:12px; color:var(--mute); font-variant-numeric:tabular-nums; }
 
   .pill { font-size:10px; letter-spacing:.07em; text-transform:uppercase; padding:2px 7px; border-radius:2px; align-self:start; }
   .pass { color:var(--pass); background:var(--pass-bg); }
@@ -2492,6 +2499,7 @@ function ReportCard({ id, refs, runs }) {
   const conv = steps.filter(s => s.conversation && s.conversation.turns > 0);
 
   return html`
+    <${InsightsCard} url=${`api/runs/${id}/insights.json`}/>
     <${RunAnswers} rep=${rep} runs=${runs} id=${id}/>
     <${Glossary}/>
 
@@ -2649,6 +2657,49 @@ function ReportCard({ id, refs, runs }) {
     <${Appendix} refs=${rep.references || refs}/>`;
 }
 
+// ---- The written analysis
+//
+// A language model reads the whole run, or the whole test, and writes what a
+// person would notice: a turn much slower than the rest, a slowdown that came
+// and went, a scenario that breaks first. Every number it wrote was checked
+// against the data before the analysis was stored, and a claim that failed
+// the check was dropped and counted, so the card says how many.
+
+function InsightsView({ ins }) {
+  const kept = ins.insights || [], dropped = ins.rejected || [];
+  const whose = ins.kind === "suite" ? "test's" : "run's";
+  const droppedNote = dropped.length
+    ? `, and ${dropped.length} ${dropped.length === 1 ? "claim that could not be checked was" : "claims that could not be checked were"} dropped`
+    : "";
+  return html`
+    <div className="card insights">
+      <div className="eyebrow">Written analysis · ${ins.model}</div>
+      <h2>${ins.headline || "What stands out in this data"}</h2>
+      ${kept.length === 0 && html`<div className="note">Nothing the model wrote survived the check against the data.</div>`}
+      ${kept.map((i, n) => html`
+        <div key=${n} className=${`insight sev-${i.severity}`}>
+          <div className="ihead"><span className="itag">${i.category} · ${i.severity}</span><b>${i.title}</b></div>
+          <p>${i.finding}</p>
+          <ul className="iev">${(i.evidence || []).map((e, k) => html`<li key=${k}>${e}</li>`)}</ul>
+          <p className="iwhy"><b>Why it matters.</b> ${i.why_it_matters}</p>
+          <p className="inext"><b>Next.</b> ${i.next_step}</p>
+        </div>`)}
+      <div className="note">Written by ${ins.model} on ${when(ins.generated_at)}. Every number in it was checked against this ${whose} data${droppedNote}. The plain-language answers are worked out separately, by fixed rules.</div>
+    </div>`;
+}
+
+// InsightsCard shows the stored analysis at url, and nothing at all for a run
+// that has none: most runs predate it, and an empty card on each would say so
+// on every page.
+function InsightsCard({ url }) {
+  const [ins, setIns] = useState(null);
+  useEffect(() => {
+    setIns(null);
+    fetch(url).then(r => (r.ok ? r.json() : Promise.reject(r.status))).then(setIns).catch(() => setIns(null));
+  }, [url]);
+  return ins && ins.insights ? html`<${InsightsView} ins=${ins}/>` : null;
+}
+
 // ---- A load test made of several runs
 //
 // A test that covers every scenario, and every scenario again on bad networks,
@@ -2749,6 +2800,7 @@ function SuiteCard({ group, refs, runs }) {
       <div className="note">⚠ marks a part whose test machine fell behind real time. A part still running appears here once its report is written.</div>
       <${Reading} ...${readSuite(group)}/>
     </div>
+    <${InsightsCard} url=${`api/suites/${encodeURIComponent(group.suite)}/insights.json`}/>
     <div className="partlabel eyebrow">Part ${at + 1} of ${group.parts.length} · ${partKind(group.parts[at])} · ${group.parts[at].scenario}</div>
     <${ReportCard} id=${shown} refs=${refs} runs=${runs}/>`;
 }
