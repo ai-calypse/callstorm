@@ -45,6 +45,22 @@
         "max_ms": 6144.4
       },
       "worst_harness_drift_ms": 329.4,
+      "conversation": {
+        "talk_ratio": 0,
+        "agent_wpm": 0,
+        "caller_wpm": 0,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 0,
+        "dead_air_turns": 0,
+        "dead_air_seconds": 0,
+        "agent_speech_seconds": 0,
+        "caller_speech_seconds": 0,
+        "turns": 0
+      },
+      "cost": {
+        "agent_minutes": 0
+      },
       "barge_in": {
         "turns": 0,
         "yielded": 0,
@@ -60,6 +76,30 @@
         "deletions": 4,
         "insertions": 0,
         "ref_words": 142
+      },
+      "grade": {
+        "typical": "",
+        "worst": ""
+      },
+      "phase": {
+        "kind": "",
+        "held_s": 0,
+        "first_half": {
+          "n": 0,
+          "p50_ms": 0,
+          "p95_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "second_half": {
+          "n": 0,
+          "p50_ms": 0,
+          "p95_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "drift_pct": 0,
+        "drift": ""
       },
       "harness_degraded": true,
       "p95_ratio": 1,
@@ -104,6 +144,22 @@
         "max_ms": 7102.8
       },
       "worst_harness_drift_ms": 21.4,
+      "conversation": {
+        "talk_ratio": 0,
+        "agent_wpm": 0,
+        "caller_wpm": 0,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 0,
+        "dead_air_turns": 0,
+        "dead_air_seconds": 0,
+        "agent_speech_seconds": 0,
+        "caller_speech_seconds": 0,
+        "turns": 0
+      },
+      "cost": {
+        "agent_minutes": 0
+      },
       "barge_in": {
         "turns": 0,
         "yielded": 0,
@@ -119,6 +175,30 @@
         "deletions": 17,
         "insertions": 0,
         "ref_words": 355
+      },
+      "grade": {
+        "typical": "",
+        "worst": ""
+      },
+      "phase": {
+        "kind": "",
+        "held_s": 0,
+        "first_half": {
+          "n": 0,
+          "p50_ms": 0,
+          "p95_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "second_half": {
+          "n": 0,
+          "p50_ms": 0,
+          "p95_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "drift_pct": 0,
+        "drift": ""
       },
       "p95_ratio": 0.5,
       "verdict": "pass"
@@ -162,6 +242,22 @@
         "max_ms": 6243.3
       },
       "worst_harness_drift_ms": 136.1,
+      "conversation": {
+        "talk_ratio": 0,
+        "agent_wpm": 0,
+        "caller_wpm": 0,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 0,
+        "dead_air_turns": 0,
+        "dead_air_seconds": 0,
+        "agent_speech_seconds": 0,
+        "caller_speech_seconds": 0,
+        "turns": 0
+      },
+      "cost": {
+        "agent_minutes": 0
+      },
       "barge_in": {
         "turns": 0,
         "yielded": 0,
@@ -177,6 +273,30 @@
         "deletions": 18,
         "insertions": 0,
         "ref_words": 710
+      },
+      "grade": {
+        "typical": "",
+        "worst": ""
+      },
+      "phase": {
+        "kind": "",
+        "held_s": 0,
+        "first_half": {
+          "n": 0,
+          "p50_ms": 0,
+          "p95_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "second_half": {
+          "n": 0,
+          "p50_ms": 0,
+          "p95_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "drift_pct": 0,
+        "drift": ""
       },
       "harness_degraded": true,
       "p95_ratio": 0.99,
@@ -221,6 +341,22 @@
         "max_ms": 7886.2
       },
       "worst_harness_drift_ms": 19.9,
+      "conversation": {
+        "talk_ratio": 0,
+        "agent_wpm": 0,
+        "caller_wpm": 0,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 0,
+        "dead_air_turns": 0,
+        "dead_air_seconds": 0,
+        "agent_speech_seconds": 0,
+        "caller_speech_seconds": 0,
+        "turns": 0
+      },
+      "cost": {
+        "agent_minutes": 0
+      },
       "barge_in": {
         "turns": 0,
         "yielded": 0,
@@ -236,6 +372,30 @@
         "deletions": 60,
         "insertions": 0,
         "ref_words": 1420
+      },
+      "grade": {
+        "typical": "",
+        "worst": ""
+      },
+      "phase": {
+        "kind": "",
+        "held_s": 0,
+        "first_half": {
+          "n": 0,
+          "p50_ms": 0,
+          "p95_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "second_half": {
+          "n": 0,
+          "p50_ms": 0,
+          "p95_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "drift_pct": 0,
+        "drift": ""
       },
       "p95_ratio": 1,
       "verdict": "pass"
@@ -279,6 +439,22 @@
         "max_ms": 7798.1
       },
       "worst_harness_drift_ms": 20.2,
+      "conversation": {
+        "talk_ratio": 0,
+        "agent_wpm": 0,
+        "caller_wpm": 0,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 0,
+        "dead_air_turns": 0,
+        "dead_air_seconds": 0,
+        "agent_speech_seconds": 0,
+        "caller_speech_seconds": 0,
+        "turns": 0
+      },
+      "cost": {
+        "agent_minutes": 0
+      },
       "barge_in": {
         "turns": 0,
         "yielded": 0,
@@ -295,8 +471,255 @@
         "insertions": 1,
         "ref_words": 2840
       },
+      "grade": {
+        "typical": "",
+        "worst": ""
+      },
+      "phase": {
+        "kind": "",
+        "held_s": 0,
+        "first_half": {
+          "n": 0,
+          "p50_ms": 0,
+          "p95_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "second_half": {
+          "n": 0,
+          "p50_ms": 0,
+          "p95_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "drift_pct": 0,
+        "drift": ""
+      },
       "p95_ratio": 0.41,
       "verdict": "pass"
     }
-  ]
+  ],
+  "judge": {
+    "backend": "backfilled from this run's judgements file",
+    "criteria": [
+      "The agent asks the caller for an order number before discussing the specific order",
+      "The agent offers a replacement shipment before a refund is ever mentioned",
+      "The agent issues a refund after the caller turns down the replacement",
+      "The agent tells the caller how long the refund takes to reach their card"
+    ],
+    "judged": 5,
+    "passed": 5,
+    "errored": 0,
+    "misses": [
+      {
+        "criterion": "The agent asks the caller for an order number before discussing the specific order",
+        "missed": 0,
+        "judged": 5
+      },
+      {
+        "criterion": "The agent offers a replacement shipment before a refund is ever mentioned",
+        "missed": 0,
+        "judged": 5
+      },
+      {
+        "criterion": "The agent issues a refund after the caller turns down the replacement",
+        "missed": 0,
+        "judged": 5
+      },
+      {
+        "criterion": "The agent tells the caller how long the refund takes to reach their card",
+        "missed": 0,
+        "judged": 5
+      }
+    ],
+    "calls": [
+      {
+        "step": "c10",
+        "request_id": "01a098a4-3200-7441-b6bf-fe49b1945d53",
+        "wer": 0.014084507042253521,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c40",
+        "request_id": "01a098a5-e7cc-7761-8355-0236d85f1f8a",
+        "wer": 0.014084507042253521,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "baseline",
+        "request_id": "01a098a1-aae3-77b0-811a-5330a2aff275",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c20",
+        "request_id": "01a098a5-071d-7213-852f-0de648120b3f",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c5",
+        "request_id": "01a098a3-5254-7c20-8f92-2dc393b9743a",
+        "wer": 0.1267605633802817,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      }
+    ],
+    "correlation": {
+      "calls": 5,
+      "threshold": 0.05,
+      "clean_calls": 4,
+      "clean_passed": 4,
+      "misheard_calls": 1,
+      "misheard_passed": 1,
+      "clean_pass_rate": 1,
+      "misheard_pass_rate": 1,
+      "gap": 0,
+      "median_wer_passed": 0.028169014084507043,
+      "median_wer_failed": 0,
+      "conclusive": false,
+      "note": "too few judged calls to compare groups"
+    },
+    "judgements": [
+      {
+        "step": "baseline",
+        "request_id": "01a098a1-aae3-77b0-811a-5330a2aff275",
+        "outcomes": [
+          {
+            "criterion": "The agent asks the caller for an order number before discussing the specific order",
+            "met": true,
+            "evidence": "turn 1: \"agent:  Can you please provide me with your order number?\""
+          },
+          {
+            "criterion": "The agent offers a replacement shipment before a refund is ever mentioned",
+            "met": true,
+            "evidence": "turn 2: \"agent:  Thank you. I’ll arrange a replacement shipment for your wireless headphones.\""
+          },
+          {
+            "criterion": "The agent issues a refund after the caller turns down the replacement",
+            "met": true,
+            "evidence": "turn 3: \"agent:  I can process a refund for you. Confirming the refund now.\""
+          },
+          {
+            "criterion": "The agent tells the caller how long the refund takes to reach their card",
+            "met": true,
+            "evidence": "turn 4: \"agent:  The refund takes five to seven business days to reach your card.\""
+          }
+        ]
+      },
+      {
+        "step": "c5",
+        "request_id": "01a098a3-5254-7c20-8f92-2dc393b9743a",
+        "outcomes": [
+          {
+            "criterion": "The agent asks the caller for an order number before discussing the specific order",
+            "met": true,
+            "evidence": "turn 1: \"Can I have your order number, please?\""
+          },
+          {
+            "criterion": "The agent offers a replacement shipment before a refund is ever mentioned",
+            "met": true,
+            "evidence": "turn 2: \"I'll arrange a replacement shipment for your wireless headphones.\""
+          },
+          {
+            "criterion": "The agent issues a refund after the caller turns down the replacement",
+            "met": true,
+            "evidence": "turn 3: \"I can process that refund for you.\""
+          },
+          {
+            "criterion": "The agent tells the caller how long the refund takes to reach their card",
+            "met": true,
+            "evidence": "turn 4: \"It takes five to seven business days to reach your card.\""
+          }
+        ]
+      },
+      {
+        "step": "c10",
+        "request_id": "01a098a4-3200-7441-b6bf-fe49b1945d53",
+        "outcomes": [
+          {
+            "criterion": "The agent asks the caller for an order number before discussing the specific order",
+            "met": true,
+            "evidence": "turn 1: \"agent:  Could you please provide me with your order number?\""
+          },
+          {
+            "criterion": "The agent offers a replacement shipment before a refund is ever mentioned",
+            "met": true,
+            "evidence": "turn 2: \"agent:  Thank you. I’ll arrange a replacement shipment for your headphones.\""
+          },
+          {
+            "criterion": "The agent issues a refund after the caller turns down the replacement",
+            "met": true,
+            "evidence": "turn 3: \"agent:  I can process that refund for you.\""
+          },
+          {
+            "criterion": "The agent tells the caller how long the refund takes to reach their card",
+            "met": true,
+            "evidence": "turn 4: \"agent:  It takes five to seven business days to reach your card.\""
+          }
+        ]
+      },
+      {
+        "step": "c20",
+        "request_id": "01a098a5-071d-7213-852f-0de648120b3f",
+        "outcomes": [
+          {
+            "criterion": "The agent asks the caller for an order number before discussing the specific order",
+            "met": true,
+            "evidence": "turn 1: \"agent:  Can I have your order number, please?\""
+          },
+          {
+            "criterion": "The agent offers a replacement shipment before a refund is ever mentioned",
+            "met": true,
+            "evidence": "turn 2: \"agent:  I'll arrange a replacement shipment for those headphones.\""
+          },
+          {
+            "criterion": "The agent issues a refund after the caller turns down the replacement",
+            "met": true,
+            "evidence": "turn 3: \"agent:  I can process a refund for you.\""
+          },
+          {
+            "criterion": "The agent tells the caller how long the refund takes to reach their card",
+            "met": true,
+            "evidence": "turn 4: \"agent:  It takes five to seven business days to reach your card.\""
+          }
+        ]
+      },
+      {
+        "step": "c40",
+        "request_id": "01a098a5-e7cc-7761-8355-0236d85f1f8a",
+        "outcomes": [
+          {
+            "criterion": "The agent asks the caller for an order number before discussing the specific order",
+            "met": true,
+            "evidence": "turn 1: \"Can I have your order number, please?\""
+          },
+          {
+            "criterion": "The agent offers a replacement shipment before a refund is ever mentioned",
+            "met": true,
+            "evidence": "turn 2: \"Thank you. I’ll arrange a replacement shipment for you now.\""
+          },
+          {
+            "criterion": "The agent issues a refund after the caller turns down the replacement",
+            "met": true,
+            "evidence": "turn 3: \"I can process a refund for you.\""
+          },
+          {
+            "criterion": "The agent tells the caller how long the refund takes to reach their card",
+            "met": true,
+            "evidence": "turn 4: \"It takes five to seven business days to reach your card.\""
+          }
+        ]
+      }
+    ]
+  }
 }

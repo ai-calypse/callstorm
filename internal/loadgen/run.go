@@ -63,8 +63,8 @@ func Run(ctx context.Context, cfg Config) (*Report, error) {
 	}
 
 	for _, step := range cfg.Profile.Steps {
-		fmt.Fprintf(cfg.Out, "\n%-12s concurrency %-4d calls %-4d ",
-			step.Name, step.Concurrency, step.Calls)
+		fmt.Fprintf(cfg.Out, "\n%-12s %-9s concurrency %-4d %-10s ",
+			step.Name, step.Phase(), step.Concurrency, budgetOf(step))
 
 		outcomes := runStep(ctx, cfg, step)
 		sr := buildStepReportAt(step, outcomes, cfg.RatePerMinute)
@@ -94,10 +94,24 @@ func Run(ctx context.Context, cfg Config) (*Report, error) {
 	return rep, nil
 }
 
-// runStep holds Concurrency callers busy until Calls calls have been placed.
+// budgetOf describes what stops a step, for the progress line.
+func budgetOf(step Step) string {
+	if step.HoldSeconds > 0 {
+		return fmt.Sprintf("hold %.0fs", step.HoldSeconds)
+	}
+	return fmt.Sprintf("calls %d", step.Calls)
+}
+
+// runStep holds Concurrency callers busy until the step's budget runs out --
+// either Calls calls placed, or HoldSeconds elapsed.
 //
 // Each slot pulls from a shared budget rather than being handed a fixed share,
 // so a slow call does not leave its slot idle while others finish early.
+//
+// A held step lets a call that would run past the deadline finish rather than
+// cutting it short. Truncating the last wave would fill the end of a soak --
+// the half the whole phase exists to look at -- with calls that failed because
+// the harness stopped, not because the agent did.
 func runStep(ctx context.Context, cfg Config, step Step) []callOutcome {
 	var (
 		remaining atomic.Int64
@@ -107,14 +121,31 @@ func runStep(ctx context.Context, cfg Config, step Step) []callOutcome {
 	)
 	remaining.Store(int64(step.Calls))
 
+	var deadline time.Time
+	if step.HoldSeconds > 0 {
+		deadline = time.Now().Add(time.Duration(step.HoldSeconds * float64(time.Second)))
+	}
+	// Called exactly once per iteration: the call-budget branch has a side
+	// effect, so asking twice would spend two calls to place one.
+	more := func() bool {
+		if ctx.Err() != nil {
+			return false
+		}
+		if !deadline.IsZero() {
+			return time.Now().Before(deadline)
+		}
+		return remaining.Add(-1) >= 0
+	}
+
 	for i := 0; i < step.Concurrency; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for {
-				if ctx.Err() != nil || remaining.Add(-1) < 0 {
+				if !more() {
 					return
 				}
+				started := time.Now()
 				cfg.Metrics.CallStarted()
 				res, err := worker.Run(ctx, worker.Config{
 					APIKey:      cfg.APIKey,
@@ -137,7 +168,7 @@ func runStep(ctx context.Context, cfg Config, step Step) []callOutcome {
 
 				cfg.Metrics.CallEnded(step.Name, err)
 
-				o := callOutcome{step: step.Name, err: err}
+				o := callOutcome{step: step.Name, err: err, startedAt: started, endedAt: time.Now()}
 				if err == nil {
 					o.requestID = res.RequestID
 					o.turns = res.Turns

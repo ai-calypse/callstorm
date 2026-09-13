@@ -37,8 +37,18 @@ func RunDistributed(ctx context.Context, cfg Config, d *bus.Dispatcher, runID st
 	}
 
 	for _, step := range cfg.Profile.Steps {
-		fmt.Fprintf(cfg.Out, "\n%-12s concurrency %-4d calls %-4d ",
-			step.Name, step.Concurrency, step.Calls)
+		if step.HoldSeconds > 0 {
+			// The dispatcher's window is sized in outstanding assignments, so
+			// a step that ends on a clock rather than on a call count has no
+			// stopping condition it can honour. Refused rather than silently
+			// run as something else.
+			return nil, fmt.Errorf(
+				"step %q is held for %.0fs, and a held step cannot run distributed: "+
+					"the dispatcher stops on calls answered, not on the clock",
+				step.Name, step.HoldSeconds)
+		}
+		fmt.Fprintf(cfg.Out, "\n%-12s %-9s concurrency %-4d calls %-4d ",
+			step.Name, step.Phase(), step.Concurrency, step.Calls)
 
 		outcomes, workers, err := dispatchStep(ctx, cfg, d, runID, step)
 		if err != nil {
@@ -82,6 +92,13 @@ func dispatchStep(ctx context.Context, cfg Config, d *bus.Dispatcher, runID stri
 		dispatched int
 		received   int
 		inFlight   int
+
+		// When each assignment went out, so a result can be placed in the
+		// order the run intended rather than the order it came back. Ordering
+		// by arrival would sort slow calls into the end of every step, which
+		// is exactly the shape drift detection looks for -- and would find it
+		// in every run.
+		sentAt = map[int]time.Time{}
 	)
 
 	// A worker that dies between taking a call and reporting it would otherwise
@@ -104,6 +121,7 @@ func dispatchStep(ctx context.Context, cfg Config, d *bus.Dispatcher, runID stri
 			if err := d.Assign(ctx, a); err != nil {
 				return nil, nil, fmt.Errorf("assign %s/%d: %w", step.Name, dispatched, err)
 			}
+			sentAt[a.Seq] = time.Now()
 			dispatched++
 			inFlight++
 		}
@@ -120,7 +138,8 @@ func dispatchStep(ctx context.Context, cfg Config, d *bus.Dispatcher, runID stri
 			if r.Step != step.Name {
 				continue
 			}
-			o := callOutcome{step: r.Step, requestID: r.RequestID, turns: r.Turns, worker: r.Worker}
+			o := callOutcome{step: r.Step, requestID: r.RequestID, turns: r.Turns, worker: r.Worker,
+				startedAt: sentAt[r.Seq], endedAt: time.Now()}
 			if r.Err != "" {
 				o.err = errors.New(r.Err)
 			}

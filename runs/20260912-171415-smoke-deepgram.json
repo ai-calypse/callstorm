@@ -45,6 +45,22 @@
         "max_ms": 0
       },
       "worst_harness_drift_ms": 0,
+      "conversation": {
+        "talk_ratio": 0,
+        "agent_wpm": 0,
+        "caller_wpm": 0,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 0,
+        "dead_air_turns": 0,
+        "dead_air_seconds": 0,
+        "agent_speech_seconds": 0,
+        "caller_speech_seconds": 0,
+        "turns": 0
+      },
+      "cost": {
+        "agent_minutes": 0
+      },
       "barge_in": {
         "turns": 0,
         "yielded": 0,
@@ -61,6 +77,30 @@
         "insertions": 0,
         "ref_words": 0
       },
+      "grade": {
+        "typical": "",
+        "worst": ""
+      },
+      "phase": {
+        "kind": "",
+        "held_s": 0,
+        "first_half": {
+          "n": 0,
+          "p50_ms": 0,
+          "p95_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "second_half": {
+          "n": 0,
+          "p50_ms": 0,
+          "p95_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "drift_pct": 0,
+        "drift": ""
+      },
       "p95_ratio": 0,
       "verdict": "n/a",
       "errors": {
@@ -69,5 +109,137 @@
         "We waited too long for a websocket message. Please ensure that you're sending binary messages containing user speech.": 1
       }
     }
-  ]
+  ],
+  "judge": {
+    "backend": "backfilled from this run's judgements file",
+    "criteria": [
+      "The agent asks the caller for an order number before discussing the specific order",
+      "The agent offers a replacement shipment before a refund is ever mentioned",
+      "The agent issues a refund after the caller turns down the replacement",
+      "The agent tells the caller how long the refund takes to reach their card"
+    ],
+    "judged": 3,
+    "passed": 0,
+    "errored": 0,
+    "misses": [
+      {
+        "criterion": "The agent asks the caller for an order number before discussing the specific order",
+        "missed": 0,
+        "judged": 0
+      },
+      {
+        "criterion": "The agent offers a replacement shipment before a refund is ever mentioned",
+        "missed": 0,
+        "judged": 0
+      },
+      {
+        "criterion": "The agent issues a refund after the caller turns down the replacement",
+        "missed": 3,
+        "judged": 3,
+        "evidence": "turn 1: \"caller: Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.\""
+      },
+      {
+        "criterion": "The agent tells the caller how long the refund takes to reach their card",
+        "missed": 0,
+        "judged": 0
+      },
+      {
+        "criterion": "The agent stops talking and listens when the caller interrupts it",
+        "missed": 3,
+        "judged": 3,
+        "evidence": "turn 1: \"caller: Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.\""
+      }
+    ],
+    "calls": [
+      {
+        "step": "c3",
+        "request_id": "01a09778-9662-7c73-bb0d-852e2de36ba8",
+        "wer": 0,
+        "ref_words": 0,
+        "met": false,
+        "judged": true
+      },
+      {
+        "step": "c3",
+        "request_id": "01a09778-9fab-79d1-a411-016282c647bd",
+        "wer": 0,
+        "ref_words": 0,
+        "met": false,
+        "judged": true
+      },
+      {
+        "step": "c3",
+        "request_id": "01a09778-d68c-7f40-a39c-3213929aa8ee",
+        "wer": 0,
+        "ref_words": 0,
+        "met": false,
+        "judged": true
+      }
+    ],
+    "correlation": {
+      "calls": 0,
+      "threshold": 0.05,
+      "clean_calls": 0,
+      "clean_passed": 0,
+      "misheard_calls": 0,
+      "misheard_passed": 0,
+      "clean_pass_rate": 0,
+      "misheard_pass_rate": 0,
+      "gap": 0,
+      "median_wer_passed": 0,
+      "median_wer_failed": 0,
+      "conclusive": false,
+      "note": "too few judged calls to compare groups"
+    },
+    "judgements": [
+      {
+        "step": "c3",
+        "request_id": "01a09778-9662-7c73-bb0d-852e2de36ba8",
+        "outcomes": [
+          {
+            "criterion": "The agent stops talking and listens when the caller interrupts it",
+            "met": false,
+            "evidence": "turn 1: \"caller: Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.\""
+          },
+          {
+            "criterion": "The agent issues a refund after the caller turns down the replacement",
+            "met": false,
+            "evidence": "turn 1: \"caller: Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.\""
+          }
+        ]
+      },
+      {
+        "step": "c3",
+        "request_id": "01a09778-9fab-79d1-a411-016282c647bd",
+        "outcomes": [
+          {
+            "criterion": "The agent stops talking and listens when the caller interrupts it",
+            "met": false,
+            "evidence": "turn 1: \"caller: Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.\""
+          },
+          {
+            "criterion": "The agent issues a refund after the caller turns down the replacement",
+            "met": false,
+            "evidence": "turn 1: \"caller: Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.\""
+          }
+        ]
+      },
+      {
+        "step": "c3",
+        "request_id": "01a09778-d68c-7f40-a39c-3213929aa8ee",
+        "outcomes": [
+          {
+            "criterion": "The agent stops talking and listens when the caller interrupts it",
+            "met": false,
+            "evidence": "turn 1: \"caller: Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.\""
+          },
+          {
+            "criterion": "The agent issues a refund after the caller turns down the replacement",
+            "met": false,
+            "evidence": "turn 1: \"caller: Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.\""
+          }
+        ]
+      }
+    ]
+  }
 }

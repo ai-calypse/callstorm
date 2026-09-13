@@ -1,0 +1,636 @@
+{
+  "profile": "hamming-local",
+  "scenario": "refund-escalation",
+  "target": "ws://127.0.0.1:8131/v1/agent/converse",
+  "baseline": "ramp-c4",
+  "started_at": "2026-09-13T02:24:27.4493121-04:00",
+  "duration_s": 834.3703633,
+  "steps": [
+    {
+      "name": "smoke",
+      "concurrency": 1,
+      "calls": 2,
+      "kind": "smoke",
+      "calls_attempted": 2,
+      "calls_connected": 2,
+      "turns_total": 10,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 10,
+        "p50_ms": 402.1,
+        "p95_ms": 478.3,
+        "p99_ms": 478.3,
+        "max_ms": 478.3
+      },
+      "endpointing": {
+        "n": 10,
+        "p50_ms": 251.6,
+        "p95_ms": 307.7,
+        "p99_ms": 307.7,
+        "max_ms": 307.7
+      },
+      "think_speak": {
+        "n": 10,
+        "p50_ms": 150.1,
+        "p95_ms": 170.6,
+        "p99_ms": 170.6,
+        "max_ms": 170.6
+      },
+      "turn_latency": {
+        "n": 10,
+        "p50_ms": 2402.1,
+        "p95_ms": 2478.8,
+        "p99_ms": 2478.8,
+        "max_ms": 2478.8
+      },
+      "worst_harness_drift_ms": 2462.3,
+      "conversation": {
+        "talk_ratio": 0.298,
+        "agent_wpm": 150,
+        "caller_wpm": 180.8,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 0,
+        "dead_air_seconds": 0,
+        "agent_speech_seconds": 20,
+        "caller_speech_seconds": 47.1,
+        "turns": 10
+      },
+      "cost": {
+        "agent_minutes": 1.187,
+        "rate_per_minute": 0.09,
+        "usd": 0.1068,
+        "usd_per_call": 0.0534,
+        "usd_per_turn": 0.0107
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 0,
+        "mean": 0,
+        "worst": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "ref_words": 0
+      },
+      "grade": {
+        "typical": "acceptable",
+        "worst": "acceptable"
+      },
+      "phase": {
+        "kind": "smoke",
+        "held_s": 82.8,
+        "first_half": {
+          "n": 5,
+          "p50_ms": 401.5,
+          "p95_ms": 422.5,
+          "p99_ms": 422.5,
+          "max_ms": 422.5
+        },
+        "second_half": {
+          "n": 5,
+          "p50_ms": 402.9,
+          "p95_ms": 478.3,
+          "p99_ms": 478.3,
+          "max_ms": 478.3
+        },
+        "drift_pct": 0,
+        "drift": "unknown"
+      },
+      "harness_degraded": true,
+      "p95_ratio": 1.03,
+      "verdict": "pass"
+    },
+    {
+      "name": "ramp-c4",
+      "concurrency": 4,
+      "calls": 16,
+      "kind": "ramp",
+      "calls_attempted": 16,
+      "calls_connected": 16,
+      "turns_total": 80,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 80,
+        "p50_ms": 401.4,
+        "p95_ms": 464.9,
+        "p99_ms": 596.6,
+        "max_ms": 596.6
+      },
+      "endpointing": {
+        "n": 80,
+        "p50_ms": 250.8,
+        "p95_ms": 278.9,
+        "p99_ms": 350.3,
+        "max_ms": 350.3
+      },
+      "think_speak": {
+        "n": 80,
+        "p50_ms": 150.6,
+        "p95_ms": 185.9,
+        "p99_ms": 345,
+        "max_ms": 345
+      },
+      "turn_latency": {
+        "n": 80,
+        "p50_ms": 2401.5,
+        "p95_ms": 2574.7,
+        "p99_ms": 2719.5,
+        "max_ms": 2719.5
+      },
+      "worst_harness_drift_ms": 2577.5,
+      "conversation": {
+        "talk_ratio": 0.299,
+        "agent_wpm": 149,
+        "caller_wpm": 180.8,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 0,
+        "dead_air_seconds": 0,
+        "agent_speech_seconds": 161.1,
+        "caller_speech_seconds": 377,
+        "turns": 80
+      },
+      "cost": {
+        "agent_minutes": 9.517,
+        "rate_per_minute": 0.09,
+        "usd": 0.8565,
+        "usd_per_call": 0.0535,
+        "usd_per_turn": 0.0107
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 0,
+        "mean": 0,
+        "worst": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "ref_words": 0
+      },
+      "grade": {
+        "typical": "acceptable",
+        "worst": "acceptable"
+      },
+      "phase": {
+        "kind": "ramp",
+        "held_s": 165.2,
+        "first_half": {
+          "n": 40,
+          "p50_ms": 401.4,
+          "p95_ms": 416.4,
+          "p99_ms": 464.9,
+          "max_ms": 464.9
+        },
+        "second_half": {
+          "n": 40,
+          "p50_ms": 401.4,
+          "p95_ms": 532.9,
+          "p99_ms": 596.6,
+          "max_ms": 596.6
+        },
+        "drift_pct": 0,
+        "drift": "steady"
+      },
+      "harness_degraded": true,
+      "p95_ratio": 1,
+      "verdict": "pass"
+    },
+    {
+      "name": "stress-c12",
+      "concurrency": 12,
+      "calls": 36,
+      "kind": "stress",
+      "calls_attempted": 36,
+      "calls_connected": 36,
+      "turns_total": 180,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 180,
+        "p50_ms": 553.1,
+        "p95_ms": 1439.4,
+        "p99_ms": 1916.2,
+        "max_ms": 1916.2
+      },
+      "endpointing": {
+        "n": 180,
+        "p50_ms": 251.4,
+        "p95_ms": 826.3,
+        "p99_ms": 1447.9,
+        "max_ms": 1456.3
+      },
+      "think_speak": {
+        "n": 176,
+        "p50_ms": 300.7,
+        "p95_ms": 418.9,
+        "p99_ms": 1543.3,
+        "max_ms": 1543.3
+      },
+      "turn_latency": {
+        "n": 180,
+        "p50_ms": 2555.4,
+        "p95_ms": 4001.2,
+        "p99_ms": 4212.8,
+        "max_ms": 4222.2
+      },
+      "worst_harness_drift_ms": 3412.4,
+      "conversation": {
+        "talk_ratio": 0.317,
+        "agent_wpm": 137.2,
+        "caller_wpm": 180.8,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 0,
+        "dead_air_seconds": 0,
+        "agent_speech_seconds": 393.5,
+        "caller_speech_seconds": 848.2,
+        "turns": 180
+      },
+      "cost": {
+        "agent_minutes": 22.6,
+        "rate_per_minute": 0.09,
+        "usd": 2.034,
+        "usd_per_call": 0.0565,
+        "usd_per_turn": 0.0113
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 0,
+        "mean": 0,
+        "worst": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "ref_words": 0
+      },
+      "grade": {
+        "typical": "sluggish",
+        "worst": "breakdown"
+      },
+      "phase": {
+        "kind": "stress",
+        "held_s": 133.7,
+        "first_half": {
+          "n": 90,
+          "p50_ms": 558.6,
+          "p95_ms": 1439.4,
+          "p99_ms": 1916.2,
+          "max_ms": 1916.2
+        },
+        "second_half": {
+          "n": 90,
+          "p50_ms": 551.8,
+          "p95_ms": 1469,
+          "p99_ms": 1696.2,
+          "max_ms": 1696.2
+        },
+        "drift_pct": -0.012,
+        "drift": "steady"
+      },
+      "harness_degraded": true,
+      "p95_ratio": 3.1,
+      "verdict": "fail"
+    },
+    {
+      "name": "spike-c24",
+      "concurrency": 24,
+      "calls": 48,
+      "kind": "spike",
+      "calls_attempted": 48,
+      "calls_connected": 48,
+      "turns_total": 240,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 240,
+        "p50_ms": 853.5,
+        "p95_ms": 1048,
+        "p99_ms": 1239.7,
+        "max_ms": 1361.8
+      },
+      "endpointing": {
+        "n": 240,
+        "p50_ms": 251.5,
+        "p95_ms": 327.2,
+        "p99_ms": 364.9,
+        "max_ms": 395.7
+      },
+      "think_speak": {
+        "n": 240,
+        "p50_ms": 601,
+        "p95_ms": 794.9,
+        "p99_ms": 989.1,
+        "max_ms": 1106.9
+      },
+      "turn_latency": {
+        "n": 240,
+        "p50_ms": 2879.7,
+        "p95_ms": 3443.2,
+        "p99_ms": 3568,
+        "max_ms": 3711.5
+      },
+      "worst_harness_drift_ms": 2163.7,
+      "conversation": {
+        "talk_ratio": 0.307,
+        "agent_wpm": 143.4,
+        "caller_wpm": 180.8,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 0,
+        "dead_air_seconds": 0,
+        "agent_speech_seconds": 502.1,
+        "caller_speech_seconds": 1130.9,
+        "turns": 240
+      },
+      "cost": {
+        "agent_minutes": 30.771,
+        "rate_per_minute": 0.09,
+        "usd": 2.7694,
+        "usd_per_call": 0.0577,
+        "usd_per_turn": 0.0115
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 0,
+        "mean": 0,
+        "worst": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "ref_words": 0
+      },
+      "grade": {
+        "typical": "breakdown",
+        "worst": "breakdown"
+      },
+      "phase": {
+        "kind": "spike",
+        "held_s": 89.1,
+        "first_half": {
+          "n": 120,
+          "p50_ms": 854.9,
+          "p95_ms": 992.4,
+          "p99_ms": 1062.8,
+          "max_ms": 1068.3
+        },
+        "second_half": {
+          "n": 120,
+          "p50_ms": 852.4,
+          "p95_ms": 1172.7,
+          "p99_ms": 1255.8,
+          "max_ms": 1361.8
+        },
+        "drift_pct": -0.003,
+        "drift": "steady"
+      },
+      "harness_degraded": true,
+      "p95_ratio": 2.25,
+      "verdict": "fail"
+    },
+    {
+      "name": "soak-c8",
+      "concurrency": 8,
+      "calls": 40,
+      "kind": "soak",
+      "hold_s": 180,
+      "calls_attempted": 40,
+      "calls_connected": 40,
+      "turns_total": 200,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 200,
+        "p50_ms": 451.7,
+        "p95_ms": 477.5,
+        "p99_ms": 649.6,
+        "max_ms": 896
+      },
+      "endpointing": {
+        "n": 200,
+        "p50_ms": 250.9,
+        "p95_ms": 264.5,
+        "p99_ms": 300.1,
+        "max_ms": 896
+      },
+      "think_speak": {
+        "n": 199,
+        "p50_ms": 200.5,
+        "p95_ms": 212.6,
+        "p99_ms": 398.7,
+        "max_ms": 427.9
+      },
+      "turn_latency": {
+        "n": 200,
+        "p50_ms": 2451.8,
+        "p95_ms": 2676.1,
+        "p99_ms": 2779.4,
+        "max_ms": 2896
+      },
+      "worst_harness_drift_ms": 2356.3,
+      "conversation": {
+        "talk_ratio": 0.3,
+        "agent_wpm": 148.2,
+        "caller_wpm": 180.8,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 0,
+        "dead_air_seconds": 0,
+        "agent_speech_seconds": 404.8,
+        "caller_speech_seconds": 942.4,
+        "turns": 200
+      },
+      "cost": {
+        "agent_minutes": 23.983,
+        "rate_per_minute": 0.09,
+        "usd": 2.1585,
+        "usd_per_call": 0.054,
+        "usd_per_turn": 0.0108
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 0,
+        "mean": 0,
+        "worst": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "ref_words": 0
+      },
+      "grade": {
+        "typical": "acceptable",
+        "worst": "acceptable"
+      },
+      "phase": {
+        "kind": "soak",
+        "held_s": 200.7,
+        "first_half": {
+          "n": 100,
+          "p50_ms": 451.7,
+          "p95_ms": 510.5,
+          "p99_ms": 678.5,
+          "max_ms": 896
+        },
+        "second_half": {
+          "n": 100,
+          "p50_ms": 451.6,
+          "p95_ms": 463.8,
+          "p99_ms": 493.1,
+          "max_ms": 527.4
+        },
+        "drift_pct": -0,
+        "drift": "steady"
+      },
+      "harness_degraded": true,
+      "p95_ratio": 1.03,
+      "verdict": "pass"
+    },
+    {
+      "name": "recover-c4",
+      "concurrency": 4,
+      "calls": 16,
+      "kind": "recovery",
+      "calls_attempted": 16,
+      "calls_connected": 16,
+      "turns_total": 80,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 80,
+        "p50_ms": 401.6,
+        "p95_ms": 431.3,
+        "p99_ms": 511.8,
+        "max_ms": 511.8
+      },
+      "endpointing": {
+        "n": 80,
+        "p50_ms": 251.5,
+        "p95_ms": 323,
+        "p99_ms": 391.4,
+        "max_ms": 391.4
+      },
+      "think_speak": {
+        "n": 80,
+        "p50_ms": 150.1,
+        "p95_ms": 158.7,
+        "p99_ms": 260.4,
+        "max_ms": 260.4
+      },
+      "turn_latency": {
+        "n": 80,
+        "p50_ms": 2401.7,
+        "p95_ms": 2588.7,
+        "p99_ms": 2669.2,
+        "max_ms": 2669.2
+      },
+      "worst_harness_drift_ms": 3325.7,
+      "conversation": {
+        "talk_ratio": 0.3,
+        "agent_wpm": 148.4,
+        "caller_wpm": 180.8,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 0,
+        "dead_air_seconds": 0,
+        "agent_speech_seconds": 161.7,
+        "caller_speech_seconds": 377,
+        "turns": 80
+      },
+      "cost": {
+        "agent_minutes": 9.52,
+        "rate_per_minute": 0.09,
+        "usd": 0.8568,
+        "usd_per_call": 0.0536,
+        "usd_per_turn": 0.0107
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 0,
+        "mean": 0,
+        "worst": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "ref_words": 0
+      },
+      "grade": {
+        "typical": "acceptable",
+        "worst": "acceptable"
+      },
+      "phase": {
+        "kind": "recovery",
+        "held_s": 162.5,
+        "first_half": {
+          "n": 40,
+          "p50_ms": 401.4,
+          "p95_ms": 418.7,
+          "p99_ms": 472.7,
+          "max_ms": 472.7
+        },
+        "second_half": {
+          "n": 40,
+          "p50_ms": 401.8,
+          "p95_ms": 435,
+          "p99_ms": 511.8,
+          "max_ms": 511.8
+        },
+        "drift_pct": 0.001,
+        "drift": "steady",
+        "recovered": true
+      },
+      "harness_degraded": true,
+      "p95_ratio": 0.93,
+      "verdict": "pass"
+    }
+  ]
+}

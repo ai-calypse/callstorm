@@ -1,0 +1,12 @@
+{
+  "name": "hamming-deepgram",
+  "baseline": "ramp-c5",
+  "steps": [
+    { "name": "smoke",      "kind": "smoke",    "concurrency": 2,  "calls": 2  },
+    { "name": "ramp-c5",    "kind": "ramp",     "concurrency": 5,  "calls": 15 },
+    { "name": "stress-c20", "kind": "stress",   "concurrency": 20, "calls": 40 },
+    { "name": "spike-c40",  "kind": "spike",    "concurrency": 40, "calls": 40 },
+    { "name": "soak-c10",   "kind": "soak",     "concurrency": 10, "hold_s": 600 },
+    { "name": "recover-c5", "kind": "recovery", "concurrency": 5,  "calls": 15 }
+  ]
+}

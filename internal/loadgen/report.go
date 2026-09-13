@@ -90,6 +90,16 @@ type StepReport struct {
 	// and to a question nobody asked.
 	WER WERStats `json:"wer"`
 
+	// Grade is where this step falls on the absolute latency scale, reported
+	// beside the relative verdict because the two answer different questions.
+	// A run can pass every step against its own baseline and still be graded a
+	// breakdown throughout -- which is the finding a relative score hides.
+	Grade Grade `json:"grade"`
+
+	// Phase is how the step behaved across its own duration: the shape a
+	// single percentile flattens away.
+	Phase Phase `json:"phase"`
+
 	// HarnessDegraded marks a step where the load generator could not hold
 	// realtime pacing. Its latency numbers still describe the agent, but the
 	// call timing stopped being realistic, so the step is suspect.
@@ -149,6 +159,13 @@ type Report struct {
 	Duration  float64      `json:"duration_s"`
 	Steps     []StepReport `json:"steps"`
 
+	// Judge is what an LLM grader made of the conversations, present only when
+	// the run was placed with -judge. It is on the report rather than beside
+	// it because the finding it carries -- whether the calls the agent
+	// misheard are the calls it failed -- needs the transcripts and the
+	// verdicts in the same document.
+	Judge *TaskSuccess `json:"judge,omitempty"`
+
 	// Calls is every conversation the run produced, kept out of the report
 	// card and written alongside it. The report card answers how fast the
 	// agent was; these are what it actually said, which is what a judge -- or
@@ -175,6 +192,13 @@ type callOutcome struct {
 	worker    string
 	turns     []metrics.TurnMetric
 	err       error
+
+	// startedAt and endedAt are wall-clock, and exist so a step can be split
+	// into the calls that ran first and the calls that ran last. Nothing else
+	// in a step report carries an ordering, so without them a step is a bag of
+	// calls and drift across it cannot be seen at all.
+	startedAt time.Time
+	endedAt   time.Time
 }
 
 // buildStepReport folds every call placed during one step into its report.
@@ -287,6 +311,16 @@ func buildStepReportAt(step Step, outcomes []callOutcome, ratePerMinute float64)
 
 	r.Conversation = summarizeConversation(outcomes)
 	r.Cost = summarizeCost(outcomes, ratePerMinute)
+	r.Phase = summarizePhase(step, outcomes)
+	gradeStep(&r)
+
+	// A step held for a duration was configured with no call count, so the
+	// report supplies the one it actually placed. Otherwise every consumer
+	// downstream -- the CSV, the dashboard, the cost estimate -- reads a soak
+	// as a step that placed no calls.
+	if r.Calls == 0 {
+		r.Calls = r.CallsAttempted
+	}
 
 	r.WER = WERStats{
 		Turns:         werTurns,
@@ -334,6 +368,14 @@ func (rep *Report) score() {
 			default:
 				s.Verdict = "pass"
 			}
+		}
+
+		// A recovery step is the one place the ratio answers a different
+		// question: not "did it degrade" but "did it come back". It runs at
+		// the baseline's own concurrency, so anything close to the baseline's
+		// latency means the agent returned rather than stayed broken.
+		if s.Phase.Kind == KindRecovery {
+			s.Phase.Recovered = s.P95Ratio > 0 && s.P95Ratio <= recoveredRatio
 		}
 	}
 }

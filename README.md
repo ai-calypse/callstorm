@@ -108,6 +108,18 @@ Two backends. `groq` is an HTTP call that works from CI and constrains the
 reply to a JSON schema. `claude-code` spends a Claude subscription instead of
 API credits, but needs the CLI installed and logged in.
 
+**Heard versus done.** The verdicts are folded into the run report rather than
+written beside it, because the finding needs both halves at once: split the
+judged calls by how badly the agent misheard them, and compare how often each
+group finished the job. That is what makes word error rate worth measuring. On
+its own it is an accuracy statistic nobody has a reason to act on; set against
+task outcomes it either points at the transcript as the thing to fix, or shows
+the failures are elsewhere and the WER figure is a distraction. It is an
+association and reported as one -- nothing assigned which calls were misheard,
+and load degrades recognition and everything else at the same time. Below eight
+judged calls, or with either group empty, the numbers are shown and the
+conclusion is withheld.
+
 **Barge-in.** A caller line with `barge_in_after` starts that long into the
 agent's previous reply instead of waiting for it to finish, and the turn records
 how long the agent kept talking. An agent that answers in 300ms and then will
@@ -178,6 +190,85 @@ so the run reports degradation rather than a number someone else picked.
 **Percentiles are bucketed per step and never pooled across the ramp.** A p95
 averaged over a rising ramp mixes the easy start with the hard finish and hides
 exactly the degradation the run exists to find.
+
+## The six phases
+
+A profile made only of ramps asks one question: how much at once. Three others
+need a phase of their own, and each step names which it is with `kind`.
+
+```json
+{
+  "name": "hamming-local",
+  "baseline": "ramp-c4",
+  "steps": [
+    { "name": "smoke",      "kind": "smoke",    "concurrency": 1,  "calls": 2  },
+    { "name": "ramp-c4",    "kind": "ramp",     "concurrency": 4,  "calls": 16 },
+    { "name": "stress-c12", "kind": "stress",   "concurrency": 12, "calls": 36 },
+    { "name": "spike-c24",  "kind": "spike",    "concurrency": 24, "calls": 48 },
+    { "name": "soak-c8",    "kind": "soak",     "concurrency": 8,  "hold_s": 180 },
+    { "name": "recover-c4", "kind": "recovery", "concurrency": 4,  "calls": 16 }
+  ]
+}
+```
+
+**A spike** goes straight to peak with no warm-up, which is what a marketing
+email does to a support line and what a ramp never reproduces. **A soak** holds
+one load long enough for a leak, a filling queue or a cache going cold to
+appear; `hold_s` ends the step on the clock rather than on a call count,
+because how many calls fit in twenty minutes is not known until they have been
+placed. **A recovery** returns to the baseline's own concurrency afterwards: an
+agent that survives the peak and never comes back has failed in a way the peak
+itself did not show.
+
+A recovery step is refused unless it runs at the baseline's concurrency and
+something before it exceeded the baseline. Compared against a different load it
+would not be a recovery measurement, and with nothing to recover from it would
+not be a measurement at all.
+
+**Every step is also split in half by when its calls started, and the two
+medians compared.** A step is one number per metric, and that quietly assumes
+the step was the same thing from start to finish. Drift is what lives in that
+assumption: load that never changed and a median that did.
+
+```
+phase shape   each step split in half by when its calls started, medians compared
+step         phase      held     first half  second half drift     reading
+smoke        smoke      83s      402ms       403ms       -         too few turns to compare halves
+ramp-c4      ramp       165s     401ms       401ms       +0%       steady
+stress-c12   stress     134s     559ms       552ms       -1%       steady
+spike-c24    spike      89s      855ms       852ms       -0%       steady
+soak-c8      soak       201s     452ms       452ms       -0%       steady
+recover-c4   recovery   162s     401ms       402ms       +0%       steady   <- back to baseline
+```
+
+The comparison is made on the median, not p95: a half-step carries half the
+samples, and a p95 over a dozen turns is one unlucky call rather than a trend.
+A step with too few turns on either side reports that it could not tell, which
+is deliberately not the same answer as "steady".
+
+## Fast relative to itself, and fast in absolute terms
+
+The verdict above is relative -- each step against the run's own baseline --
+because a latency target that is generous for one agent is unreachable for
+another. That finds degradation and says nothing about whether the agent was
+ever any good, so every step is also placed on an absolute scale taken from how
+people actually take turns in conversation.
+
+```
+how it sounds  under 300ms natural, to 500ms acceptable, to 800ms sluggish, past that breakdown
+step         p50        usually       p95        at worst
+smoke        402ms      acceptable    478ms      acceptable
+ramp-c4      401ms      acceptable    465ms      acceptable
+stress-c12   553ms      sluggish      1439ms     breakdown
+spike-c24    854ms      breakdown     1048ms     breakdown
+soak-c8      452ms      acceptable    478ms      acceptable
+recover-c4   402ms      acceptable    431ms      acceptable
+```
+
+The two regularly disagree, and the disagreement is the point. A live Deepgram
+sweep passes every relative verdict in this repository and is graded
+**breakdown at every step**, because its p50 never came in under 800ms even at
+one concurrent caller. Passing means "no worse than it was".
 
 ## Why there is a reference agent
 
@@ -344,11 +435,12 @@ and reused rather than regenerated.
 
 ```
 cmd/callstorm        CLI, report card, sweep
+cmd/dashboard        run browser; ui/ is one embedded HTML file, checked by render_check.mjs
 cmd/refagent         calibrated reference target
 cmd/collector        consumes turn events, reports consumer lag
 cmd/fakekafka        in-process Kafka broker for local runs
 internal/worker      one caller: websocket, turn state machine, audio pump
-internal/loadgen     concurrency profiles, per-step aggregation, verdicts
+internal/loadgen     load phases, per-step aggregation, verdicts, task-success join
 internal/metrics     the clock: event log and metric derivation
 internal/audio       frame math, playout, call recorder
 internal/chart       sweep SVG

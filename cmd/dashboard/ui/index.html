@@ -144,6 +144,23 @@
   .links { margin-top:16px; display:flex; gap:18px; flex-wrap:wrap; font-size:12px; }
   .subhead { padding-block:26px 0; border-bottom:none; }
   .subhead h1 { font-size:20px; }
+
+  /* The absolute scale. Four bands a wait can fall into, with each step placed
+     on it. Every other verdict on this page is relative to the run's own
+     baseline, which is the right way to find degradation and no way at all to
+     answer "is this any good" -- that question has an absolute answer. */
+  .bandbar { display:flex; margin-top:16px; height:22px; border-radius:2px; overflow:hidden; }
+  .bandbar div { display:flex; align-items:center; justify-content:center; font-size:10px;
+                 letter-spacing:.06em; text-transform:uppercase; color:#08171B; min-width:0; overflow:hidden; }
+  .bandkey { display:flex; gap:16px; flex-wrap:wrap; font-size:11px; color:var(--ink-2); margin-top:9px; }
+  .bandkey i { width:10px; height:10px; border-radius:2px; display:inline-block; margin-right:6px; vertical-align:-1px; }
+
+  /* One criterion the agent was graded against, with the judge's own quote
+     underneath. A verdict nobody can check is an oracle, and an oracle is the
+     one number on this page that could be wrong without anyone noticing. */
+  .crit td:first-child { white-space:normal; text-align:left; line-height:1.5; max-width:52ch; }
+  .quote { display:block; margin-top:5px; font-size:11px; color:var(--mute);
+           font-style:italic; white-space:normal; line-height:1.5; }
 </style>
 </head>
 <body>
@@ -288,6 +305,21 @@ const GLOSSARY = [
   ["Cost per turn",
    "Billable agent-minutes for the step, divided by the turns in it.",
    "Voice agents bill by the minute, so latency is a price. Verbosity is the same bill in a different disguise."],
+  ["Latency grade",
+   "Where a wait lands on an absolute scale: natural under 300ms, acceptable to 500, sluggish to 800, breakdown past that.",
+   "The verdict elsewhere is relative to this run's own baseline, so it can pass every step of an agent that was never fast. This cannot."],
+  ["Phase",
+   "What a step is for: smoke, ramp, stress, spike, soak or recovery. A spike jumps straight to peak, a soak holds one load for a long time, a recovery drops back to baseline afterwards.",
+   "A profile of ramps only asks how much at once. It never asks what a sudden jump does, what an hour does, or whether the agent comes back."],
+  ["Drift",
+   "A step getting slower across its own duration while the load never changed, found by splitting its calls in half by start time.",
+   "A leak, a filling queue or a cache going cold. All three look perfectly healthy in any single percentile for the step."],
+  ["Task success",
+   "Whether the agent did the job, graded by a language model reading the transcript against the scenario's written criteria.",
+   "Every other number says how the call sounded. This is the only one that says whether it was worth making."],
+  ["Heard versus done",
+   "Task success split by how badly the agent misheard the caller, and the two groups compared.",
+   "Whether the transcript is what is costing you tasks. A word error rate alone gives nobody a reason to act; this one either does or clears it."],
   ["Pacing drift",
    "How far the caller's audio drifted from real time. This measures the test rig, not the agent.",
    "Every other number is only worth reading while this stays near zero. A run that hides it is asking to be trusted."],
@@ -511,16 +543,16 @@ function CostChart({ steps }) {
     // A card that silently disappears when its data is missing tells the
     // reader nothing, and looks identical to a card that is broken. Say which
     // of the two it is and what would populate it.
-    const priced = steps.some(s => s.cost);
+    const priced = steps.some(s => s.cost && s.cost.agent_minutes > 0);
     return html`
       <div className="card">
         <div className="eyebrow">What the latency costs</div>
         <h2>Not priced</h2>
         <div className="note">
           ${priced
-            ? html`<span>This run counted ${steps.reduce((a, s) => a + ((s.cost && s.cost.agent_minutes) || 0), 0).toFixed(1)}
-                   agent-minutes but was not given a rate. Re-run with
-                   <b> -rate-per-minute</b> to price it — voice agents bill by the minute, so
+            ? html`<span>This run counted ${steps.reduce((a, s) => a + ((s.cost && s.cost.agent_minutes) || 0), 0).toFixed(1)} agent-minutes
+                   but was not given a rate. Re-run with <b>-rate-per-minute</b> to price it —
+                   voice agents bill by the minute, so
                    latency is a cost as well as an experience.</span>`
             : html`<span>This run predates cost accounting. Runs placed from this version onward carry
                    billable minutes, and <b>-rate-per-minute</b> turns them into dollars.</span>`}
@@ -567,9 +599,9 @@ function readLatency(steps, rep) {
 
   return {
     verdict: bp
-      ? html`<b>It broke at ${bp.concurrency} concurrent calls.</b> p95 reached ${ms(bp.ttfa.p95_ms)},
-             ${bp.p95_ratio ? bp.p95_ratio.toFixed(2) : "?"}× the ${ms(base.ttfa.p95_ms)} it managed
-             at ${base.concurrency}.`
+      ? html`<b>It broke at ${bp.concurrency} concurrent calls.</b> p95
+             reached ${ms(bp.ttfa.p95_ms)} — ${bp.p95_ratio ? bp.p95_ratio.toFixed(2) : "?"}× the
+             baseline's own ${ms(base.ttfa.p95_ms)} at ${base.concurrency} concurrent.`
       : html`<b>Nothing broke.</b> The worst step, ${worst.name} at ${worst.concurrency} concurrent,
              held p95 at ${ms(worst.ttfa.p95_ms)} — ${ratio.toFixed(2)}× the baseline's ${ms(base.ttfa.p95_ms)}, inside the 2× line.`,
     why: html`p95 means 95 of every 100 turns were faster than this and 5 were slower. It is used
@@ -665,11 +697,15 @@ function readWER(rows) {
   const worst = rows.reduce((a, s) => (s.wer.mean > a.wer.mean ? s : a), rows[0]);
   const clean = worst.wer.mean <= 0.05;
   const w = worst.wer;
+  // A local, because a sentence with three values in it has to fit on one line:
+  // htm drops the whitespace wherever a line break lands next to a value or an
+  // inline tag, and the space it drops is the one between two words.
+  const errs = w.substitutions + w.deletions + w.insertions;
   return {
     verdict: clean
-      ? html`<b>It heard the caller.</b> The worst step misheard ${pct(w.mean)} of the words —
-             ${w.substitutions + w.deletions + w.insertions} errors across ${w.ref_words} spoken.`
-      : html`<b>It misheard ${pct(w.mean)} of what was said</b> at ${worst.name} — ${w.substitutions + w.deletions + w.insertions} errors
+      ? html`<b>It heard the caller.</b> The worst step
+             misheard ${pct(w.mean)} of the words: ${errs} errors across ${w.ref_words} spoken.`
+      : html`<b>It misheard ${pct(w.mean)} of what was said</b> at ${worst.name}: ${errs} errors
              across ${w.ref_words} words.`,
     why: html`The caller's lines were generated from a known script, so this compares against what
       was actually spoken rather than one transcript against another. ${w.substitutions} of
@@ -708,6 +744,432 @@ function readBarge(rows) {
              and that the caller's audio is reaching the agent while it speaks.`
       : html`Under about 500ms reads as a person stopping mid-sentence. Above a second the caller
              will start talking over it again, and both sides end up repeating themselves.`,
+  };
+}
+
+// The absolute scale, mirroring internal/loadgen/phase.go. Every other verdict
+// on this page is relative to the run's own baseline, which is the right way
+// to find degradation and no way at all to answer "is this any good" -- and a
+// caller asking that question has an absolute answer in mind.
+//
+// Computed here rather than read off the report so that runs recorded before
+// the grade existed are graded too. The render check asserts the two agree.
+const BANDS = [
+  ["natural", 0, 300, "var(--pass)",
+   "Indistinguishable from a person taking their turn. People leave about 200ms between turns."],
+  ["acceptable", 300, 500, "color-mix(in srgb, var(--pass) 40%, var(--warn))",
+   "Noticeable if you listen for it, tolerated by callers who are not."],
+  ["sluggish", 500, 800, "var(--warn)",
+   "The caller notices every turn. A long call starts to feel like hard work."],
+  ["breakdown", 800, Infinity, "var(--fail)",
+   "The caller wonders whether the line dropped, and starts talking again over the answer."],
+];
+const bandOf = v => (v > 0 ? (BANDS.find(b => v < b[2]) || BANDS[BANDS.length - 1])[0] : "");
+const bandColor = name => (BANDS.find(b => b[0] === name) || [, , , "var(--mute)"])[3];
+
+// GradeScale places each step on that scale: a filled dot for the wait a
+// caller usually got, a hollow one for the wait at p95.
+function GradeScale({ steps }) {
+  const rows = steps.filter(s => s.ttfa && s.ttfa.p50_ms > 0);
+  if (rows.length === 0) return null;
+
+  const W = 640, LEFT = 104, RIGHT = 16, BAR = 24, GAP = 34, ROW = 22;
+  const H = BAR + GAP + rows.length * ROW;
+  const axis = Math.max(1000, ...rows.map(s => s.ttfa.p95_ms)) * 1.06;
+  const x = v => LEFT + (Math.min(v, axis) / axis) * (W - LEFT - RIGHT);
+  const worst = rows.reduce((a, s) => (s.ttfa.p50_ms > a.ttfa.p50_ms ? s : a), rows[0]);
+
+  return html`
+    <div className="card">
+      <div className="eyebrow">Absolute grade</div>
+      <h2>Is this fast, without comparing it to itself?</h2>
+      <div className="read-why" style=${{marginTop:"8px",maxWidth:"78ch"}}>
+        The verdict everywhere else on this page is relative: each step against this run's own
+        baseline. That finds degradation and says nothing about whether the agent was ever good.
+        These four bands come from how people take turns in conversation, so they do not move
+        when the agent does.
+      </div>
+      <svg viewBox="0 0 ${W} ${H}" style=${{width:"100%",height:"auto",marginTop:"14px"}}>
+        ${BANDS.filter(b => b[1] < axis).map(b => {
+          const x0 = x(b[1]), x1 = x(Math.min(b[2], axis));
+          return html`<g key=${b[0]}>
+            <rect x=${x0} y="0" width=${Math.max(x1 - x0, 0)} height=${BAR} fill=${b[3]} opacity="0.85"/>
+            ${x1 - x0 > 62 && html`<text x=${(x0 + x1) / 2} y=${BAR / 2 + 4} fontSize="9.5"
+              textAnchor="middle" fill="#08171B">${b[0].toUpperCase()}</text>`}
+          </g>`;
+        })}
+        ${[300, 500, 800].filter(v => v < axis).map(v => html`
+          <text key=${v} x=${x(v)} y=${BAR + 13} fontSize="10" textAnchor="middle"
+            fill="var(--mute)">${v}ms</text>`)}
+        ${rows.map((s, i) => {
+          const y = BAR + GAP + i * ROW;
+          const p50 = s.ttfa.p50_ms, p95 = s.ttfa.p95_ms;
+          return html`<g key=${s.name}>
+            <text x="0" y=${y + 4} fontSize="11" fill="var(--ink-2)">${s.name}</text>
+            <line x1=${LEFT} y1=${y} x2=${W - RIGHT} y2=${y} stroke="var(--rule-soft)" strokeWidth="1"/>
+            <line x1=${x(p50)} y1=${y} x2=${x(p95)} y2=${y} stroke="var(--ink-2)" strokeWidth="1.5"/>
+            <circle cx=${x(p95)} cy=${y} r="4.5" fill="var(--surface)"
+              stroke=${bandColor(bandOf(p95))} strokeWidth="2">
+              <title>${s.name + " p95 " + Math.round(p95) + "ms, " + bandOf(p95)}</title>
+            </circle>
+            <circle cx=${x(p50)} cy=${y} r="5" fill=${bandColor(bandOf(p50))}>
+              <title>${s.name + " p50 " + Math.round(p50) + "ms, " + bandOf(p50)}</title>
+            </circle>
+          </g>`;
+        })}
+      </svg>
+      <div className="bandkey">
+        <span><i style=${{background:"var(--ink-2)",borderRadius:"50%"}}></i>filled dot = p50, the usual wait</span>
+        <span><i style=${{background:"var(--surface)",border:"2px solid var(--ink-2)",borderRadius:"50%"}}></i>hollow dot = p95, the bad turn</span>
+      </div>
+      <div className="tablewrap gloss">
+        <table>
+          <tbody>
+            ${BANDS.map(b => html`
+              <tr key=${b[0]}>
+                <td><span style=${{color:b[3]}}>&#9679;</span> ${b[0]}</td>
+                <td>${b[2] === Infinity ? `over ${b[1]}ms` : `${b[1]} to ${b[2]}ms`}</td>
+                <td>${b[4]}</td>
+              </tr>`)}
+          </tbody>
+        </table>
+      </div>
+      <${Reading} ...${readGrade(rows, worst)}/>
+    </div>`;
+}
+
+function readGrade(rows, worst) {
+  const best = rows.reduce((a, s) => (s.ttfa.p50_ms < a.ttfa.p50_ms ? s : a), rows[0]);
+  const bestBand = bandOf(best.ttfa.p50_ms), worstBand = bandOf(worst.ttfa.p50_ms);
+  const everGood = bestBand === "natural" || bestBand === "acceptable";
+
+  return {
+    verdict: !everGood
+      ? html`<b>It was never fast, not even unloaded.</b> Its best
+             step, ${best.name} at ${best.concurrency} concurrent, still made the caller
+             wait ${ms(best.ttfa.p50_ms)} on a typical turn — ${bestBand} before any load
+             was applied.`
+      : worstBand === "natural"
+      ? html`<b>Every step sounded like a person.</b> Even at ${worst.concurrency} concurrent the
+             usual turn came back in ${ms(worst.ttfa.p50_ms)}, inside the 300ms a human pause takes.`
+      : html`<b>It starts ${bestBand} and ends ${worstBand}.</b> ${ms(best.ttfa.p50_ms)} on a
+             typical turn at ${best.concurrency} concurrent,
+             and ${ms(worst.ttfa.p50_ms)} at ${worst.concurrency}.`,
+    why: html`These bands do not come from this agent or any other. People leave roughly 200ms of
+      silence between turns in ordinary conversation, so a reply inside 300ms lands where a human
+      one would; past about 800ms the pause stops reading as thinking and starts reading as a
+      problem with the line. That is why a run can pass every relative verdict on this page and
+      still be graded a breakdown throughout: passing means "no worse than it was", and this asks
+      a different question.`,
+    act: !everGood
+      ? html`<b>Capacity will not fix this.</b> The floor is the problem, and the floor is set by
+             the model, the voice and the network rather than by how many calls are in flight.
+             Split the wait below to see which half owns it before buying anything.`
+      : worstBand === "natural"
+      ? html`Nothing to fix. Push the profile higher: you have found how good this agent is, not
+             how much of it there is.`
+      : html`<b>This one is capacity.</b> It was ${bestBand} when unloaded, so the agent can do the
+             job — it stops being able to somewhere
+             between ${best.concurrency} and ${worst.concurrency} concurrent. Size below that,
+             or find the half that saturates
+             in the split further down.`,
+  };
+}
+
+// PhaseTable: the shape of each step over its own duration.
+//
+// Every other figure on this page is one number for a whole step, which
+// quietly assumes the step was the same thing from start to finish. Two
+// failures live in that assumption -- an agent that degrades while the load
+// holds steady, and one that absorbs a jump but takes its time about it -- and
+// both look identical to a single percentile.
+function PhaseTable({ steps }) {
+  const rows = steps.filter(s => s.phase && s.phase.kind);
+  const informative = rows.some(s =>
+    s.phase.kind !== "ramp" || (s.phase.drift && s.phase.drift !== "unknown"));
+  if (!informative) return null;
+
+  const label = { steady: "held steady", drifting: "got slower", settling: "got faster",
+                  unknown: "too short to tell" };
+  return html`
+    <div className="card">
+      <div className="eyebrow">Phase shape</div>
+      <h2>What each phase did over its own duration</h2>
+      <div className="read-why" style=${{marginTop:"8px",maxWidth:"78ch"}}>
+        Each step is split in half by when its calls started, and the two halves are compared.
+        A step whose load never changed but whose median did is drifting, and drift is the one
+        failure a single percentile for the whole step cannot show.
+      </div>
+      <div className="tablewrap">
+        <table>
+          <thead><tr>
+            <th>Step</th><th>Phase</th><th>Held</th><th>First half</th><th>Second half</th>
+            <th>Change</th><th>Reading</th>
+          </tr></thead>
+          <tbody>
+            ${rows.map(s => html`
+              <tr key=${s.name}>
+                <td>${s.name}</td>
+                <td>${s.phase.kind}</td>
+                <td>${s.phase.held_s > 0 ? Math.round(s.phase.held_s) + "s" : "-"}</td>
+                <td>${s.phase.first_half && s.phase.first_half.n > 0 ? ms(s.phase.first_half.p50_ms) : "-"}</td>
+                <td>${s.phase.second_half && s.phase.second_half.n > 0 ? ms(s.phase.second_half.p50_ms) : "-"}</td>
+                <td>${s.phase.drift === "unknown" ? "-"
+                      : `${s.phase.drift_pct >= 0 ? "+" : ""}${Math.round(s.phase.drift_pct * 100)}%`}</td>
+                <td>${label[s.phase.drift] || s.phase.drift}${s.phase.kind === "recovery"
+                      ? (s.phase.recovered ? " · back to baseline" : " · did not come back") : ""}</td>
+              </tr>`)}
+          </tbody>
+        </table>
+      </div>
+      <div className="note">
+        The comparison is made on the median rather than p95. A half-step carries half the samples,
+        and a p95 over a dozen turns is one unlucky call rather than a trend. "Too short to tell"
+        is not a synonym for steady: it means the step never ran long enough to have a shape.
+      </div>
+      <${Reading} ...${readPhases(rows)}/>
+    </div>`;
+}
+
+function readPhases(rows) {
+  const drifting = rows.filter(s => s.phase.drift === "drifting");
+  const recovery = rows.find(s => s.phase.kind === "recovery");
+  const spike = rows.find(s => s.phase.kind === "spike");
+  const soak = rows.find(s => s.phase.kind === "soak");
+
+  const d0 = drifting[0];
+  const names = drifting.map(s => s.name).join(", ");
+  const own = drifting.length > 1 ? "their own durations" : "its own duration";
+  const from = d0 && ms(d0.phase.first_half.p50_ms), to = d0 && ms(d0.phase.second_half.p50_ms);
+  const secs = d0 && Math.round(d0.phase.held_s);
+
+  const verdict = drifting.length > 0
+    ? html`<b>${names} got slower over ${own} while the load never
+           changed.</b> Its median moved from ${from} to ${to} across ${secs} seconds.`
+    : recovery && !recovery.phase.recovered
+    ? html`<b>It did not come back.</b> ${recovery.name} returned to the baseline's concurrency but
+           held p95 at ${recovery.p95_ratio ? recovery.p95_ratio.toFixed(2) : "?"}× the baseline's,
+           so whatever the load did to this agent outlasted the load.`
+    : html`<b>No phase drifted.</b> Every step that ran long enough to have a shape kept it: the
+           calls at the end were as fast as the calls at the start.`;
+
+  return {
+    verdict: verdict,
+    why: html`A profile made only of ramps asks one question — how much at once. Three others need
+      a phase of their own.${spike ? html` A ${"spike"} jumps straight to peak with no warm-up,
+      which is what a marketing email does to a support line and what a ramp never reproduces.` : ""}${soak
+      ? html` A ${"soak"} holds one load long enough for a leak, a filling queue or a cache going
+      cold to show; none of those appear in a step that lasts ninety seconds.` : ""}${recovery
+      ? html` A ${"recovery"} drops back to the baseline's own concurrency afterwards, because an
+      agent that survives the peak and never returns to normal has failed in a way the peak itself
+      never showed.` : ""}`,
+    act: drifting.length > 0
+      ? html`<b>Look for something that accumulates.</b> Memory, an unbounded queue, a connection
+             pool that never gives connections back, a context window that grows with the
+             conversation. A run slower at its end than its start under identical load is not a
+             capacity problem, and adding capacity will not fix it — it will only make the same
+             failure take longer to appear.`
+      : recovery && !recovery.phase.recovered
+      ? html`<b>Check what the peak left behind.</b> Retries still draining, a queue still full, or
+             connections that were never closed. Extend the recovery phase: if it comes back after
+             five minutes, that is the real recovery time and it belongs in the runbook.`
+      : soak
+      ? html`Nothing accumulating that this soak was long enough to see.
+             Lengthen <code>hold_s</code> before trusting that: leaks are measured in hours,
+             and ${Math.round(soak.phase.held_s)} seconds is a smoke test for one.`
+      : html`Add a soak and a recovery phase — <code>profiles/hamming-local.json</code> carries all
+             six — since a profile of ramps only ever asks how much at once.`,
+  };
+}
+
+// WERStrip: every judged call as a dot, placed by how badly the agent misheard
+// it, in two lanes for whether it finished the job.
+//
+// The chart is the argument. If mishearing costs the agent the task, the
+// failures pile up on the right of the threshold and the successes on the
+// left, and nobody has to be talked into the conclusion. If the two lanes look
+// the same, the transcript is not what is costing you tasks -- which is just
+// as useful and much easier to disbelieve from a table of averages.
+function WERStrip({ calls, threshold }) {
+  const pts = calls.filter(c => c.judged && c.ref_words > 0);
+  if (pts.length === 0) return null;
+
+  const W = 640, H = 132, LEFT = 128, RIGHT = 18, TOP = 26;
+  const max = Math.max(0.1, threshold * 2, ...pts.map(c => c.wer)) * 1.12;
+  const x = w => LEFT + (w / max) * (W - LEFT - RIGHT);
+  const lane = met => TOP + (met ? 16 : 62);
+
+  return html`
+    <svg viewBox="0 0 ${W} ${H}" style=${{width:"100%",height:"auto",marginTop:"16px"}}>
+      <text x="0" y=${lane(true) + 4} fontSize="11" fill="var(--pass)">did the job</text>
+      <text x="0" y=${lane(false) + 4} fontSize="11" fill="var(--fail)">did not</text>
+      <line x1=${LEFT} y1=${lane(true)} x2=${W - RIGHT} y2=${lane(true)}
+        stroke="var(--rule-soft)" strokeWidth="1"/>
+      <line x1=${LEFT} y1=${lane(false)} x2=${W - RIGHT} y2=${lane(false)}
+        stroke="var(--rule-soft)" strokeWidth="1"/>
+      <line x1=${x(threshold)} y1=${TOP - 8} x2=${x(threshold)} y2=${H - 22}
+        stroke="var(--ink-2)" strokeWidth="1" strokeDasharray="3 3"/>
+      <text x=${x(threshold)} y=${TOP - 13} fontSize="10" textAnchor="middle"
+        fill="var(--ink-2)">${Math.round(threshold * 100)}% — usable</text>
+      ${pts.map((c, i) => html`
+        <circle key=${c.step + "/" + c.request_id + "/" + i} cx=${x(c.wer)}
+          cy=${lane(c.met) + ((i % 3) - 1) * 5} r="5"
+          fill=${c.met ? "var(--pass)" : "var(--fail)"} fillOpacity="0.75"
+          stroke="var(--surface)" strokeWidth="1.5">
+          <title>${c.step + " misheard " + (c.wer * 100).toFixed(1) + "% of " + c.ref_words +
+                   " words, and " + (c.met ? "completed the task" : "did not")}</title>
+        </circle>`)}
+      <line x1=${LEFT} y1=${H - 18} x2=${W - RIGHT} y2=${H - 18} stroke="var(--rule)" strokeWidth="1"/>
+      <text x=${LEFT} y=${H - 5} fontSize="10" fill="var(--mute)">0%</text>
+      <text x=${W - RIGHT} y=${H - 5} fontSize="10" textAnchor="end"
+        fill="var(--mute)">${(max * 100).toFixed(0)}% of words misheard</text>
+    </svg>`;
+}
+
+// TaskSuccessCard answers the question the latency half of this page cannot:
+// the agent was fast, but did it do what it was called to do -- and if it
+// failed, was mishearing the caller the reason?
+function TaskSuccessCard({ judge }) {
+  if (!judge) {
+    return html`
+      <div className="card">
+        <div className="eyebrow">Task success</div>
+        <h2>This run was not judged</h2>
+        <div className="note">
+          Every number above says how the agent sounded. None of them says whether it did the job.
+          Re-run with <code>-judge</code> and a scenario that defines <code>success_criteria</code>,
+          and this card grades each conversation against them and then asks whether the calls it
+          misheard are the calls it failed.
+        </div>
+      </div>`;
+  }
+
+  const x = judge.correlation || {};
+  const calls = judge.calls || [];
+  const misses = (judge.misses || []).filter(m => m.judged > 0);
+
+  return html`
+    <div className="card">
+      <div className="eyebrow">Task success</div>
+      <h2>Did it actually do the job?</h2>
+      <dl className="spec">
+        <div><dt>Conversations graded</dt><dd>${judge.judged}</dd></div>
+        <div><dt>Met every criterion</dt><dd>${judge.passed} of ${judge.judged}</dd></div>
+        <div><dt>Could not be graded</dt><dd>${judge.errored}</dd></div>
+        <div><dt>Graded by</dt><dd>${judge.backend || "unknown"}</dd></div>
+      </dl>
+
+      ${misses.length > 0 && html`
+        <div className="tablewrap">
+          <table>
+            <thead><tr><th>Criterion</th><th>Met</th><th>Missed</th></tr></thead>
+            <tbody>
+              ${misses.map(m => html`
+                <tr key=${m.criterion} className="crit">
+                  <td>${m.criterion}${m.missed > 0 && m.evidence
+                        ? html`<span className="quote">${m.evidence}</span>` : ""}</td>
+                  <td>${m.judged - m.missed}</td>
+                  <td>${m.missed}</td>
+                </tr>`)}
+            </tbody>
+          </table>
+        </div>`}
+
+      <div className="note">
+        The grader reads the transcript and nothing else, so it can only decide what words show.
+        Anything about timing, pauses or whether the agent stopped when interrupted is measured
+        directly elsewhere on this page — a judge asked to guess at those from text gives a
+        confident wrong answer. Every verdict above carries the line it was drawn from, because a
+        score nobody can check is the one number here that could be wrong unnoticed.
+      </div>
+
+      ${x.calls > 0 && html`
+        <div style=${{marginTop:"22px",borderTop:"1px solid var(--rule)",paddingTop:"16px"}}>
+          <div className="eyebrow">Heard versus done</div>
+          <h2 style=${{marginTop:"4px"}}>Are the calls it misheard the calls it failed?</h2>
+          <${WERStrip} calls=${calls} threshold=${x.threshold || 0.05}/>
+          <div className="tablewrap">
+            <table>
+              <thead><tr><th>Group</th><th>Calls</th><th>Did the job</th><th>Rate</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>Heard cleanly (under ${Math.round((x.threshold || 0.05) * 100)}% misheard)</td>
+                  <td>${x.clean_calls}</td><td>${x.clean_passed}</td>
+                  <td>${x.clean_calls > 0 ? pct(x.clean_pass_rate) : "-"}</td>
+                </tr>
+                <tr>
+                  <td>Misheard</td>
+                  <td>${x.misheard_calls}</td><td>${x.misheard_passed}</td>
+                  <td>${x.misheard_calls > 0 ? pct(x.misheard_pass_rate) : "-"}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <${Reading} ...${readTaskSuccess(judge)}/>
+        </div>`}
+
+      ${!(x.calls > 0) && html`
+        <${Reading} ...${readTaskSuccess(judge)}/>`}
+    </div>`;
+}
+
+function readTaskSuccess(j) {
+  const x = j.correlation || {};
+  const worst = (j.misses || []).filter(m => m.judged > 0)
+    .reduce((a, m) => (!a || m.missed > a.missed ? m : a), null);
+  const allPassed = j.passed === j.judged && j.judged > 0;
+
+  // No correlation to draw: report the task result and say plainly why the
+  // join is missing, rather than leaving a card that looks half-rendered.
+  if (!(x.calls > 0)) {
+    return {
+      verdict: allPassed
+        ? html`<b>It did the job every time.</b> All ${j.judged} graded conversations met every
+               criterion.`
+        : html`<b>It met every criterion on ${j.passed} of ${j.judged} conversations.</b>${worst &&
+               worst.missed > 0
+                 ? html` The one it missed most often: ${worst.criterion}.` : ""}`,
+      why: html`The transcript accuracy of these calls could not be joined to their verdicts, so
+        there is nothing here to say whether mishearing caused the failures. That happens when the
+        target returned no transcript of the caller, which is the usual case against a reference
+        agent that does no speech recognition at all.`,
+      act: html`Run the same profile against the real agent to get the join. Against a reference
+        target the task verdict is still meaningful; the correlation is not.`,
+    };
+  }
+
+  const gap = x.gap || 0;
+  return {
+    verdict: !x.conclusive
+      ? html`<b>No conclusion to draw yet:</b> ${x.note}. The two groups are reported below
+             because they are what was measured; nothing is read into them.`
+      : gap > 0
+      ? html`<b>Mishearing is costing it the task.</b> The calls it heard cleanly finished the
+             job ${pct(x.clean_pass_rate)} of the time; the ones it misheard,
+             only ${pct(x.misheard_pass_rate)} — a gap of ${Math.round(gap * 100)} points.`
+      : html`<b>Mishearing is not what is failing these calls.</b> Cleanly heard calls
+             finished ${pct(x.clean_pass_rate)} of the time and misheard
+             ones ${pct(x.misheard_pass_rate)}, which is no separation worth acting on.`,
+    why: html`This is the join that makes word error rate worth measuring. On its own a WER figure
+      is an accuracy statistic with no action attached — nobody knows whether 6% matters. Set
+      against task outcomes it either points at the transcript as the thing to fix, or shows the
+      failures are somewhere else and the WER number is a distraction. The same question from the
+      other side needs no threshold at all: the calls that passed were
+      misheard ${pct(x.median_wer_passed)} of the time at the median, the ones that
+      failed ${pct(x.median_wer_failed)}. This is an association and nothing stronger — nothing assigned
+      which calls got misheard, and load degrades recognition and everything else at once.`,
+    act: !x.conclusive
+      ? html`Raise <code>-judge-calls</code>, or judge every call with <code>-judge-calls 0</code>.
+             Splitting a handful of conversations into two groups lets one call move a pass rate
+             by twenty points, which is a conclusion the data cannot carry.`
+      : gap > 0
+      ? html`<b>Fix the listening before the reasoning.</b> A stronger speech model, or domain
+             keywords if the provider supports them — order numbers, product names and spelled-out
+             digits are where these errors concentrate. Changing the prompt or the model that
+             thinks will not help an agent that was answering a different question.`
+      : html`<b>Look past the transcript.</b> The agent heard these callers and still did not
+             finish the job, so the failure is in the reasoning, the tools or the prompt. Read the
+             quoted evidence above: the judge names the criterion and the line it failed on.`,
   };
 }
 
@@ -779,6 +1241,9 @@ function ReportCard({ id }) {
 
       ${steps.length > 0 && html`<${Reading} ...${readLatency(steps, rep)}/>`}
     </div>
+
+    <${GradeScale} steps=${steps}/>
+    <${PhaseTable} steps=${steps}/>
 
     ${conv.length === 0 && steps.length > 0 && html`
       <div className="card">
@@ -854,6 +1319,8 @@ function ReportCard({ id }) {
         <${Reading} ...${readWER(steps.filter(s => s.wer && s.wer.turns > 0))}/>
       </div>`}
 
+    <${TaskSuccessCard} judge=${rep.judge}/>
+
     ${anyBarge && html`
       <div className="card">
         <div className="eyebrow">Interruption</div>
@@ -917,8 +1384,8 @@ function App() {
         </dl>
 
         <p className="foundation">Two measurements are <b>calibrated against known answers</b>:
-          latency, worst error <b>3.3&nbsp;ms</b> across five concurrency levels, and barge-in yield,
-          <b>15&nbsp;ms</b> at three concurrent callers. That is the foundation. A harness whose
+          latency, worst error <b>3.3&nbsp;ms</b> across five concurrency levels, and barge-in
+          yield, <b>15&nbsp;ms</b> at three concurrent callers. That is the foundation. A harness whose
           numbers have never been checked against something it already knows cannot be trusted about
           anything else &mdash; which is also why a run reports its own pacing drift, and marks a step
           suspect when this machine rather than the agent was the limit.</p>
@@ -951,6 +1418,8 @@ function App() {
                   ${when(r.started_at)} · peak ${r.peak_concurrency} · worst p95 ${ms(r.worst_p95_ms)}
                   ${r.harness_degraded ? " · harness suspect" : ""}
                   ${r.breakpoint ? ` · breaks at ${r.breakpoint}` : ""}
+                  ${r.judged > 0 ? ` · judged ${r.passed}/${r.judged}` : ""}
+                  ${r.drifted > 0 ? ` · ${r.drifted} drifting` : ""}
                 </span>
               </button>`)}
           </div>

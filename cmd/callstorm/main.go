@@ -168,8 +168,12 @@ func runLoad(ctx context.Context, o opts, sc *scenario.Scenario, apiKey string) 
 		return err
 	}
 
-	fmt.Printf("profile    %s  %d steps, %d calls, peak concurrency %d\n",
-		profile.Name, len(profile.Steps), profile.TotalCalls(), profile.PeakConcurrency())
+	held := ""
+	if h := profile.HeldSeconds(); h > 0 {
+		held = fmt.Sprintf(" plus %.0fs held", h)
+	}
+	fmt.Printf("profile    %s  %d steps, %d calls%s, peak concurrency %d\n",
+		profile.Name, len(profile.Steps), profile.TotalCalls(), held, profile.PeakConcurrency())
 
 	var mx *telemetry.Metrics
 	if o.metricsAddr != "" {
@@ -237,6 +241,22 @@ func runLoad(ctx context.Context, o opts, sc *scenario.Scenario, apiKey string) 
 		fmt.Println()
 	}
 
+	// Judging runs before the artifacts are written, not after, so its verdicts
+	// land inside the report rather than in a file beside it. The two numbers
+	// it produces -- how badly the agent misheard, and whether it did the job
+	// -- only mean something together, and anything that reads the report and
+	// nothing else could not see the join while they lived apart.
+	judgePath := ""
+	if o.judge {
+		var jerr error
+		judgePath, jerr = judgeRun(ctx, o, sc, rep, runID)
+		if jerr != nil {
+			// A judge that could not run is not a failed load test. The
+			// latency numbers stand on their own.
+			fmt.Fprintf(os.Stderr, "judge: %v\n", jerr)
+		}
+	}
+
 	if err := os.MkdirAll(o.outDir, 0o755); err != nil {
 		return err
 	}
@@ -265,12 +285,8 @@ func runLoad(ctx context.Context, o opts, sc *scenario.Scenario, apiKey string) 
 
 	printLoadReport(rep, jsonPath, csvPath, svgPath, callsPath)
 
-	if o.judge {
-		if err := judgeRun(ctx, o, sc, rep, runID); err != nil {
-			// A judge that could not run is not a failed load test. The
-			// latency numbers above stand on their own.
-			fmt.Fprintf(os.Stderr, "judge: %v\n", err)
-		}
+	if rep.Judge != nil {
+		printTaskSuccess(rep.Judge, judgePath)
 	}
 
 	// A step's turns land in the registry as that step ends, and a scrape that
@@ -306,8 +322,15 @@ func preflight(o opts, p *loadgen.Profile) error {
 			p.PeakConcurrency(), limit)
 	}
 	if o.targetURL == "" {
-		fmt.Printf("cost       %d calls billed by Deepgram; caller audio is cached and free\n",
-			p.TotalCalls())
+		note := ""
+		if h := p.HeldSeconds(); h > 0 {
+			// A held step places an unknown number of calls, so the count
+			// above is a floor rather than the bill. Saying so is cheaper than
+			// letting someone plan a spend against it.
+			note = fmt.Sprintf(", plus however many fit in %.0fs of held steps", h)
+		}
+		fmt.Printf("cost       %d calls billed by Deepgram%s; caller audio is cached and free\n",
+			p.TotalCalls(), note)
 	}
 	return nil
 }
@@ -406,6 +429,8 @@ func printLoadReport(rep *loadgen.Report, jsonPath, csvPath, svgPath, callsPath 
 		}
 	}
 
+	printGrades(rep)
+	printPhases(rep)
 	printConversation(rep)
 	printComponentShare(rep)
 	printCost(rep)
@@ -581,19 +606,23 @@ func printCost(rep *loadgen.Report) {
 // the same verdict repeated. The default is one conversation per step, which is
 // enough to catch an agent that behaves differently under load; -judge-calls 0
 // grades all of them when that is the question being asked.
-func judgeRun(ctx context.Context, o opts, sc *scenario.Scenario, rep *loadgen.Report, runID string) error {
+//
+// The verdicts are attached to rep, so they travel with the report card. The
+// returned path is the standalone judgements file, kept for anything already
+// reading it.
+func judgeRun(ctx context.Context, o opts, sc *scenario.Scenario, rep *loadgen.Report, runID string) (string, error) {
 	if len(sc.SuccessCriteria) == 0 {
-		return fmt.Errorf("scenario %s defines no success_criteria, so there is nothing to judge", sc.Name)
+		return "", fmt.Errorf("scenario %s defines no success_criteria, so there is nothing to judge", sc.Name)
 	}
 
 	sampled := sampleCalls(rep.Calls, o.judgeCalls)
 	if len(sampled) == 0 {
-		return fmt.Errorf("no completed conversations to judge")
+		return "", fmt.Errorf("no completed conversations to judge")
 	}
 
 	model, describe, err := judgeModel(o)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	fmt.Printf("\njudging      %d of %d conversations against %d criteria (%s)\n",
@@ -612,62 +641,61 @@ func judgeRun(ctx context.Context, o opts, sc *scenario.Scenario, rep *loadgen.R
 		judgements = append(judgements, g)
 	}
 
+	// The report carries the verdicts from here on. The standalone file stays
+	// because it is what a script that already reads it expects, and because a
+	// judge run is expensive enough that losing it to a later write failure
+	// would be worth avoiding.
+	rep.Judge = loadgen.SummarizeJudgements(sampled, judgements, describe, sc.SuccessCriteria)
+
 	path := filepath.Join(o.outDir, runID+"-judgements.json")
 	b, err := json.MarshalIndent(judgements, "", "  ")
 	if err != nil {
-		return err
+		return "", err
 	}
 	if err := os.WriteFile(path, b, 0o644); err != nil {
-		return err
+		return "", err
 	}
-
-	printJudgements(judgements, path)
-	printWERCorrelation(sampled, judgements)
-	return nil
+	return path, nil
 }
 
-// printWERCorrelation asks whether the calls the agent misheard are the calls
-// it failed.
+// printTaskSuccess reports what the judge found, and then the one question
+// that needs both halves of the run at once: are the calls the agent misheard
+// the calls it failed?
 //
-// This is the join that makes word error rate worth reporting. Alone it is an
+// That join is what makes word error rate worth reporting. Alone it is an
 // accuracy statistic with no action attached; set against task outcomes it
 // either points at the transcript as the thing to fix, or shows the failures
-// are elsewhere and the WER figure is a distraction.
-func printWERCorrelation(calls []loadgen.CallRecord, judgements []judge.Judgement) {
-	verdict := make(map[string]judge.Judgement, len(judgements))
-	for _, g := range judgements {
-		verdict[g.Step+"/"+g.RequestID] = g
-	}
-
-	var scores []judge.CallScore
-	for _, c := range calls {
-		g, ok := verdict[c.Step+"/"+c.RequestID]
-		if !ok {
+// are somewhere else and the WER figure is a distraction.
+func printTaskSuccess(t *loadgen.TaskSuccess, path string) {
+	fmt.Println()
+	for _, m := range t.Misses {
+		if m.Judged == 0 {
 			continue
 		}
-		// Per call, errors are totalled over words rather than averaged over
-		// turns, matching the step-level rate: averaging would let a
-		// three-word turn weigh as heavily as a thirty-word one.
-		var errs, words int
-		for _, t := range c.Turns {
-			if t.HeardText == "" {
-				continue
-			}
-			w := judge.Score(t.CallerText, t.HeardText)
-			errs += w.Substitutions + w.Deletions + w.Insertions
-			words += w.RefWords
+		mark := "ok  "
+		if m.Missed > 0 {
+			mark = "FAIL"
 		}
-		s := judge.CallScore{
-			Step: c.Step, RequestID: c.RequestID,
-			RefWords: words, Met: g.Met(), Judged: g.Err == "",
-		}
-		if words > 0 {
-			s.WER = float64(errs) / float64(words)
-		}
-		scores = append(scores, s)
+		fmt.Printf("%s  %d/%d  %s\n", mark, m.Judged-m.Missed, m.Judged, m.Criterion)
 	}
 
-	x := judge.Correlate(scores)
+	fmt.Printf("\ntask success %d of %d conversations met every criterion\n", t.Passed, t.Judged)
+	if t.Errored > 0 {
+		// Kept apart from a failure: not knowing is not the same as the agent
+		// getting it wrong.
+		fmt.Printf("unjudged     %d conversations the judge could not score\n", t.Errored)
+		for _, g := range t.Judgements {
+			if g.Err != "" {
+				fmt.Printf("             %s: %s\n", g.Step, g.Err)
+				break
+			}
+		}
+	}
+	if path != "" {
+		fmt.Printf("judgements   %s\n", path)
+	}
+
+	x := t.Correlation
 	if x.Calls == 0 {
 		return
 	}
@@ -757,62 +785,6 @@ func sampleCalls(calls []loadgen.CallRecord, n int) []loadgen.CallRecord {
 		out = append(out, c)
 	}
 	return out
-}
-
-func printJudgements(js []judge.Judgement, path string) {
-	// Criteria are reported separately rather than as one score. "Passed 3 of
-	// 4" says nothing useful; which one failed is the whole finding.
-	type tally struct{ met, total, unjudged int }
-	byCriterion := map[string]*tally{}
-	var order []string
-
-	failed, unjudged := 0, 0
-	for _, g := range js {
-		if g.Err != "" {
-			unjudged++
-			continue
-		}
-		if !g.Met() {
-			failed++
-		}
-		for _, o := range g.Outcomes {
-			t, ok := byCriterion[o.Criterion]
-			if !ok {
-				t = &tally{}
-				byCriterion[o.Criterion] = t
-				order = append(order, o.Criterion)
-			}
-			t.total++
-			if o.Met {
-				t.met++
-			}
-		}
-	}
-
-	fmt.Println()
-	for _, c := range order {
-		t := byCriterion[c]
-		mark := "ok  "
-		if t.met < t.total {
-			mark = "FAIL"
-		}
-		fmt.Printf("%s  %d/%d  %s\n", mark, t.met, t.total, c)
-	}
-
-	judged := len(js) - unjudged
-	fmt.Printf("\ntask success %d of %d conversations met every criterion\n", judged-failed, judged)
-	if unjudged > 0 {
-		// Kept apart from a failure: not knowing is not the same as the agent
-		// getting it wrong.
-		fmt.Printf("unjudged     %d conversations the judge could not score\n", unjudged)
-		for _, g := range js {
-			if g.Err != "" {
-				fmt.Printf("             %s: %s\n", g.Step, g.Err)
-				break
-			}
-		}
-	}
-	fmt.Printf("judgements   %s\n", path)
 }
 
 // writeCalls records every conversation the run produced, one JSON object per
@@ -959,4 +931,79 @@ func msf(f float64) string {
 		return "-"
 	}
 	return fmt.Sprintf("%.0fms", f)
+}
+
+// printGrades places every step on the absolute scale, beside the relative
+// verdict rather than instead of it.
+//
+// The verdict above answers "did this degrade", which is the right question
+// for finding a breakpoint and the wrong one for deciding whether to ship. A
+// run can pass every step against its own baseline while every step is a wait
+// no caller would sit through, and only an absolute band says so.
+func printGrades(rep *loadgen.Report) {
+	fmt.Printf("\nhow it sounds  under 300ms natural, to 500ms acceptable, to 800ms sluggish, past that breakdown\n")
+	fmt.Printf("%-12s %-10s %-13s %-10s %s\n", "step", "p50", "usually", "p95", "at worst")
+	for _, s := range rep.Steps {
+		fmt.Printf("%-12s %-10s %-13s %-10s %s\n",
+			s.Name, msf(s.TTFA.P50Ms), dash(s.Grade.Typical), msf(s.TTFA.P95Ms), dash(s.Grade.Worst))
+	}
+}
+
+// printPhases reports the shape of each step, which every other number on the
+// page flattens away.
+//
+// A step report is one figure per metric for the whole step, and that quietly
+// assumes the step was the same thing from start to finish. Two failures hide
+// in that assumption: an agent that degrades slowly while the load never
+// changes, and an agent that absorbs a sudden jump but takes a while to do it.
+// Splitting each step in half by start time and comparing the medians is what
+// makes both visible.
+func printPhases(rep *loadgen.Report) {
+	if !rep.HasPhases() {
+		return
+	}
+	fmt.Printf("\nphase shape   each step split in half by when its calls started, medians compared\n")
+	fmt.Printf("%-12s %-10s %-8s %-11s %-11s %-9s %s\n",
+		"step", "phase", "held", "first half", "second half", "drift", "reading")
+	for _, s := range rep.Steps {
+		p := s.Phase
+		drift, reading := "-", ""
+		switch p.Drift {
+		case loadgen.DriftUnknown:
+			reading = "too few turns to compare halves"
+		default:
+			drift = fmt.Sprintf("%+.0f%%", p.DriftPct*100)
+			reading = p.Drift
+		}
+		if p.Kind == loadgen.KindRecovery {
+			if p.Recovered {
+				reading += "   <- back to baseline"
+			} else {
+				reading += fmt.Sprintf("   <- still %.2fx baseline, it did not come back", s.P95Ratio)
+			}
+		}
+		fmt.Printf("%-12s %-10s %-8s %-11s %-11s %-9s %s\n",
+			s.Name, p.Kind, fmt.Sprintf("%.0fs", p.HeldSeconds),
+			msf(p.FirstHalf.P50Ms), msf(p.SecondHalf.P50Ms), drift, reading)
+	}
+
+	if drifted := rep.Drifted(); len(drifted) > 0 {
+		names := make([]string, 0, len(drifted))
+		for _, s := range drifted {
+			names = append(names, s.Name)
+		}
+		fmt.Printf("\nDRIFT        %s got slower over its own duration while the load never changed.\n",
+			strings.Join(names, ", "))
+		fmt.Printf("             That is the failure a single percentile cannot show: a leak, a\n")
+		fmt.Printf("             filling queue or a cache going cold looks fine in any one snapshot.\n")
+	}
+}
+
+// dash renders an empty grade as something rather than as nothing, so a column
+// of blanks cannot be mistaken for a column of good news.
+func dash(s string) string {
+	if s == "" {
+		return "-"
+	}
+	return s
 }

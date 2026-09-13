@@ -163,6 +163,16 @@ type summary struct {
 	WorstP95    float64 `json:"worst_p95_ms"`
 	WERMean     float64 `json:"wer_mean"`
 	Degraded    bool    `json:"harness_degraded"`
+
+	// Judged and Passed say whether this run answers the second question at
+	// all. Without them, finding the runs that were graded means opening every
+	// one of them.
+	Judged int `json:"judged,omitempty"`
+	Passed int `json:"passed,omitempty"`
+
+	// Drifted counts steps that got slower across their own duration. It is
+	// the one finding that can be true while every verdict in the run passes.
+	Drifted int `json:"drifted,omitempty"`
 }
 
 func listRuns(dir string) http.HandlerFunc {
@@ -212,6 +222,10 @@ func summarize(path string, rep *loadgen.Report) summary {
 	if bp := rep.Breakpoint(); bp != nil {
 		s.Breakpoint = fmt.Sprintf("%s at %d concurrent", bp.Name, bp.Concurrency)
 	}
+	if rep.Judge != nil {
+		s.Judged, s.Passed = rep.Judge.Judged, rep.Judge.Passed
+	}
+	s.Drifted = len(rep.Drifted())
 	return s
 }
 
