@@ -23,7 +23,10 @@ func TestRoundTripThroughJSON(t *testing.T) {
 		BargeInYield: 487 * time.Millisecond,
 		TransportRTT: 41*time.Millisecond + 250*time.Microsecond,
 
-		TransportRTTMeasured: true,
+		LeadingSilence: 225 * time.Millisecond,
+
+		TransportRTTMeasured:   true,
+		LeadingSilenceMeasured: true,
 	}
 	orig.Finalize()
 
@@ -56,6 +59,7 @@ func TestRoundTripThroughJSON(t *testing.T) {
 		{"PacingDrift", orig.PacingDrift, got.PacingDrift},
 		{"BargeInYield", orig.BargeInYield, got.BargeInYield},
 		{"TransportRTT", orig.TransportRTT, got.TransportRTT},
+		{"LeadingSilence", orig.LeadingSilence, got.LeadingSilence},
 	} {
 		// Finalize rounds to two decimal places of a millisecond, so the trip
 		// is lossy below a microsecond and exact above it.
@@ -68,6 +72,9 @@ func TestRoundTripThroughJSON(t *testing.T) {
 	// cannot tell a zero round trip from a server that never answered.
 	if !got.TransportRTTMeasured {
 		t.Error("TransportRTTMeasured was lost in transit")
+	}
+	if !got.LeadingSilenceMeasured {
+		t.Error("LeadingSilenceMeasured was lost in transit")
 	}
 
 	// A round trip too short for the clock to resolve reads exactly zero, and

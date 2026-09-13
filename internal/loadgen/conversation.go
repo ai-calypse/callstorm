@@ -45,6 +45,12 @@ type Conversation struct {
 	DeadAirTurns   int     `json:"dead_air_turns"`
 	DeadAirSeconds float64 `json:"dead_air_seconds"`
 
+	// RepeatedReplies counts replies that said again what the agent had already
+	// said earlier in the same call, and CallsWithRepeats the calls they were
+	// in. A dialogue stuck in a loop shows here before any latency figure moves.
+	RepeatedReplies  int `json:"repeated_replies"`
+	CallsWithRepeats int `json:"calls_with_repeats"`
+
 	// AgentSpeechSeconds and CallerSpeechSeconds are the raw totals the ratios
 	// come from, kept so a reader can check the arithmetic rather than take it.
 	AgentSpeechSeconds  float64 `json:"agent_speech_seconds"`

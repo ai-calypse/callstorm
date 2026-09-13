@@ -341,6 +341,20 @@ func (w *worker) readLoop(ctx context.Context) {
 	// over the tail of every reply.
 	var playoutEnd time.Duration
 
+	// onset finds the first sound a caller could hear in each reply, and marks
+	// places each chunk of the reply on its playout: the sample it starts at and
+	// when it plays. A reply that opens with silence is heard later than its
+	// first byte arrives, and the chunk the sound is found in says how much.
+	type chunkMark struct {
+		sample int
+		plays  time.Duration
+	}
+	var (
+		onset   *audio.Onset
+		marks   []chunkMark
+		samples int
+	)
+
 	for {
 		typ, data, err := w.conn.Read(ctx)
 		if err != nil {
@@ -362,6 +376,7 @@ func (w *worker) readLoop(ctx context.Context) {
 			if !speaking {
 				speaking = true
 				playoutEnd = at
+				onset, marks, samples = audio.NewOnset(w.cfg.SampleRate), marks[:0], 0
 				w.markBytes(metrics.AgentFirstAudio, len(data))
 				w.emit(srvEvent{kind: metrics.AgentFirstAudio, at: at})
 			}
@@ -369,6 +384,25 @@ func (w *worker) readLoop(ctx context.Context) {
 			// chunk finishes -- whichever is later.
 			if playoutEnd < at {
 				playoutEnd = at
+			}
+			if onset != nil {
+				marks = append(marks, chunkMark{samples, playoutEnd})
+				samples += len(data) / 2
+				if onset.Write(data) {
+					// The first audible window can begin in an earlier chunk
+					// than the one that completed it.
+					start, _ := onset.Start()
+					m := marks[0]
+					for _, c := range marks {
+						if c.sample <= start {
+							m = c
+						}
+					}
+					audible := m.plays + time.Duration(float64(start-m.sample)/float64(w.cfg.SampleRate)*float64(time.Second))
+					w.log.MarkAt(audible, metrics.AgentAudible, int(w.curTurn.Load()), (audible - marks[0].plays).String())
+					w.emit(srvEvent{kind: metrics.AgentAudible, at: audible})
+					onset = nil
+				}
 			}
 			playoutEnd += audio.Duration(data, w.cfg.SampleRate)
 			continue

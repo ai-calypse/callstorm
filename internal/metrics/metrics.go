@@ -34,6 +34,7 @@ const (
 	ServerWarning     Kind = "server_warning"
 	CallEnd           Kind = "call_end"
 	TransportPing     Kind = "ping"
+	AgentAudible      Kind = "agent_audible"
 )
 
 // Event is one timestamped thing that happened during a call.
@@ -171,6 +172,14 @@ type TurnMetric struct {
 	// pong" dropped a third of the run's turns from the correction.
 	TransportRTTMeasured bool `json:"transport_rtt_measured,omitempty"`
 
+	// LeadingSilence is how long the reply stayed silent after its first audio
+	// arrived, until the first 10ms of it loud enough to hear. TTFA ends at the
+	// first byte; a caller hears nothing until this is over, and a voice that
+	// opens its reply with a pause keeps them waiting through it.
+	// LeadingSilenceMeasured says sound was found, since zero is a real reading.
+	LeadingSilence         time.Duration `json:"-"`
+	LeadingSilenceMeasured bool          `json:"leading_silence_measured,omitempty"`
+
 	// StartedAt is when the caller began this turn's line, as a wall-clock
 	// time. The instants after it are on the call's own clock, in milliseconds
 	// from its start: the raw readings every duration above is a difference
@@ -238,6 +247,10 @@ type TurnMetric struct {
 	// reads exactly zero, and omitting the field left a turn marked measured
 	// with no number. TransportRTTMeasured says whether the zero is a reading.
 	TransportRTTMs float64 `json:"transport_rtt_ms"`
+
+	// LeadingSilenceMs is the millisecond mirror of LeadingSilence, written at
+	// zero for the same reason as the round trip.
+	LeadingSilenceMs float64 `json:"leading_silence_ms"`
 }
 
 // Millis renders a duration as milliseconds to two decimal places, keeping the
@@ -261,6 +274,7 @@ func (t *TurnMetric) Finalize() {
 	t.PacingDriftMs = ms(t.PacingDrift)
 	t.BargeInYieldMs = ms(t.BargeInYield)
 	t.TransportRTTMs = ms(t.TransportRTT)
+	t.LeadingSilenceMs = ms(t.LeadingSilence)
 }
 
 // Rehydrate restores the duration fields from their millisecond mirrors.
@@ -286,6 +300,7 @@ func (t *TurnMetric) Rehydrate() {
 	t.PacingDrift = d(t.PacingDriftMs)
 	t.BargeInYield = d(t.BargeInYieldMs)
 	t.TransportRTT = d(t.TransportRTTMs)
+	t.LeadingSilence = d(t.LeadingSilenceMs)
 }
 
 // Percentile returns the nearest-rank pth percentile of ds.

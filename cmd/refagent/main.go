@@ -48,6 +48,7 @@ type config struct {
 	endpointing time.Duration
 	jitter      time.Duration
 	speech      time.Duration
+	leadSilence time.Duration
 	streamRate  float64
 	hangover    time.Duration
 	capacity    int
@@ -87,6 +88,8 @@ func main() {
 		"delay from the same anchor to the user transcript; must be < -ttfa")
 	flag.DurationVar(&cfg.jitter, "jitter", 0, "uniform +/- jitter applied to -ttfa")
 	flag.DurationVar(&cfg.speech, "speech", 3*time.Second, "length of the agent's spoken reply")
+	flag.DurationVar(&cfg.leadSilence, "lead-silence", 0,
+		"silence at the start of every reply, before its tone: a known answer for leading silence")
 	flag.Float64Var(&cfg.streamRate, "stream-rate", 1.5,
 		"how fast to stream reply audio relative to realtime, as Deepgram does")
 	flag.DurationVar(&cfg.hangover, "hangover", 150*time.Millisecond,
@@ -386,7 +389,10 @@ func (s *session) reply(ctx context.Context, text string, anchor time.Time, barg
 func (s *session) streamSpeech(ctx context.Context) {
 	const chunk = 100 * time.Millisecond
 
-	pcm := tone(cfg.speech, s.sampleRate)
+	// Leading silence goes in front of the tone as exact zeros, the way a voice
+	// that opens its reply with a pause sends it.
+	lead := make([]byte, 2*int(cfg.leadSilence.Seconds()*float64(s.sampleRate)))
+	pcm := append(lead, tone(cfg.speech, s.sampleRate)...)
 	chunkBytes := int(float64(s.sampleRate) * chunk.Seconds() * 2)
 	interval := time.Duration(float64(chunk) / cfg.streamRate)
 

@@ -66,6 +66,7 @@ type opts struct {
 	labels         string
 	insightsPath   string
 	insightsModel  string
+	refresh        string
 }
 
 func main() {
@@ -108,6 +109,8 @@ func main() {
 		"write the analysis of a run report, or of every suite and run in a directory, with Gemini, instead of placing calls")
 	flag.StringVar(&o.insightsModel, "insights-model", insights.DefaultModel,
 		"Gemini model that writes run analyses; analyses are written after every run when GEMINI_API_KEY is set")
+	flag.StringVar(&o.refresh, "refresh", "",
+		"recompute turn waits, wait bands, repeated replies and quality from the calls log of a report, or of every report in a directory, instead of placing calls")
 	flag.Parse()
 
 	if err := run(o); err != nil {
@@ -139,6 +142,11 @@ func run(o opts) error {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer stop()
 		return runInsights(ctx, o)
+	}
+	if o.refresh != "" {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+		return runRefresh(ctx, o)
 	}
 
 	sc, err := scenario.Load(o.scenarioPath)
@@ -529,12 +537,16 @@ func printLoadReport(rep *loadgen.Report, jsonPath, csvPath, svgPath, callsPath 
 	}
 
 	printTransport(rep)
+	printAudible(rep)
 	printReferences(rep)
 	printPhases(rep)
 	printConversation(rep)
 	printComponentShare(rep)
+	printTurns(rep)
+	printWaits(rep)
 	printCost(rep)
 	printNodes(rep)
+	printQuality(rep)
 	printMatrix(rep)
 	printIntegrity(rep)
 
@@ -543,6 +555,11 @@ func printLoadReport(rep *loadgen.Report, jsonPath, csvPath, svgPath, callsPath 
 			bp.Name, bp.Concurrency, msf(bp.TTFA.P95Ms), bp.P95Ratio)
 	} else {
 		fmt.Printf("\nBREAKPOINT   none reached; every step stayed inside 2x baseline\n")
+	}
+	if qb := rep.QualityBreakpoint(); qb != nil {
+		fmt.Printf("QUALITY      %s at %d concurrent: %s\n", qb.Name, qb.Concurrency, qb.Quality.Reasons[0])
+	} else {
+		fmt.Printf("QUALITY      no step fell below the baseline's quality on what it compared\n")
 	}
 
 	worst := 0.0
@@ -610,6 +627,130 @@ func printConversation(rep *loadgen.Report) {
 			c.AgentWPM, c.CallerWPM,
 			fmt.Sprintf("%d/%d", c.Interruptions, c.Turns),
 			c.InterruptionScore, dead, note)
+	}
+	for _, s := range rep.Steps {
+		if c := s.Conversation; c.RepeatedReplies > 0 {
+			fmt.Printf("%-12s   %d replies repeated an earlier reply in the same call, across %d calls\n",
+				s.Name, c.RepeatedReplies, c.CallsWithRepeats)
+		}
+	}
+}
+
+// printAudible reports silence at the start of each reply. TTFA ends when the
+// first audio byte arrives; a caller hears nothing until the first sound, and a
+// voice that opens its reply with a pause keeps them waiting through it.
+func printAudible(rep *loadgen.Report) {
+	measured := false
+	for _, s := range rep.Steps {
+		if s.LeadingSilence.N > 0 {
+			measured = true
+		}
+	}
+	if !measured {
+		return
+	}
+	// Zero is the good reading here, so it is printed rather than dashed.
+	f := func(v float64) string { return fmt.Sprintf("%.0fms", v) }
+	fmt.Printf("\naudible      silence at the start of each reply, and the wait until the first sound a caller could hear\n")
+	fmt.Printf("%-12s %-13s %-13s %-12s %s\n", "step", "silence p50", "silence p95", "audible p50", "audible p95")
+	for _, s := range rep.Steps {
+		fmt.Printf("%-12s %-13s %-13s %-12s %s\n", s.Name,
+			f(s.LeadingSilence.P50Ms), f(s.LeadingSilence.P95Ms), f(s.AudibleTTFA.P50Ms), f(s.AudibleTTFA.P95Ms))
+	}
+}
+
+// printTurns reports the wait at each turn of the conversation, step by step.
+// A step's percentiles pool every turn of every call, so a turn slow in every
+// call is one slow turn among the rest there; by position it stands out.
+func printTurns(rep *loadgen.Report) {
+	most := 0
+	for _, s := range rep.Steps {
+		for _, t := range s.Turns {
+			most = max(most, t.Turn)
+		}
+	}
+	if most < 2 {
+		return
+	}
+	most = min(most, 10)
+	fmt.Printf("\nturns        p95 wait at each turn of the conversation; * marks the slowest turn in the step\n")
+	fmt.Printf("%-12s", "step")
+	for n := 1; n <= most; n++ {
+		fmt.Printf(" %-9s", fmt.Sprintf("turn %d", n))
+	}
+	fmt.Println()
+	slowest := ""
+	for _, s := range rep.Steps {
+		if len(s.Turns) == 0 {
+			continue
+		}
+		slow := s.Turns[0]
+		for _, t := range s.Turns {
+			if t.TTFA.P95Ms > slow.TTFA.P95Ms {
+				slow = t
+			}
+		}
+		fmt.Printf("%-12s", s.Name)
+		for n := 1; n <= most; n++ {
+			cell := "-"
+			for _, t := range s.Turns {
+				if t.Turn == n {
+					cell = fmt.Sprintf("%.0fms", t.TTFA.P95Ms)
+					if n == slow.Turn {
+						cell += "*"
+					}
+				}
+			}
+			fmt.Printf(" %-9s", cell)
+		}
+		fmt.Println()
+		slowest = fmt.Sprintf("turn %d in %s, after the caller said %q", slow.Turn, s.Name, slow.CallerLine)
+	}
+	fmt.Printf("slowest      %s\n", slowest)
+}
+
+// printWaits reports how often a caller's wait crossed a line people notice:
+// Hamming's 800ms target, Coval's 1,200ms, past which callers start repeating
+// themselves, and two seconds of dead air.
+func printWaits(rep *loadgen.Report) {
+	counted := false
+	for _, s := range rep.Steps {
+		if s.Waits.Turns > 0 {
+			counted = true
+		}
+	}
+	if !counted {
+		return
+	}
+	share := func(n, of int) string { return fmt.Sprintf("%.0f%%", 100*float64(n)/float64(of)) }
+	fmt.Printf("\nwaits        share of turns by the caller's wait: Hamming's 800ms target, Coval's 1,200ms, and 2s of dead air\n")
+	fmt.Printf("%-12s %-10s %-11s %-12s %s\n", "step", "<=800ms", "800-1200ms", "1200-2000ms", ">2000ms")
+	for _, s := range rep.Steps {
+		w := s.Waits
+		if w.Turns == 0 {
+			continue
+		}
+		fmt.Printf("%-12s %-10s %-11s %-12s %s\n", s.Name,
+			share(w.UpTo800, w.Turns), share(w.To1200, w.Turns), share(w.To2000, w.Turns), share(w.Over2000, w.Turns))
+	}
+}
+
+// printQuality reports each step's verdict on doing the job, beside the verdict
+// on speed. A step can answer as fast as the baseline and still get the task
+// wrong, mishear more, or cut callers off, and the latency verdict sees none of
+// it. Each step says what it compared, because a pass that compared only failed
+// turns says much less than one that compared everything.
+func printQuality(rep *loadgen.Report) {
+	if len(rep.Steps) == 0 || rep.Steps[0].Quality.Verdict == "" {
+		return
+	}
+	fmt.Printf("\nquality      each step against the baseline: scenario checks, task success, words misheard, interruptions, failed turns\n")
+	for _, s := range rep.Steps {
+		q := s.Quality
+		fmt.Printf("%-12s %-7s compared %s\n", s.Name, q.Verdict, strings.Join(q.Compared, ", "))
+		for _, r := range q.Reasons {
+			fmt.Printf("%-12s   %s\n", "", r)
+		}
 	}
 }
 
@@ -750,6 +891,8 @@ func judgeRun(ctx context.Context, o opts, sc *scenario.Scenario, rep *loadgen.R
 	// judge run is expensive enough that losing it to a later write failure
 	// would be worth avoiding.
 	rep.Judge = loadgen.SummarizeJudgements(sampled, judgements, describe, sc.SuccessCriteria)
+	// Task success is one of the quality checks, so the verdicts change it.
+	rep.ScoreQuality()
 
 	path := filepath.Join(o.outDir, runID+"-judgements.json")
 	b, err := json.MarshalIndent(judgements, "", "  ")
@@ -1045,6 +1188,10 @@ func writeInsights(ctx context.Context, o opts, reportPaths []string, suites map
 }
 
 func saveInsights(ctx context.Context, o opts, m insights.Model, d insights.Digest, path string) {
+	if insights.Unchanged(path, o.insightsModel, d) {
+		fmt.Printf("\ninsights     %s %s already analysed from this data with these instructions; kept as it is\n", d.Kind, d.Subject)
+		return
+	}
 	fmt.Printf("\ninsights     writing the analysis of %s %s with %s\n", d.Kind, d.Subject, o.insightsModel)
 	r, err := insights.Generate(ctx, m, o.insightsModel, d)
 	if err != nil {
@@ -1095,6 +1242,64 @@ func runInsights(ctx context.Context, o opts) error {
 	}
 	writeInsights(ctx, o, insights.Reports(o.insightsPath), suites)
 	return nil
+}
+
+// runRefresh is -refresh: the figures a report gains after the load, recomputed
+// from its calls log and written back, for one report or every report in a
+// directory. Latency and its verdict stay as written. Analyses are rewritten
+// afterwards when a key is set, since they read the figures that just changed.
+func runRefresh(ctx context.Context, o opts) error {
+	info, err := os.Stat(o.refresh)
+	if err != nil {
+		return err
+	}
+	paths := []string{o.refresh}
+	if info.IsDir() {
+		paths = insights.Reports(o.refresh)
+	}
+	var done []string
+	suites := map[string]string{}
+	for _, p := range paths {
+		rep, err := refreshReport(p)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "refresh: %v\n", err)
+			continue
+		}
+		done = append(done, p)
+		if rep.Suite != "" {
+			suites[rep.Suite] = filepath.Dir(p)
+		}
+		quality := "no step fell below the baseline's quality"
+		if qb := rep.QualityBreakpoint(); qb != nil {
+			quality = "quality fails at " + qb.Name
+		}
+		fmt.Printf("refresh      %s  %s\n", p, quality)
+	}
+	if len(done) == 0 {
+		return fmt.Errorf("nothing in %s could be refreshed", o.refresh)
+	}
+	writeInsights(ctx, o, done, suites)
+	return nil
+}
+
+func refreshReport(path string) (*loadgen.Report, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var rep loadgen.Report
+	if err := json.Unmarshal(b, &rep); err != nil {
+		return nil, fmt.Errorf("read %s: %w", path, err)
+	}
+	if rep.Calls, err = readCalls(strings.TrimSuffix(path, ".json") + "-calls.jsonl"); err != nil {
+		return nil, fmt.Errorf("%s has no calls log to refresh from: %w", path, err)
+	}
+	loadgen.Refresh(&rep)
+	out, err := json.MarshalIndent(&rep, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return &rep, os.WriteFile(path, out, 0o644)
 }
 
 // readCalls reads a calls file back, one conversation per line.

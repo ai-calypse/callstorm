@@ -116,6 +116,7 @@ func RunMatrix(ctx context.Context, cfg Config, cohorts []impair.Profile, device
 // baseline step.
 func (rep *Report) compareToClean(clean *Report) {
 	rep.scoreAgainst(clean.baselineP95())
+	rep.scoreQualityAgainst(clean.baselineStep())
 }
 
 // markVsClean sets each step of cohort r to its p95 over the same step of the

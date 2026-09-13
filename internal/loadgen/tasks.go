@@ -42,6 +42,10 @@ type TaskSuccess struct {
 
 	Correlation judge.Correlation `json:"correlation"`
 
+	// Waits asks the same question of waiting that Correlation asks of
+	// mishearing: did the calls that kept a caller waiting go worse?
+	Waits WaitOutcome `json:"waits"`
+
 	// Judgements keeps the judge's own words, quote and all. It is what makes
 	// a verdict auditable: a failed criterion with the line that failed it
 	// beside it can be argued with, and one without it cannot.
@@ -154,5 +158,91 @@ func SummarizeJudgements(calls []CallRecord, js []judge.Judgement, backend strin
 	sort.SliceStable(t.Calls, func(i, j int) bool { return t.Calls[i].WER < t.Calls[j].WER })
 
 	t.Correlation = judge.Correlate(t.Calls)
+	t.Waits = waitOutcome(calls, js)
 	return t
+}
+
+// minWaitSplitCalls is the mishearing split's floor, for the same reason: below
+// eight judged calls one call moves a group's pass rate by more than any gap
+// worth reading.
+const minWaitSplitCalls = 8
+
+// WaitOutcome splits judged calls by whether any turn made the caller wait past
+// Coval's 1,200ms line, and compares how often each group did the job.
+//
+// Hamming reports that each 100ms past 800ms costs 4 to 6% of task completion
+// ("Voice agent drop-off analysis", January 2026). That is a finding about
+// other people's agents; this checks it on this one. Like the mishearing split
+// it is an association: load slows calls and strains everything else at once.
+type WaitOutcome struct {
+	LineMs int `json:"line_ms"`
+
+	// Calls counts judged calls; the two groups split them.
+	Calls       int `json:"calls"`
+	SlowCalls   int `json:"slow_calls"`
+	SlowPassed  int `json:"slow_passed"`
+	QuickCalls  int `json:"quick_calls"`
+	QuickPassed int `json:"quick_passed"`
+
+	SlowPassRate  float64 `json:"slow_pass_rate"`
+	QuickPassRate float64 `json:"quick_pass_rate"`
+
+	// Conclusive is false when there were too few judged calls, or every call
+	// landed in one group. The counts are still reported.
+	Conclusive bool   `json:"conclusive"`
+	Note       string `json:"note,omitempty"`
+}
+
+func waitOutcome(calls []CallRecord, js []judge.Judgement) WaitOutcome {
+	line := waitRepeat.Seconds() * 1000
+	w := WaitOutcome{LineMs: int(line)}
+	verdict := make(map[string]judge.Judgement, len(js))
+	for _, g := range js {
+		verdict[g.Step+"/"+g.RequestID] = g
+	}
+	for _, c := range calls {
+		g, ok := verdict[c.Step+"/"+c.RequestID]
+		if !ok || g.Err != "" {
+			continue
+		}
+		// The millisecond mirror is read rather than the duration, so a call
+		// read back from its log counts the same as one still in memory.
+		slow := false
+		for _, t := range c.Turns {
+			if !t.CallerYielded && t.TTFAMs > line {
+				slow = true
+				break
+			}
+		}
+		w.Calls++
+		switch {
+		case slow:
+			w.SlowCalls++
+			if g.Met() {
+				w.SlowPassed++
+			}
+		default:
+			w.QuickCalls++
+			if g.Met() {
+				w.QuickPassed++
+			}
+		}
+	}
+	if w.SlowCalls > 0 {
+		w.SlowPassRate = round3(float64(w.SlowPassed) / float64(w.SlowCalls))
+	}
+	if w.QuickCalls > 0 {
+		w.QuickPassRate = round3(float64(w.QuickPassed) / float64(w.QuickCalls))
+	}
+	switch {
+	case w.Calls < minWaitSplitCalls:
+		w.Note = "too few judged calls to compare groups"
+	case w.SlowCalls == 0:
+		w.Note = "no judged call waited past the line, so there is nothing to compare"
+	case w.QuickCalls == 0:
+		w.Note = "every judged call waited past the line somewhere, so there is no quick group to compare"
+	default:
+		w.Conclusive = true
+	}
+	return w
 }

@@ -90,7 +90,7 @@ func (w *worker) runTurn(ctx context.Context, idx int, pcm []byte, say string,
 	deadline := time.NewTimer(utterance + w.cfg.TurnTimeout + 10*time.Second)
 	defer deadline.Stop()
 
-	var callerEnd, firstAudio, userTranscript, playoutEnd time.Duration
+	var callerEnd, firstAudio, userTranscript, playoutEnd, audible time.Duration
 	speaking := true
 
 	// interrupt fires once the agent has been talking long enough for the next
@@ -156,6 +156,13 @@ collect:
 					fellSilent(w.pump.clear(), false)
 				}
 
+			case metrics.AgentAudible:
+				// The first sound a caller could hear in this reply. One that
+				// comes before this turn's own audio belongs to the reply before.
+				if firstAudio != 0 && audible == 0 {
+					audible = ev.at
+				}
+
 			case metrics.AgentTranscript:
 				m.AgentText = joinText(m.AgentText, ev.text)
 
@@ -212,6 +219,9 @@ collect:
 			m.Endpointing = userTranscript - callerEnd
 			m.ThinkSpeak = firstAudio - userTranscript
 		}
+	}
+	if audible != 0 {
+		m.LeadingSilence, m.LeadingSilenceMeasured = audible-firstAudio, true
 	}
 	if playoutEnd != 0 {
 		m.AgentSpeech = playoutEnd - firstAudio

@@ -116,6 +116,21 @@ type StepReport struct {
 	// and to a question nobody asked.
 	WER WERStats `json:"wer"`
 
+	// LeadingSilence is how long replies stayed silent after their first audio
+	// arrived, and AudibleTTFA is TTFA plus it: the wait until the caller could
+	// hear anything. Only turns where sound was found count, and zero here is
+	// the good result.
+	LeadingSilence Summary `json:"leading_silence"`
+	AudibleTTFA    Summary `json:"audible_ttfa"`
+
+	// Turns is the wait at each turn of the conversation, and Waits counts
+	// turns by how long the caller waited. Both come from the step's calls.
+	Turns []TurnWait `json:"turns,omitempty"`
+	Waits WaitBands  `json:"waits"`
+
+	// Quality is the step's verdict on doing the job, beside Verdict on speed.
+	Quality Quality `json:"quality"`
+
 	// Phase is how the step behaved across its own duration: the shape a
 	// single percentile flattens away.
 	Phase Phase `json:"phase"`
@@ -287,6 +302,7 @@ func buildStepReportAt(step Step, outcomes []callOutcome, ratePerMinute float64)
 
 	var ttfa, endpointing, thinkSpeak, turnLatency []time.Duration
 	var agentTTFA, agentEndpointing, rtts []time.Duration
+	var silences, audible []time.Duration
 	var worstDrift time.Duration
 
 	var (
@@ -376,6 +392,13 @@ func buildStepReportAt(step Step, outcomes []callOutcome, ratePerMinute float64)
 					agentEndpointing = append(agentEndpointing, t.Endpointing-t.TransportRTT)
 				}
 			}
+
+			if t.LeadingSilenceMeasured {
+				silences = append(silences, t.LeadingSilence)
+				if t.TTFA > 0 {
+					audible = append(audible, t.TTFA+t.LeadingSilence)
+				}
+			}
 		}
 	}
 
@@ -389,6 +412,8 @@ func buildStepReportAt(step Step, outcomes []callOutcome, ratePerMinute float64)
 	r.TransportRTT = summarize(rtts)
 	r.AgentTTFA = summarize(agentTTFA)
 	r.AgentEndpointing = summarize(agentEndpointing)
+	r.LeadingSilence = summarize(silences)
+	r.AudibleTTFA = summarize(audible)
 	r.WorstDriftMs = math.Round(float64(worstDrift.Microseconds())/1000*10) / 10
 	r.HarnessDegraded = math.Abs(r.WorstDriftMs) > MaxHealthyDriftMs
 
@@ -402,6 +427,7 @@ func buildStepReportAt(step Step, outcomes []callOutcome, ratePerMinute float64)
 	}
 
 	r.Conversation = summarizeConversation(outcomes)
+	analyzeCalls(&r, connectedTurns(outcomes))
 	r.Cost = summarizeCost(outcomes, ratePerMinute)
 	r.Phase = summarizePhase(step, outcomes)
 	r.StartedAt, r.EndedAt, r.Timeline = summarizeTimeline(outcomes)
@@ -436,6 +462,7 @@ func buildStepReportAt(step Step, outcomes []callOutcome, ratePerMinute float64)
 // baseline step.
 func (rep *Report) score() {
 	rep.scoreAgainst(rep.baselineP95())
+	rep.ScoreQuality()
 }
 
 // baselineP95 is the p95 TTFA of the run's own baseline step.
