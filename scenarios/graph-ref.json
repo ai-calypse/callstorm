@@ -1,0 +1,41 @@
+{
+  "name": "graph-reference",
+  "persona": "Known-answer graph for the reference agent. Every branch, jump and assertion is decided by refagent's fixed replies, so the per-node pass rates are known before the run: open 100%, number 100% over two visits, refund 0%.",
+  "caller_voice": "aura-2-thalia-en",
+  "target": {
+    "prompt": "You are Sam, a phone support agent for Northwind Electronics. Every reply must be under 15 words.",
+    "greeting": "Thanks for calling Northwind Electronics, this is Sam. How can I help?",
+    "voice": "aura-2-apollo-en",
+    "think_model": "gpt-4o-mini",
+    "listen_model": "nova-3"
+  },
+  "success_criteria": [
+    "The assistant asks the user for an order number before the assistant discusses the specific order",
+    "The assistant confirms a refund, AND does so after the user asks for their money back"
+  ],
+  "max_turns": 6,
+  "turns": [
+    {
+      "id": "open",
+      "say": "Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.",
+      "expect": { "said_any": ["reference reply"] }
+    },
+    {
+      "id": "number",
+      "say": "Sure, it's four four eight one two. It was a pair of wireless headphones.",
+      "expect": { "said_any": ["reference reply"] },
+      "branch": [
+        { "if_agent_said": "for turn 2.", "say": "Sure, it's four four eight one two. It was a pair of wireless headphones.", "goto": "number" }
+      ]
+    },
+    {
+      "id": "refund",
+      "say": "I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?",
+      "expect": { "said_any": ["refund"] }
+    },
+    {
+      "id": "close",
+      "say": "Alright, that works. Thanks for sorting it out."
+    }
+  ]
+}

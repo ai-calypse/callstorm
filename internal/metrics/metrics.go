@@ -33,6 +33,8 @@ const (
 	ServerError       Kind = "server_error"
 	ServerWarning     Kind = "server_warning"
 	CallEnd           Kind = "call_end"
+	TransportPing     Kind = "ping"
+	AgentAudible      Kind = "agent_audible"
 )
 
 // Event is one timestamped thing that happened during a call.
@@ -59,6 +61,10 @@ func NewLog() *Log {
 
 // Since is the time elapsed since call start.
 func (l *Log) Since() time.Duration { return time.Since(l.t0) }
+
+// Start is the wall-clock instant the call's clock started. Every event's t_ms
+// is measured from it, so Start plus t_ms is when the event happened.
+func (l *Log) Start() time.Time { return l.t0 }
 
 // Mark stamps an event at the current instant and returns that instant.
 func (l *Log) Mark(k Kind, turn int, text string) time.Duration {
@@ -153,6 +159,39 @@ type TurnMetric struct {
 	// asking anyone to take realtime pacing on faith.
 	PacingDrift time.Duration `json:"-"`
 
+	// TransportRTT is the round trip to the agent's edge, measured by WebSocket
+	// ping on this call's own connection while the turn ran. It is the share of
+	// TTFA the agent does not own: the caller's audio travelling out and the
+	// reply travelling back.
+	TransportRTT time.Duration `json:"-"`
+
+	// TransportRTTMeasured says a pong came back, so TransportRTT is a reading
+	// rather than an absence. It is kept apart from the value because zero is a
+	// real reading: a local run on Windows measured loopback round trips of
+	// exactly zero, below what the clock resolves, and reading those as "no
+	// pong" dropped a third of the run's turns from the correction.
+	TransportRTTMeasured bool `json:"transport_rtt_measured,omitempty"`
+
+	// LeadingSilence is how long the reply stayed silent after its first audio
+	// arrived, until the first 10ms of it loud enough to hear. TTFA ends at the
+	// first byte; a caller hears nothing until this is over, and a voice that
+	// opens its reply with a pause keeps them waiting through it.
+	// LeadingSilenceMeasured says sound was found, since zero is a real reading.
+	LeadingSilence         time.Duration `json:"-"`
+	LeadingSilenceMeasured bool          `json:"leading_silence_measured,omitempty"`
+
+	// StartedAt is when the caller began this turn's line, as a wall-clock
+	// time. The instants after it are on the call's own clock, in milliseconds
+	// from its start: the raw readings every duration above is a difference
+	// of. With them a turn can be placed on a timeline and every derived number
+	// recomputed from the log. Zero means the instant was never observed.
+	StartedAt     time.Time `json:"started_at"`
+	CallerStartMs float64   `json:"caller_start_ms"`
+	CallerEndMs   float64   `json:"caller_end_ms"`
+	HeardMs       float64   `json:"heard_ms,omitempty"`
+	FirstAudioMs  float64   `json:"first_audio_ms,omitempty"`
+	PlayoutEndMs  float64   `json:"playout_end_ms,omitempty"`
+
 	// CallerYielded records that the caller stopped mid-sentence because the
 	// agent started talking over them, which is what a real caller does.
 	CallerYielded bool `json:"caller_yielded,omitempty"`
@@ -175,6 +214,19 @@ type TurnMetric struct {
 	// told apart from a turn that never tried.
 	BargedIn bool `json:"barged_in,omitempty"`
 
+	// Node is the scenario node this turn spoke. In a graph the same node can
+	// be visited more than once, or not at all, so the turn number alone no
+	// longer says which part of the conversation a turn was.
+	Node string `json:"node,omitempty"`
+
+	// ExpectChecked marks a turn whose node carries an assertion; ExpectMet is
+	// whether the agent's reply satisfied it, and ExpectMiss says why not. A
+	// turn with no reply at all fails its assertion: a node that times out has
+	// collapsed, and scoring it as a pass would hide exactly that.
+	ExpectChecked bool   `json:"expect_checked,omitempty"`
+	ExpectMet     bool   `json:"expect_met,omitempty"`
+	ExpectMiss    string `json:"expect_miss,omitempty"`
+
 	Failed     bool   `json:"failed"`
 	FailReason string `json:"fail_reason,omitempty"`
 
@@ -189,6 +241,22 @@ type TurnMetric struct {
 
 	// BargeInYieldMs is the millisecond mirror of BargeInYield.
 	BargeInYieldMs float64 `json:"barge_in_yield_ms,omitempty"`
+
+	// TransportRTTMs is the millisecond mirror of TransportRTT. It is always
+	// written, even at zero: a round trip too short for the clock to resolve
+	// reads exactly zero, and omitting the field left a turn marked measured
+	// with no number. TransportRTTMeasured says whether the zero is a reading.
+	TransportRTTMs float64 `json:"transport_rtt_ms"`
+
+	// LeadingSilenceMs is the millisecond mirror of LeadingSilence, written at
+	// zero for the same reason as the round trip.
+	LeadingSilenceMs float64 `json:"leading_silence_ms"`
+}
+
+// Millis renders a duration as milliseconds to two decimal places, keeping the
+// sign. It is the one rounding every millisecond field in the artifact uses.
+func Millis(d time.Duration) float64 {
+	return math.Round(float64(d.Microseconds())/1000*100) / 100
 }
 
 // Finalize populates the millisecond mirrors from the duration fields.
@@ -196,9 +264,7 @@ func (t *TurnMetric) Finalize() {
 	// Negatives are preserved: an agent that answers before the caller has
 	// finished is a finding, not a missing measurement. Only an exact zero
 	// means "never observed".
-	ms := func(d time.Duration) float64 {
-		return math.Round(float64(d.Microseconds())/1000*100) / 100
-	}
+	ms := Millis
 	t.TTFAMs = ms(t.TTFA)
 	t.EndpointingMs = ms(t.Endpointing)
 	t.ThinkSpeakMs = ms(t.ThinkSpeak)
@@ -207,6 +273,8 @@ func (t *TurnMetric) Finalize() {
 	t.TurnLatencyMs = ms(t.TurnLatency)
 	t.PacingDriftMs = ms(t.PacingDrift)
 	t.BargeInYieldMs = ms(t.BargeInYield)
+	t.TransportRTTMs = ms(t.TransportRTT)
+	t.LeadingSilenceMs = ms(t.LeadingSilence)
 }
 
 // Rehydrate restores the duration fields from their millisecond mirrors.
@@ -231,6 +299,8 @@ func (t *TurnMetric) Rehydrate() {
 	t.TurnLatency = d(t.TurnLatencyMs)
 	t.PacingDrift = d(t.PacingDriftMs)
 	t.BargeInYield = d(t.BargeInYieldMs)
+	t.TransportRTT = d(t.TransportRTTMs)
+	t.LeadingSilence = d(t.LeadingSilenceMs)
 }
 
 // Percentile returns the nearest-rank pth percentile of ds.

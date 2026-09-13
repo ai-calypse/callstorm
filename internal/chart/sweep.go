@@ -137,6 +137,30 @@ func RenderSweep(path string, rep *loadgen.Report) error {
 			float64(width-padR)-4, fy-6, statusCritical)
 	}
 
+	// Published reference lines defined on this chart's clock, each labelled
+	// with its source so none of them reads as the fail rule above. Drawn only
+	// where they fall inside the data's own range: stretching the axis to reach
+	// a line would flatten the curve the chart exists to show.
+	for _, r := range rep.References {
+		if r.Axis != loadgen.AxisEndOfSpeech || r.Ms > yMax {
+			continue
+		}
+		label := esc(r.Label)
+		if len(r.Cites) > 0 {
+			label += " &#183; " + esc(r.Cites[0].Source)
+		}
+		if r.ToMs > r.Ms {
+			top := y(math.Min(r.ToMs, yMax))
+			fmt.Fprintf(&b, `<rect x="%d" y="%.1f" width="%.1f" height="%.1f" fill="%s" opacity="0.14"/>`,
+				padL, top, plotW, y(r.Ms)-top, inkMuted)
+		} else {
+			fmt.Fprintf(&b, `<line x1="%d" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s" stroke-width="1" stroke-dasharray="1 3"/>`,
+				padL, y(r.Ms), float64(width-padR), y(r.Ms), inkMuted)
+		}
+		fmt.Fprintf(&b, `<text x="%.1f" y="%.1f" font-size="10.5" fill="%s">%s</text>`,
+			float64(padL)+6, y(r.Ms)-5, inkSecondary, label)
+	}
+
 	// X axis: one tick per step, labelled with concurrency and verdict.
 	axisY := float64(padT) + plotH
 	fmt.Fprintf(&b, `<line x1="%d" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s" stroke-width="1"/>`,

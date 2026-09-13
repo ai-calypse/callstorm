@@ -62,6 +62,13 @@ type CallResult struct {
 	Worker    string `json:"worker"`
 	RequestID string `json:"request_id,omitempty"`
 
+	// ClockZero, EndedAt and Events are the call's own timestamps and event
+	// log, carried back so a distributed run's calls log is as complete as an
+	// in-process one.
+	ClockZero time.Time       `json:"clock_zero,omitempty"`
+	EndedAt   time.Time       `json:"ended_at,omitempty"`
+	Events    []metrics.Event `json:"events,omitempty"`
+
 	Turns []metrics.TurnMetric `json:"turns,omitempty"`
 	Err   string               `json:"error,omitempty"`
 }

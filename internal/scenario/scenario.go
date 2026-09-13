@@ -32,6 +32,11 @@ type Scenario struct {
 	// Each is judged separately and has to cite the turn it was decided on, so
 	// a verdict can be checked rather than taken on trust.
 	SuccessCriteria []string `json:"success_criteria,omitempty"`
+
+	// MaxTurns bounds how many turns one call may take. It is required once any
+	// branch jumps with goto, because a graph that can loop has no natural end,
+	// and a call that never ends is a hung worker rather than a finding.
+	MaxTurns int `json:"max_turns,omitempty"`
 }
 
 // Target configures the agent under test. Phase 1 stands up a Deepgram Voice
@@ -65,9 +70,19 @@ type Pacing struct {
 // Pause is the parsed SentencePause, or zero for a caller who does not pause.
 func (p Pacing) Pause() time.Duration { return p.sentencePause }
 
-// Turn is one thing the caller says.
+// Turn is one thing the caller says, and a node of the scenario graph.
 type Turn struct {
+	// ID names this node so a branch can jump to it and a report can score it.
+	// Empty defaults to turn-N, its position in the file.
+	ID string `json:"id,omitempty"`
+
 	Say string `json:"say"`
+
+	// Expect is what the agent's reply to this line has to contain. It is what
+	// turns a call-level pass rate into a per-node one: overall completion can
+	// hold at 70% while one node of the conversation has collapsed, and only a
+	// score kept per node says which.
+	Expect *Expect `json:"expect,omitempty"`
 
 	// BargeInAfter makes this line interrupt the agent, starting the given
 	// duration after the agent began replying to the previous turn instead of
@@ -101,6 +116,43 @@ type Branch struct {
 	// explainable by pointing at the transcript.
 	IfAgentSaid string `json:"if_agent_said"`
 	Say         string `json:"say"`
+
+	// Goto names the node the call continues at after this line, instead of the
+	// next one in the file. It is what makes a scenario a graph rather than a
+	// script with alternatives: a caller asked for their order number again can
+	// be sent back to the node that gives it.
+	Goto string `json:"goto,omitempty"`
+}
+
+// Expect is an assertion on the agent's reply, matched the same way branches
+// are: case-insensitive substrings, so a failed node can be explained by
+// pointing at the transcript.
+type Expect struct {
+	// SaidAny passes when the reply contains at least one of these.
+	SaidAny []string `json:"said_any,omitempty"`
+
+	// NotSaid fails the node when the reply contains any of these. It is how a
+	// scenario says "never offer a refund before the caller asks".
+	NotSaid []string `json:"not_said,omitempty"`
+}
+
+// Check reports whether a reply satisfies the assertion, and if not, why.
+func (e *Expect) Check(reply string) (met bool, miss string) {
+	said := strings.ToLower(reply)
+	for _, p := range e.NotSaid {
+		if strings.Contains(said, strings.ToLower(p)) {
+			return false, fmt.Sprintf("said %q", p)
+		}
+	}
+	if len(e.SaidAny) == 0 {
+		return true, ""
+	}
+	for _, p := range e.SaidAny {
+		if strings.Contains(said, strings.ToLower(p)) {
+			return true, ""
+		}
+	}
+	return false, fmt.Sprintf("said none of %q", e.SaidAny)
 }
 
 // BargeIn is the parsed BargeInAfter, or zero when this turn waits its proper
@@ -125,15 +177,45 @@ func (s *Scenario) Lines() []string {
 	return out
 }
 
-// Choose picks the line for a turn given what the agent last said.
-func (t Turn) Choose(agentSaid string) (say string, matched string) {
+// Choose picks the line for a turn given what the agent last said, and the
+// node to continue at afterwards when the chosen branch jumps. An empty goto
+// means the next node in the file.
+func (t Turn) Choose(agentSaid string) (say, matched, next string) {
 	said := strings.ToLower(agentSaid)
 	for _, b := range t.Branch {
 		if strings.Contains(said, strings.ToLower(b.IfAgentSaid)) {
-			return b.Say, b.IfAgentSaid
+			return b.Say, b.IfAgentSaid, b.Goto
 		}
 	}
-	return t.Say, ""
+	return t.Say, "", ""
+}
+
+// NodeIDs lists the scenario's nodes in file order.
+func (s *Scenario) NodeIDs() []string {
+	ids := make([]string, len(s.Turns))
+	for i, t := range s.Turns {
+		ids[i] = t.ID
+	}
+	return ids
+}
+
+// Index is the position of a node, or -1 when no node has that id.
+func (s *Scenario) Index(id string) int {
+	for i, t := range s.Turns {
+		if t.ID == id {
+			return i
+		}
+	}
+	return -1
+}
+
+// TurnLimit is how many turns one call may take: max_turns when set, and
+// otherwise one per node, which is a linear script's own length.
+func (s *Scenario) TurnLimit() int {
+	if s.MaxTurns > 0 {
+		return s.MaxTurns
+	}
+	return len(s.Turns)
 }
 
 // Load reads and validates a scenario file.
@@ -164,10 +246,34 @@ func (s *Scenario) validate() error {
 	if len(s.Turns) == 0 {
 		return fmt.Errorf("scenario has no turns")
 	}
+	ids := map[string]bool{}
+	for i := range s.Turns {
+		t := &s.Turns[i]
+		if t.ID == "" {
+			t.ID = fmt.Sprintf("turn-%d", i+1)
+		}
+		if ids[t.ID] {
+			return fmt.Errorf("turn %d: duplicate id %q", i+1, t.ID)
+		}
+		ids[t.ID] = true
+	}
+	jumps := false
 	for i := range s.Turns {
 		t := &s.Turns[i]
 		if t.Say == "" {
 			return fmt.Errorf("turn %d has empty say", i+1)
+		}
+		if t.Expect != nil {
+			if len(t.Expect.SaidAny) == 0 && len(t.Expect.NotSaid) == 0 {
+				return fmt.Errorf("node %q: expect needs said_any or not_said", t.ID)
+			}
+			for _, p := range append(append([]string{}, t.Expect.SaidAny...), t.Expect.NotSaid...) {
+				if strings.TrimSpace(p) == "" {
+					// An empty phrase is contained in every reply, so the
+					// assertion would pass or fail regardless of the agent.
+					return fmt.Errorf("node %q: expect has an empty phrase", t.ID)
+				}
+			}
 		}
 		if t.BargeInAfter != "" {
 			d, err := time.ParseDuration(t.BargeInAfter)
@@ -189,7 +295,23 @@ func (s *Scenario) validate() error {
 			if b.Say == "" {
 				return fmt.Errorf("turn %d branch %d: say is required", i+1, j+1)
 			}
+			if b.Goto != "" {
+				if !ids[b.Goto] {
+					return fmt.Errorf("turn %d branch %d: goto %q is not a node in this scenario", i+1, j+1, b.Goto)
+				}
+				jumps = true
+			}
 		}
+	}
+	if s.MaxTurns < 0 {
+		return fmt.Errorf("max_turns must not be negative, got %d", s.MaxTurns)
+	}
+	if jumps && s.MaxTurns == 0 {
+		return fmt.Errorf("a scenario whose branches goto another node can loop, so it needs max_turns")
+	}
+	if !jumps && s.MaxTurns > 0 && s.MaxTurns < len(s.Turns) {
+		return fmt.Errorf("max_turns %d would end the call before its last node (%d nodes and no goto)",
+			s.MaxTurns, len(s.Turns))
 	}
 	if s.Pacing.SentencePause != "" {
 		d, err := time.ParseDuration(s.Pacing.SentencePause)

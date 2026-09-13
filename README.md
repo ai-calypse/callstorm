@@ -104,6 +104,32 @@ oracle, and an oracle is the one number in a run nobody can check. A judge that
 fails to run is recorded apart from a criterion that was not met, because "the
 agent got it wrong" and "we could not tell" are different results.
 
+**How the judge is asked.** The prompt follows [Coval's guidance on judge
+prompts](https://docs.coval.ai/concepts/metrics/writing-judge-prompts). It stays
+under 2,000 characters. The parties are only ever *the user* and *the
+assistant*. Criteria are numbered, written as something the assistant visibly
+says, and use explicit AND, OR and before. Each criterion goes through ordered
+gates -- can words decide it, which turns settle it, does its logic hold -- and
+anything unclear is not met. The reply quotes and reasons before it gives the
+verdict, and three examples anchor the edge cases. A criterion about timing
+cannot be read from words, so none is written: a hesitant caller being talked
+over is measured by endpointing and talked-over turns instead.
+
+**Checking the judge.** A pass rate is only as good as the judge's agreement
+with a person. Copy a run's `-judgements.json`, correct the verdicts you
+disagree with, and judge the run again against it:
+
+```bash
+./bin/callstorm -scenario scenarios/refund.json -judge-calls 4 \
+    -rejudge runs/<run>.json -labels runs/<run>-labels.json
+```
+
+That reports agreement per criterion and every disagreement with the judge's
+quote, and places no calls. Below 90%, reword the criterion or the prompt and
+run it again. `-rejudge` alone re-scores a run whose judge could not run at the
+time; it refuses a scenario with a different name, and says so when the file's
+criteria have changed since the run.
+
 Two backends. `groq` is an HTTP call that works from CI and constrains the
 reply to a JSON schema. `claude-code` spends a Claude subscription instead of
 API credits, but needs the CLI installed and logged in.
@@ -246,29 +272,286 @@ samples, and a p95 over a dozen turns is one unlucky call rather than a trend.
 A step with too few turns on either side reports that it could not tell, which
 is deliberately not the same answer as "steady".
 
-## Fast relative to itself, and fast in absolute terms
+## A relative verdict, and published lines on their own clocks
 
-The verdict above is relative -- each step against the run's own baseline --
-because a latency target that is generous for one agent is unreachable for
-another. That finds degradation and says nothing about whether the agent was
-ever any good, so every step is also placed on an absolute scale taken from how
-people actually take turns in conversation.
+The verdict is relative: each step's p95 against the run's own baseline. It
+warns past 1.5x and fails past 2x. The 2x line is the degradation rule in
+Coval's load-testing methodology (March 2026); the 1.5x warn line is Callstorm's
+own.
 
+**There is no absolute latency grade.** Published thresholds disagree, often
+because they time different things under the same name. Hamming defines TTFW as
+call connect to first audio in one guide, and as VAD silence to first audio in
+another, with different thresholds for each. So a run is read against
+published lines instead. Each line sits on the clock its source defined and
+carries its source and date, and none of them is the verdict.
+
+Every step is reported on two clocks:
+
+- **From true end of speech**: TTFA, from the moment the caller's audio actually
+  stopped. Callstorm synthesized that audio, so the instant is known rather than
+  detected.
+- **From detection**: think/speak, from the moment the agent's transcript of
+  the caller arrived. That is later than voice activity detection by transcript
+  finalization, so a line placed on it is read slightly in the agent's favour.
+
+| line | kind | value | clock | source |
+|---|---|---|---|---|
+| Hamming observed production median | where agents are | p50 1.4s to 1.7s | end of speech, boundary not stated | Hamming, voice agent latency guide, January 2026 |
+| Coval p95 target under load | target | p95 under 2s | end of speech, boundary not stated | Coval, load testing methodology, 2026-03-07 |
+| Hamming TTFW breakdown line | target | 800ms, no percentile stated | detection | Hamming, voice agent analytics guide, 2026-02-10 |
+| Human turn-taking marker | human reference | p50 300ms | end of speech | Cekura, voice agent latency guide, 2026-09-03 (about 208ms human offset); the edge Hamming labels natural |
+
+A line whose source states no boundary is read on the widest clock, so holding
+it there holds it on any narrower one. A line with no stated percentile is read
+at both p50 and p95. The list is `internal/loadgen/references.json`, and every
+report copies in the lines it was read against.
+
+**Start from real agents.** Take the two live Deepgram sweeps, 20 steps between
+them:
+- **Typical wait:** 824ms to 907ms from true end of speech, 512ms to 586ms from
+  detection. That is under the 1.4s to 1.7s median Hamming observed in
+  production, under Hamming's 800ms TTFW line at the median on that line's own
+  clock, and about three times the human marker.
+- **The tail:** p95 on the detection clock was past 800ms on 7 of 10 steps.
+  Coval's 2s p95 was crossed on 4 of 10.
+
+An earlier version of this README graded the same runs "breakdown at every
+step". It had read Hamming's 800ms line on the end-of-speech clock, which is
+not the one Hamming defined.
+
+The dashboard appendix maps Cekura's published boundary table (September 2026)
+onto what Callstorm measures: which of endpointing, transcript finalization,
+model time to first token, tool latency and first TTS byte each Callstorm
+number spans. From outside the agent the wait splits in two and no further.
+
+## What the agent contributed, and what the network did
+
+Observed TTFA is what the caller waited through, and it includes the network
+between wherever the test runs and the agent's edge. The same agent tested from
+two places gets two TTFAs. So every call also pings the agent once a second over
+its own connection, and each turn's round trip is subtracted to estimate the
+agent's own share:
+
+- **Agent TTFA** is TTFA minus that turn's round trip, and **agent endpointing**
+  is corrected the same way.
+- **Think/speak needs no correction.** Both of its instants arrive over the same
+  connection, so the network cancels out of it.
+- **The harness is not subtracted separately.** The clock starts when the
+  caller's last frame is actually written, and the pong is read by the same
+  goroutine that stamps the agent's reply, so the harness's lag is already
+  inside the round trip.
+- **The verdict still uses observed TTFA**, because that is what a caller in
+  that place experiences.
+
+A ping is answered by the server's WebSocket layer, not the agent, so the round
+trip stops at the agent's edge. Everything behind the edge stays in the agent's
+share -- speech recognition, the model, the voice, the provider's own internal
+hops -- and none of it can be separated from outside.
+
+Checked against the reference agent in kind (500ms injected, 300ms of it
+think/speak), at 2 concurrent callers; 8 concurrent matched to within a few
+milliseconds except under jitter:
+
+| cohort | observed p50 | round trip p50 | agent p50 | agent endpointing p50 |
+|---|---|---|---|---|
+| clean | 503ms | 0.7ms | 502ms | 201ms |
+| delay-100 | 603ms | 101ms | 502ms | 201ms |
+| loss-3 | 503ms | 0.6ms | 502ms | 201ms |
+| jitter-50 | 2157ms | 1531ms | 664ms | 370ms |
+
+**Delay is removed exactly.** 100ms was added to the network, 101ms measured,
+and the agent's share is back at clean's 502ms.
+
+**Jitter is removed only in part.** The median round trip took about 1.5s off a
+2.2s wait but left the agent's share 160 to 200ms high at the median and 700 to
+830ms high at p95. Most likely the queue jitter builds in the send buffer
+changes from moment to moment, and the pings sample it at different instants
+from the audio they stand in for. On a line that queues, agent TTFA is much
+closer to the truth than observed TTFA, and still an overestimate.
+
+Checking this locally found a bug. On Windows, Go's clock measured some loopback
+round trips as exactly zero, and zero had been read as "no pong", dropping a
+third of a run's turns from the correction. Whether a pong came back is now
+recorded apart from its value.
+
+## What percentiles hide
+
+A step's percentiles answer how slow its slow turns were. Coval's and Hamming's
+guides on testing voice agents ask more of a load test than that, and most of
+it can be read from what a run already records:
+
+| figure | what it is | where it comes from |
+|---|---|---|
+| **Quality verdict** | Whether a step still did the job as well as the baseline, beside the verdict on speed. The first step it fails at is the quality breakpoint. | Scenario checks and the judge's task success, words misheard, talked-over turns, failed turns |
+| **Wait per turn** | The wait at each turn of the conversation, across a step's calls, with what the caller said on it. | The calls log |
+| **Wait bands** | A step's turns counted by the caller's wait: up to 800ms, to 1.2s, to 2s, and over. | The calls log |
+| **Repeated replies** | Replies that said again what the agent already said earlier in the same call. | The agent's words |
+| **Slow calls against done** | Whether judged calls with any wait past 1.2s did the job less often than the rest. | The judge's verdicts and the calls log |
+| **Leading silence** | How long a reply stays silent after its audio starts arriving, before the first sound a caller could hear. Audible TTFA adds it to TTFA. | The agent's audio, as it arrives |
+
+**Quality is scored apart from speed.** An agent that answers as fast as ever
+while it stops finishing the task passes a latency verdict. Each step is held to
+the baseline step, and in a matrix to the clean cohort's:
+
+- **Task success.** A scenario check's or the judge's pass rate dropping more
+  than 5 points warns and more than 10 fails, Hamming's gate for task completion
+  under load (load testing guide, May 2026).
+- **Hearing.** Words misheard rising more than 2 points warns, Hamming's
+  regression tolerance; a rise that also leaves the step above 15% fails, where
+  Hamming calls recognition poor.
+- **Interruptions.** Talked-over turns rising more than 5 points warns; above
+  10% of turns fails, Hamming's line for poor.
+- **Failed turns.** Held to Hamming's error-rate bands rather than the
+  baseline: more than 0.5% of turns warns, more than 1% fails.
+
+A rate is compared only with 30 checks on both sides, which is Callstorm's own
+floor, and each step lists what it compared. A pass that could compare only
+failed turns says little, and says so. A judge sampling four calls a step never
+reaches 30, so task success enters the verdict only when enough calls are judged.
+
+**The wait per turn is where a slow moment shows.** On the Deepgram suite the
+closing line, "Alright, that works. Thanks for sorting it out.", was the slowest
+turn in every scenario: p95 about 3.2s in four of them against about 1s on the
+other turns. Pooled into a step's p95, one slow turn in five did not stand out.
+
+**Leading silence is measured the way Coval's time-to-first-audio benchmark
+defines onset** (September 2026): the start of the first 10ms window, stepped 1ms
+at a time, whose RMS is above 0.01 of full scale. A provider can send its first
+byte quickly and still keep a caller waiting through silence; Coval measured one
+sending a median 225ms of it. Each reply is placed on its own playout, so a chunk
+that arrives late adds its gap too, as it would for a caller. Checked against the
+reference agent with `-lead-silence 225ms`:
+
+| step | silence p50 | silence p95 | audible TTFA p50 |
+|---|---|---|---|
+| 1 at once | 216ms | 216ms | 717ms |
+| 2 at once | 216ms | 216ms | 717ms |
+| 3 at once | 216ms | 245ms | 717ms |
+
+216ms is the answer the definition gives, not an error. The first window loud
+enough starts 9ms before the tone, once it holds a few samples of it. The 245ms
+turn is a chunk that arrived late on a busy machine, which a caller would have
+heard as silence.
+
+**Runs placed before these figures existed gain them from their calls logs**,
+except leading silence, which needs the audio:
+
+```bash
+./bin/callstorm -refresh runs/<run>.json        # one report
+./bin/callstorm -refresh runs/<directory>       # every report in it
 ```
-how it sounds  under 300ms natural, to 500ms acceptable, to 800ms sluggish, past that breakdown
-step         p50        usually       p95        at worst
-smoke        402ms      acceptable    478ms      acceptable
-ramp-c4      401ms      acceptable    465ms      acceptable
-stress-c12   553ms      sluggish      1439ms     breakdown
-spike-c24    854ms      breakdown     1048ms     breakdown
-soak-c8      452ms      acceptable    478ms      acceptable
-recover-c4   402ms      acceptable    431ms      acceptable
+
+Latency and its verdict are left as written. The analysis is rewritten after,
+when `GEMINI_API_KEY` is set, since it reads the figures that changed.
+
+## Questions a run answers
+
+Every report on the dashboard opens with plain-language questions: the ones a
+person who has never heard of p95 or endpointing would actually ask. Each
+answer is worked out from that run's own numbers and comes with a chart of the
+evidence. A question the run can't answer says why, and what would answer it.
+
+Each answer follows a fixed rule, so it can be checked against the report:
+
+| question | how it's answered |
+|---|---|
+| How many calls at the same time can it take before callers notice? | The first level where the slowest callers (p95) wait more than twice as long as at normal load, or fewer than 97 calls in 100 connect. The answer is the range between the last level that held and the first that didn't. |
+| Does it get worse at the job before it gets too slow? | The first level whose quality verdict fails, against the first whose speed verdict does. A speed failure with every busier level passing is not counted as the load. |
+| Does it slow down gradually or all of a sudden? | If one jump between neighbouring levels holds 60% or more of the total slowdown, it was sudden. When that jump spans a doubling of load, the answer says the test may have missed a steady climb in between. |
+| Do all callers get slower, or only some? | The typical caller (p50) against the slowest (p95), each as a multiple of normal. If the slowest grows at least 0.3 more and the typical stays under 1.2 times, only some calls are stuck. |
+| Do new kinds of problems show up when busy? | Every turn is split into answered normally, agent cut the caller off, no answer in time, other errors, and call never connected, and each kind is reported where it first appears. |
+| Where does the waiting time go? | A typical turn split into the network round trip, the agent noticing the caller stopped, the agent thinking up its reply, and, where measured, silence at the start of the reply; and which part grew most with load. |
+| Which moment in a call keeps callers waiting longest? | The turn of the conversation with the highest p95 at the heaviest level, when it is at least 1.5 times the middle of the other turns. Slow at normal load too means it comes from what is said on it. |
+| How often does a caller wait long enough to notice? | The share of turns past 1.2 seconds, where Coval says callers start repeating themselves; a rise of 2 points counts as load making it worse. |
+| Can it cope with a sudden rush as well as a slow build-up? | A spike step against a built-up step at the same load. Within 1.2 times counts as coping. |
+| After a rush, how long until it's back to normal? | Seconds from the start of the recovery step to the first call from which every later call's typical wait stays within 1.2 times normal, with none failing. |
+| Does it get slower the longer it runs? | The steady (soak) step split in half by start time; a 15% change in the typical wait counts. |
+| Does it still hear people correctly when busy? | Words misheard at each load, against the exact script the test caller spoke. A rise of 2 points counts. |
+| Does it still do its job when busy? | Each scenario node's assertion pass rate at each load, or the judge's pass rate when no node is checked. A drop of 10 points counts. |
+| Do the calls that kept people waiting go worse? | Judged calls with any wait past 1.2 seconds against the rest; a gap of 10 points counts. Needs 8 judged calls and both groups. |
+| Does it talk over people more when busy? | The share of turns where the agent spoke before the caller finished. A rise of 5 points counts. |
+| Does it talk longer or faster when busy? | Seconds of agent speech per turn, and words per minute. A 15% change counts. |
+| Does it repeat itself more when busy? | The share of replies repeating an earlier one in the same call; a rise of 2 points counts, and past 3% is Hamming's line for repeated questions. |
+| How much worse on a bad network connection? | From an impairment matrix: which network conditions broke it, and the worst step's wait as a multiple of the same step on a clean network. |
+| Does each turn cost more when busy? | Price per turn, or billed call time per turn without a rate. A 5% rise counts. |
+| Did the test itself keep up? | How far the test caller fell behind real time in each step (past 100ms a step is doubtful), on distributed runs whether every call came back exactly once, and how many turns the thinnest step's percentiles rest on: a p95 from fewer than 20 is its slowest turn, and a p99 needs 100. |
+| Would the same test give the same answer again? | Earlier runs with the same scenario and load plan fingerprints against the same agent. Within 10% on the slowest waits at normal and heaviest load counts as repeatable. |
+
+A run whose test machine fell behind real time opens with a caution that its
+answers are rough. The last card lists what this kind of test can't answer at
+all: what runs out inside the agent, whether a limit is the agent's or its
+providers', tool calls, post-call events, handoffs to humans, audio quality,
+alerts, and callers losing patience. The test caller is patient by design, so it
+never talks over a slow agent.
+
+`profiles/questions-ref.json` is shaped to answer as many of these as possible
+against the reference agent. It has a sudden rush and a slow build-up to the
+same level, a recovery step, and a steady hold.
+
+## Written analysis
+
+When `GEMINI_API_KEY` is set, every run ends with a written analysis, stored
+beside its report as `<run>-insights.json`. A run placed with `-suite` also
+rewrites `<suite>-insights.json` beside its parts, so the test's analysis reads
+every part placed so far. Both dashboards show it next to the plain-language
+answers, which stay rule-based.
+
+```bash
+./bin/callstorm -insights runs/<run>.json      # one run, and its suite
+./bin/callstorm -insights runs/<directory>     # every run and suite in it
 ```
 
-The two regularly disagree, and the disagreement is the point. A live Deepgram
-sweep passes every relative verdict in this repository and is graded
-**breakdown at every step**, because its p50 never came in under 800ms even at
-one concurrent caller. Passing means "no worse than it was".
+The model reads a digest of each report -- steps, quality figures, the judge's
+summary and the run's reference lines -- plus figures per turn of the
+conversation from the calls log. That is where a turn slower than the rest shows
+up, which no step percentile can show. It is told to look for the patterns Coval
+and Hamming write about: where the wait goes, whether latency follows load, the
+tail breaking while the median holds, quality slipping while latency holds, a
+slow turn, scenarios that differ, and whether the test itself can be trusted.
+
+**Every number it writes is checked against the data.** A number must appear
+in the digest, rounded, or in the unit the sentence gives it in: milliseconds as
+seconds, a fraction as a percentage. A claim with any other number is dropped
+and listed as dropped, with the number, so an invented figure never reaches a
+reader looking like a measured one. Small counts written without a unit are
+exempt. Each analysis records the model, when it was written, and hashes of the
+instructions and the data it read.
+
+**It does not repeat itself, or the rest of the page.** Each insight has to be
+a different finding. One that cites evidence an earlier insight already cited,
+or reuses its title, is dropped and listed as a repeat. Its instructions leave
+out what the plain-language answers already say beside it -- the slowest turn,
+long waits, quality, whether the test kept up -- unless it connects them to
+something they cannot show. A suite's analysis keeps to findings across its
+scenarios, since each part carries its own. And an analysis whose data,
+instructions and model have not changed is not written again: asking twice
+would only put a second wording of the same answer on the page.
+
+`-insights-model` picks the model; the default is Gemini's generally available
+Flash model. An analysis that cannot be written is reported and never fails the
+run.
+
+## The calls log
+
+Every call a run places is written to the calls file beside its report, failed
+ones included:
+
+- **Each call:** when its clock started and when it hung up; its full event log,
+  each event in milliseconds from that start, including every ping and its
+  round trip; and its error, if it failed. A call that never connected has an
+  empty list of turns.
+- **Each turn:** when the caller began the line, plus the raw instants behind
+  every duration: caller started, caller stopped, the agent's transcript
+  arrived, first audio, playout ended.
+- **Each step:** when it started and ended, and a timeline of every call in start
+  order with its typical wait. Recovery steps also record how long they took to
+  get back to normal.
+
+The report also records network cohorts' start and end times, when each judge
+verdict came back, when the run ended, and fingerprints of the scenario and
+load plan exactly as they ran. Together these let any number on the dashboard be
+recomputed from the files.
 
 ## Why there is a reference agent
 
@@ -318,10 +601,13 @@ completely differently:
 
 Endpointing is metronome-stable. All the tail latency lives in think + speak.
 
-Published guidance defines voice latency from *end of utterance **detected***,
-which leaves endpointing outside the breakdown. Callstorm starts from when the
-caller actually stopped, because it generated the audio and knows the ground
-truth. That is the payoff of driving the caller synthetically.
+Hamming's analytics guide (February 2026) starts TTFW at VAD silence
+*detection*, which leaves endpointing outside the number. Cekura's latency guide
+(September 2026) makes the same point from the other side: a clock that starts
+after endpointing fires hides a delay the caller still sat through. Callstorm
+starts from when the caller actually stopped, because it generated the audio and
+knows the ground truth, and reports the detection clock beside it. That is the
+payoff of driving the caller synthetically.
 
 Also reported: **`heard`**, what the agent's STT actually transcribed. When it
 diverges from what the caller said, the agent answered a different question -- a
@@ -413,6 +699,136 @@ and corrupt the measurement the event is reporting.
 `cmd/fakekafka` runs a real Kafka protocol implementation in-process, so the
 pipeline is runnable and testable without Docker or a JVM.
 
+## Network impairment
+
+```bash
+docker build --target impair -t callstorm-impair:dev .
+kind load docker-image callstorm-impair:dev --name callstorm
+kubectl apply -f deploy/k8s/60-impair-job.yaml
+```
+
+`-impairments profiles/impairments.json` runs the load profile once per network
+condition and reports a grid of load against network. One pod places every call
+itself and reshapes its own interface with `tc netem` between cohorts:
+
+| profile | loss | jitter | added delay |
+|---|---|---|---|
+| `clean` | 0% | 0ms | 0ms |
+| `light` | 1% | 20ms | +100ms |
+| `moderate` | 3% | 50ms | +100ms |
+| `severe` | 5% | 100ms | +200ms |
+
+**Clean always runs first.** An impaired cohort is scored against the clean
+cohort's baseline from minutes earlier, not its own: a severe network measured
+against a severe-network baseline passes, and says nothing about what the
+network cost. A file without a `clean` profile gets one; a `clean` that sets
+any impairment is refused.
+
+**Cohorts run one after another.** Side by side, the target would carry every
+cohort's calls at once and each cohort's latency would include load it did not
+place.
+
+**Every cohort records the command exactly as it ran, and the kernel's answer.**
+`tc qdisc show` is read back after each change, and a cohort whose interface
+does not show the netem it asked for is an error rather than a clean run with an
+impaired label.
+
+**Impairment is egress only, on the caller's side.** It is a bad connection at
+the customer's end. Delay on the uplink should land in *endpointing*: the agent
+hears the caller stop late, then replies at its usual speed.
+
+**Over a WebSocket target, every cell is a latency.** WebSocket is TCP, so a
+dropped packet is retransmitted rather than lost, and nothing in the grid says
+how a call sounded.
+
+**Measured against the in-cluster reference agent** (500ms injected TTFA, 300ms
+of it think/speak), with `scenarios/graph-ref.json`, c2 and c8:
+
+| cohort | network | p95 c2 | p95 c8 | where it went |
+|---|---|---|---|---|
+| clean | none | 507ms | 509ms | |
+| delay-100 | +100ms | 604ms (1.19x) | 607ms (1.19x) | the injected 100ms, to within 3ms |
+| loss-3 | 3% loss | 503ms (0.99x) | 508ms (1.00x) | nothing |
+| jitter-50 | +100ms ±50ms | 2719ms (5.36x) | 2833ms (5.57x) | a queue in the caller's send buffer |
+| light | +100ms ±20ms, 1% | 863ms (1.53x) | 794ms (1.50x) | endpointing +124ms at p50, think/speak +0 |
+| moderate | +100ms ±50ms, 3% | 3550ms (6.29x) | 3059ms (5.80x) | endpointing |
+| severe | +200ms ±100ms, 5% | 7056ms (12.49x) | 6589ms (12.49x) | endpointing |
+
+Delay lands where it should, in endpointing. The agent hears the caller stop
+late, then replies at its usual speed: think/speak held at 300ms in every cohort.
+
+**Jitter, not loss, makes the multi-second cells.** 3% loss alone moved nothing.
+The same 100ms delay with ±50ms of jitter added made p95 five times worse. netem
+draws each packet's delay independently, so jitter reorders packets. TCP read
+that reordering as congestion. `ss -tin` inside the calling pod during that
+cohort showed a congestion window of 2 to 5 packets and 18 to 72KB of audio
+unsent in the send buffer, 0.4 to 1.5 seconds of 24kHz speech. During the
+loss-only cohort the send queue was empty.
+
+The latency was not building up over the call: moderate's median TTFA was
+2.4s on turn one and 2.3s on turn five.
+
+**Treat the jittered rows as an upper bound.** Real paths rarely reorder one
+flow the way per-packet netem jitter does, so these rows overstate what a bad
+caller network does to a WebSocket agent. Delay-only and loss-only cohorts are
+the clean calibrations.
+
+The calibration run's JSON was lost when its pod exited before it was copied
+out; its terminal report is kept in `runs/impair-calib/`. The matrix run is in
+`runs/impair/`.
+
+The matrix refuses `-distributed` (the fleet's calls leave from pods this
+interface does not cover), `-kafka` and `-judge` (both key on step names, which
+repeat in every cohort).
+
+## Scenario graph
+
+A turn is a node. It can carry an `id`, an `expect` on the agent's reply, and
+branches that `goto` another node:
+
+```json
+{
+  "id": "number",
+  "say": "Sure, it's four four eight one two.",
+  "expect": { "said_any": ["replacement"], "not_said": ["refund"] },
+  "branch": [
+    { "if_agent_said": "order number", "say": "I just gave it to you.", "goto": "number" }
+  ]
+}
+```
+
+Every node is scored per step: visits whose reply met the assertion over visits
+to a node that has one. Completion can hold while one node collapses, and a
+call-level rate would average that node in with the ones that held.
+
+- **An assertion is a substring, like a branch.** A failed node is explained by
+  pointing at the transcript, and the first failing reply is kept as evidence.
+- **A visit with no reply fails.** A node that times out has collapsed.
+- **Unvisited nodes stay in the table with zero visits.** In a graph, a branch
+  that never fired is a finding.
+- **A graph that can loop must set `max_turns`.** A call that never ends is a
+  hung worker, not a result.
+- **The next node is chosen before the line is spoken**, from the agent's
+  previous reply, so a barge-in on the next node still arms against this turn.
+
+`scenarios/graph-ref.json` is the known-answer version. refagent's replies are
+fixed, so the branch, the jump and the rates are decided in advance: `open`
+100%, `number` 100% over two visits a call, `refund` 0%, and `close` unscored.
+Against a local refagent it reported exactly that.
+
+## Harness event integrity
+
+This checks Callstorm's pipeline, not the target's. Callstorm does not receive
+the target's webhooks.
+
+On a distributed run, every step counts calls dispatched, calls that came back,
+duplicates, calls that never came back, and results that arrived after their
+step closed. Delivery is at-least-once by design, so a duplicate is expected
+when a worker dies between publishing and committing. A duplicate is now dropped
+by `(step, seq)`; before this, it would have put one call's turns in a step twice
+and ended the step a call early. With `-kafka`, turn events published and
+dropped are recorded beside it.
+
 ## A real finding, already
 
 On one run against Deepgram the agent endpointed after a 300ms pause following
@@ -440,7 +856,8 @@ cmd/refagent         calibrated reference target
 cmd/collector        consumes turn events, reports consumer lag
 cmd/fakekafka        in-process Kafka broker for local runs
 internal/worker      one caller: websocket, turn state machine, audio pump
-internal/loadgen     load phases, per-step aggregation, verdicts, task-success join
+internal/loadgen     load phases, per-step aggregation, verdicts, task-success join, matrix, nodes
+internal/impair      netem profiles, tc commands and their readback
 internal/metrics     the clock: event log and metric derivation
 internal/audio       frame math, playout, call recorder
 internal/chart       sweep SVG

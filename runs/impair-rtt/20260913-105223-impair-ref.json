@@ -1,0 +1,1695 @@
+{
+  "profile": "impair-ref",
+  "scenario": "graph-reference",
+  "target": "ws://refagent.callstorm.svc.cluster.local:8080/v1/agent/converse",
+  "baseline": "c2",
+  "started_at": "2026-09-13T10:52:23.028194305Z",
+  "duration_s": 880.492023623,
+  "steps": [
+    {
+      "name": "c2",
+      "concurrency": 2,
+      "calls": 6,
+      "calls_attempted": 6,
+      "calls_connected": 6,
+      "turns_total": 30,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 30,
+        "p50_ms": 502.7,
+        "p90_ms": 504,
+        "p95_ms": 506.8,
+        "p99_ms": 508.2,
+        "max_ms": 508.2
+      },
+      "endpointing": {
+        "n": 30,
+        "p50_ms": 201.5,
+        "p90_ms": 202.9,
+        "p95_ms": 332.9,
+        "p99_ms": 333.1,
+        "max_ms": 333.1
+      },
+      "think_speak": {
+        "n": 30,
+        "p50_ms": 301.2,
+        "p90_ms": 302.7,
+        "p95_ms": 305.3,
+        "p99_ms": 305.3,
+        "max_ms": 305.3
+      },
+      "turn_latency": {
+        "n": 30,
+        "p50_ms": 2502.7,
+        "p90_ms": 2504,
+        "p95_ms": 2506.8,
+        "p99_ms": 2508.2,
+        "max_ms": 2508.2
+      },
+      "transport_rtt": {
+        "n": 30,
+        "p50_ms": 0.7,
+        "p90_ms": 0.9,
+        "p95_ms": 0.9,
+        "p99_ms": 1.1,
+        "max_ms": 1.1
+      },
+      "agent_ttfa": {
+        "n": 30,
+        "p50_ms": 502,
+        "p90_ms": 503.4,
+        "p95_ms": 506.2,
+        "p99_ms": 507.4,
+        "max_ms": 507.4
+      },
+      "agent_endpointing": {
+        "n": 30,
+        "p50_ms": 200.9,
+        "p90_ms": 202.1,
+        "p95_ms": 332.1,
+        "p99_ms": 332.5,
+        "max_ms": 332.5
+      },
+      "worst_harness_drift_ms": 19.4,
+      "conversation": {
+        "talk_ratio": 0.29,
+        "agent_wpm": 150,
+        "caller_wpm": 169.4,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 0,
+        "dead_air_seconds": 0,
+        "agent_speech_seconds": 60,
+        "caller_speech_seconds": 146.6,
+        "turns": 30
+      },
+      "cost": {
+        "agent_minutes": 3.696
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 0,
+        "mean": 0,
+        "worst": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "ref_words": 0
+      },
+      "phase": {
+        "kind": "ramp",
+        "held_s": 118.7,
+        "first_half": {
+          "n": 15,
+          "p50_ms": 502.7,
+          "p90_ms": 506.2,
+          "p95_ms": 508.2,
+          "p99_ms": 508.2,
+          "max_ms": 508.2
+        },
+        "second_half": {
+          "n": 15,
+          "p50_ms": 502.7,
+          "p90_ms": 504,
+          "p95_ms": 506.8,
+          "p99_ms": 506.8,
+          "max_ms": 506.8
+        },
+        "drift_pct": 0,
+        "drift": "steady"
+      },
+      "p95_ratio": 1,
+      "verdict": "pass",
+      "vs_clean": 1,
+      "nodes": [
+        {
+          "node": "open",
+          "visits": 6,
+          "checked": 6,
+          "passed": 6,
+          "pass_rate": 1
+        },
+        {
+          "node": "number",
+          "visits": 12,
+          "checked": 12,
+          "passed": 12,
+          "pass_rate": 1
+        },
+        {
+          "node": "refund",
+          "visits": 6,
+          "checked": 6,
+          "passed": 0,
+          "pass_rate": 0,
+          "miss": "said none of [\"refund\"]"
+        },
+        {
+          "node": "close",
+          "visits": 6,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        }
+      ]
+    },
+    {
+      "name": "c8",
+      "concurrency": 8,
+      "calls": 16,
+      "calls_attempted": 16,
+      "calls_connected": 16,
+      "turns_total": 80,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 80,
+        "p50_ms": 503.1,
+        "p90_ms": 508.7,
+        "p95_ms": 509.6,
+        "p99_ms": 512.3,
+        "max_ms": 512.3
+      },
+      "endpointing": {
+        "n": 80,
+        "p50_ms": 201.3,
+        "p90_ms": 201.8,
+        "p95_ms": 201.9,
+        "p99_ms": 202.9,
+        "max_ms": 202.9
+      },
+      "think_speak": {
+        "n": 80,
+        "p50_ms": 301.8,
+        "p90_ms": 307.5,
+        "p95_ms": 308.7,
+        "p99_ms": 311.6,
+        "max_ms": 311.6
+      },
+      "turn_latency": {
+        "n": 80,
+        "p50_ms": 2503.1,
+        "p90_ms": 2508.7,
+        "p95_ms": 2509.6,
+        "p99_ms": 2512.3,
+        "max_ms": 2512.3
+      },
+      "transport_rtt": {
+        "n": 80,
+        "p50_ms": 0.6,
+        "p90_ms": 0.7,
+        "p95_ms": 0.7,
+        "p99_ms": 1,
+        "max_ms": 1
+      },
+      "agent_ttfa": {
+        "n": 80,
+        "p50_ms": 502.5,
+        "p90_ms": 508.2,
+        "p95_ms": 509.2,
+        "p99_ms": 511.9,
+        "max_ms": 511.9
+      },
+      "agent_endpointing": {
+        "n": 80,
+        "p50_ms": 200.6,
+        "p90_ms": 201.3,
+        "p95_ms": 201.3,
+        "p99_ms": 202.2,
+        "max_ms": 202.2
+      },
+      "worst_harness_drift_ms": 20.8,
+      "conversation": {
+        "talk_ratio": 0.29,
+        "agent_wpm": 150,
+        "caller_wpm": 169.4,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 0,
+        "dead_air_seconds": 0,
+        "agent_speech_seconds": 160,
+        "caller_speech_seconds": 391,
+        "turns": 80
+      },
+      "cost": {
+        "agent_minutes": 9.856
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 0,
+        "mean": 0,
+        "worst": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "ref_words": 0
+      },
+      "phase": {
+        "kind": "ramp",
+        "held_s": 79.1,
+        "first_half": {
+          "n": 40,
+          "p50_ms": 503.8,
+          "p90_ms": 508.6,
+          "p95_ms": 510.8,
+          "p99_ms": 512.3,
+          "max_ms": 512.3
+        },
+        "second_half": {
+          "n": 40,
+          "p50_ms": 502.4,
+          "p90_ms": 508.7,
+          "p95_ms": 509.6,
+          "p99_ms": 510,
+          "max_ms": 510
+        },
+        "drift_pct": -0.003,
+        "drift": "steady"
+      },
+      "p95_ratio": 1.01,
+      "verdict": "pass",
+      "vs_clean": 1,
+      "nodes": [
+        {
+          "node": "open",
+          "visits": 16,
+          "checked": 16,
+          "passed": 16,
+          "pass_rate": 1
+        },
+        {
+          "node": "number",
+          "visits": 32,
+          "checked": 32,
+          "passed": 32,
+          "pass_rate": 1
+        },
+        {
+          "node": "refund",
+          "visits": 16,
+          "checked": 16,
+          "passed": 0,
+          "pass_rate": 0,
+          "miss": "said none of [\"refund\"]"
+        },
+        {
+          "node": "close",
+          "visits": 16,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        }
+      ]
+    }
+  ],
+  "matrix": {
+    "device": "eth0",
+    "cohorts": [
+      {
+        "impairment": {
+          "name": "clean"
+        },
+        "tc_command": "tc qdisc del dev eth0 root",
+        "qdisc": "qdisc noqueue 0: root refcnt 2",
+        "steps": [
+          {
+            "name": "c2",
+            "concurrency": 2,
+            "calls": 6,
+            "calls_attempted": 6,
+            "calls_connected": 6,
+            "turns_total": 30,
+            "turns_failed": 0,
+            "turns_yielded": 0,
+            "setup_success": 1,
+            "ttfa": {
+              "n": 30,
+              "p50_ms": 502.7,
+              "p90_ms": 504,
+              "p95_ms": 506.8,
+              "p99_ms": 508.2,
+              "max_ms": 508.2
+            },
+            "endpointing": {
+              "n": 30,
+              "p50_ms": 201.5,
+              "p90_ms": 202.9,
+              "p95_ms": 332.9,
+              "p99_ms": 333.1,
+              "max_ms": 333.1
+            },
+            "think_speak": {
+              "n": 30,
+              "p50_ms": 301.2,
+              "p90_ms": 302.7,
+              "p95_ms": 305.3,
+              "p99_ms": 305.3,
+              "max_ms": 305.3
+            },
+            "turn_latency": {
+              "n": 30,
+              "p50_ms": 2502.7,
+              "p90_ms": 2504,
+              "p95_ms": 2506.8,
+              "p99_ms": 2508.2,
+              "max_ms": 2508.2
+            },
+            "transport_rtt": {
+              "n": 30,
+              "p50_ms": 0.7,
+              "p90_ms": 0.9,
+              "p95_ms": 0.9,
+              "p99_ms": 1.1,
+              "max_ms": 1.1
+            },
+            "agent_ttfa": {
+              "n": 30,
+              "p50_ms": 502,
+              "p90_ms": 503.4,
+              "p95_ms": 506.2,
+              "p99_ms": 507.4,
+              "max_ms": 507.4
+            },
+            "agent_endpointing": {
+              "n": 30,
+              "p50_ms": 200.9,
+              "p90_ms": 202.1,
+              "p95_ms": 332.1,
+              "p99_ms": 332.5,
+              "max_ms": 332.5
+            },
+            "worst_harness_drift_ms": 19.4,
+            "conversation": {
+              "talk_ratio": 0.29,
+              "agent_wpm": 150,
+              "caller_wpm": 169.4,
+              "interruptions": 0,
+              "interruption_rate": 0,
+              "interruption_score": 5,
+              "dead_air_turns": 0,
+              "dead_air_seconds": 0,
+              "agent_speech_seconds": 60,
+              "caller_speech_seconds": 146.6,
+              "turns": 30
+            },
+            "cost": {
+              "agent_minutes": 3.696
+            },
+            "barge_in": {
+              "turns": 0,
+              "yielded": 0,
+              "yield_p50_ms": 0,
+              "yield_p95_ms": 0,
+              "worst_ms": 0
+            },
+            "wer": {
+              "turns": 0,
+              "mean": 0,
+              "worst": 0,
+              "substitutions": 0,
+              "deletions": 0,
+              "insertions": 0,
+              "ref_words": 0
+            },
+            "phase": {
+              "kind": "ramp",
+              "held_s": 118.7,
+              "first_half": {
+                "n": 15,
+                "p50_ms": 502.7,
+                "p90_ms": 506.2,
+                "p95_ms": 508.2,
+                "p99_ms": 508.2,
+                "max_ms": 508.2
+              },
+              "second_half": {
+                "n": 15,
+                "p50_ms": 502.7,
+                "p90_ms": 504,
+                "p95_ms": 506.8,
+                "p99_ms": 506.8,
+                "max_ms": 506.8
+              },
+              "drift_pct": 0,
+              "drift": "steady"
+            },
+            "p95_ratio": 1,
+            "verdict": "pass",
+            "vs_clean": 1,
+            "nodes": [
+              {
+                "node": "open",
+                "visits": 6,
+                "checked": 6,
+                "passed": 6,
+                "pass_rate": 1
+              },
+              {
+                "node": "number",
+                "visits": 12,
+                "checked": 12,
+                "passed": 12,
+                "pass_rate": 1
+              },
+              {
+                "node": "refund",
+                "visits": 6,
+                "checked": 6,
+                "passed": 0,
+                "pass_rate": 0,
+                "miss": "said none of [\"refund\"]"
+              },
+              {
+                "node": "close",
+                "visits": 6,
+                "checked": 0,
+                "passed": 0,
+                "pass_rate": 0
+              }
+            ]
+          },
+          {
+            "name": "c8",
+            "concurrency": 8,
+            "calls": 16,
+            "calls_attempted": 16,
+            "calls_connected": 16,
+            "turns_total": 80,
+            "turns_failed": 0,
+            "turns_yielded": 0,
+            "setup_success": 1,
+            "ttfa": {
+              "n": 80,
+              "p50_ms": 503.1,
+              "p90_ms": 508.7,
+              "p95_ms": 509.6,
+              "p99_ms": 512.3,
+              "max_ms": 512.3
+            },
+            "endpointing": {
+              "n": 80,
+              "p50_ms": 201.3,
+              "p90_ms": 201.8,
+              "p95_ms": 201.9,
+              "p99_ms": 202.9,
+              "max_ms": 202.9
+            },
+            "think_speak": {
+              "n": 80,
+              "p50_ms": 301.8,
+              "p90_ms": 307.5,
+              "p95_ms": 308.7,
+              "p99_ms": 311.6,
+              "max_ms": 311.6
+            },
+            "turn_latency": {
+              "n": 80,
+              "p50_ms": 2503.1,
+              "p90_ms": 2508.7,
+              "p95_ms": 2509.6,
+              "p99_ms": 2512.3,
+              "max_ms": 2512.3
+            },
+            "transport_rtt": {
+              "n": 80,
+              "p50_ms": 0.6,
+              "p90_ms": 0.7,
+              "p95_ms": 0.7,
+              "p99_ms": 1,
+              "max_ms": 1
+            },
+            "agent_ttfa": {
+              "n": 80,
+              "p50_ms": 502.5,
+              "p90_ms": 508.2,
+              "p95_ms": 509.2,
+              "p99_ms": 511.9,
+              "max_ms": 511.9
+            },
+            "agent_endpointing": {
+              "n": 80,
+              "p50_ms": 200.6,
+              "p90_ms": 201.3,
+              "p95_ms": 201.3,
+              "p99_ms": 202.2,
+              "max_ms": 202.2
+            },
+            "worst_harness_drift_ms": 20.8,
+            "conversation": {
+              "talk_ratio": 0.29,
+              "agent_wpm": 150,
+              "caller_wpm": 169.4,
+              "interruptions": 0,
+              "interruption_rate": 0,
+              "interruption_score": 5,
+              "dead_air_turns": 0,
+              "dead_air_seconds": 0,
+              "agent_speech_seconds": 160,
+              "caller_speech_seconds": 391,
+              "turns": 80
+            },
+            "cost": {
+              "agent_minutes": 9.856
+            },
+            "barge_in": {
+              "turns": 0,
+              "yielded": 0,
+              "yield_p50_ms": 0,
+              "yield_p95_ms": 0,
+              "worst_ms": 0
+            },
+            "wer": {
+              "turns": 0,
+              "mean": 0,
+              "worst": 0,
+              "substitutions": 0,
+              "deletions": 0,
+              "insertions": 0,
+              "ref_words": 0
+            },
+            "phase": {
+              "kind": "ramp",
+              "held_s": 79.1,
+              "first_half": {
+                "n": 40,
+                "p50_ms": 503.8,
+                "p90_ms": 508.6,
+                "p95_ms": 510.8,
+                "p99_ms": 512.3,
+                "max_ms": 512.3
+              },
+              "second_half": {
+                "n": 40,
+                "p50_ms": 502.4,
+                "p90_ms": 508.7,
+                "p95_ms": 509.6,
+                "p99_ms": 510,
+                "max_ms": 510
+              },
+              "drift_pct": -0.003,
+              "drift": "steady"
+            },
+            "p95_ratio": 1.01,
+            "verdict": "pass",
+            "vs_clean": 1,
+            "nodes": [
+              {
+                "node": "open",
+                "visits": 16,
+                "checked": 16,
+                "passed": 16,
+                "pass_rate": 1
+              },
+              {
+                "node": "number",
+                "visits": 32,
+                "checked": 32,
+                "passed": 32,
+                "pass_rate": 1
+              },
+              {
+                "node": "refund",
+                "visits": 16,
+                "checked": 16,
+                "passed": 0,
+                "pass_rate": 0,
+                "miss": "said none of [\"refund\"]"
+              },
+              {
+                "node": "close",
+                "visits": 16,
+                "checked": 0,
+                "passed": 0,
+                "pass_rate": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "impairment": {
+          "name": "delay-100",
+          "delay_ms": 100
+        },
+        "tc_command": "tc qdisc replace dev eth0 root netem delay 100ms",
+        "qdisc": "qdisc netem 8003: root refcnt 9 limit 1000 delay 100ms",
+        "steps": [
+          {
+            "name": "c2",
+            "concurrency": 2,
+            "calls": 6,
+            "calls_attempted": 6,
+            "calls_connected": 6,
+            "turns_total": 30,
+            "turns_failed": 0,
+            "turns_yielded": 0,
+            "setup_success": 1,
+            "ttfa": {
+              "n": 30,
+              "p50_ms": 602.8,
+              "p90_ms": 604.1,
+              "p95_ms": 605.6,
+              "p99_ms": 622,
+              "max_ms": 622
+            },
+            "endpointing": {
+              "n": 30,
+              "p50_ms": 301.7,
+              "p90_ms": 302.6,
+              "p95_ms": 302.7,
+              "p99_ms": 303,
+              "max_ms": 303
+            },
+            "think_speak": {
+              "n": 30,
+              "p50_ms": 301.1,
+              "p90_ms": 301.6,
+              "p95_ms": 303,
+              "p99_ms": 320.4,
+              "max_ms": 320.4
+            },
+            "turn_latency": {
+              "n": 30,
+              "p50_ms": 2602.8,
+              "p90_ms": 2604.1,
+              "p95_ms": 2605.6,
+              "p99_ms": 2622,
+              "max_ms": 2622
+            },
+            "transport_rtt": {
+              "n": 30,
+              "p50_ms": 100.8,
+              "p90_ms": 101,
+              "p95_ms": 101.1,
+              "p99_ms": 101.1,
+              "max_ms": 101.1
+            },
+            "agent_ttfa": {
+              "n": 30,
+              "p50_ms": 501.9,
+              "p90_ms": 503.5,
+              "p95_ms": 504.5,
+              "p99_ms": 521.2,
+              "max_ms": 521.2
+            },
+            "agent_endpointing": {
+              "n": 30,
+              "p50_ms": 200.9,
+              "p90_ms": 201.6,
+              "p95_ms": 202.3,
+              "p99_ms": 202.4,
+              "max_ms": 202.4
+            },
+            "worst_harness_drift_ms": 24.9,
+            "conversation": {
+              "talk_ratio": 0.29,
+              "agent_wpm": 150,
+              "caller_wpm": 169.4,
+              "interruptions": 0,
+              "interruption_rate": 0,
+              "interruption_score": 5,
+              "dead_air_turns": 0,
+              "dead_air_seconds": 0,
+              "agent_speech_seconds": 60,
+              "caller_speech_seconds": 146.6,
+              "turns": 30
+            },
+            "cost": {
+              "agent_minutes": 3.746
+            },
+            "barge_in": {
+              "turns": 0,
+              "yielded": 0,
+              "yield_p50_ms": 0,
+              "yield_p95_ms": 0,
+              "worst_ms": 0
+            },
+            "wer": {
+              "turns": 0,
+              "mean": 0,
+              "worst": 0,
+              "substitutions": 0,
+              "deletions": 0,
+              "insertions": 0,
+              "ref_words": 0
+            },
+            "phase": {
+              "kind": "ramp",
+              "held_s": 122.6,
+              "first_half": {
+                "n": 15,
+                "p50_ms": 602.7,
+                "p90_ms": 603.4,
+                "p95_ms": 622,
+                "p99_ms": 622,
+                "max_ms": 622
+              },
+              "second_half": {
+                "n": 15,
+                "p50_ms": 603,
+                "p90_ms": 604.2,
+                "p95_ms": 605.6,
+                "p99_ms": 605.6,
+                "max_ms": 605.6
+              },
+              "drift_pct": 0,
+              "drift": "steady"
+            },
+            "p95_ratio": 1.19,
+            "verdict": "pass",
+            "vs_clean": 1.19,
+            "nodes": [
+              {
+                "node": "open",
+                "visits": 6,
+                "checked": 6,
+                "passed": 6,
+                "pass_rate": 1
+              },
+              {
+                "node": "number",
+                "visits": 12,
+                "checked": 12,
+                "passed": 12,
+                "pass_rate": 1
+              },
+              {
+                "node": "refund",
+                "visits": 6,
+                "checked": 6,
+                "passed": 0,
+                "pass_rate": 0,
+                "miss": "said none of [\"refund\"]"
+              },
+              {
+                "node": "close",
+                "visits": 6,
+                "checked": 0,
+                "passed": 0,
+                "pass_rate": 0
+              }
+            ]
+          },
+          {
+            "name": "c8",
+            "concurrency": 8,
+            "calls": 16,
+            "calls_attempted": 16,
+            "calls_connected": 16,
+            "turns_total": 80,
+            "turns_failed": 0,
+            "turns_yielded": 0,
+            "setup_success": 1,
+            "ttfa": {
+              "n": 80,
+              "p50_ms": 602.9,
+              "p90_ms": 604.9,
+              "p95_ms": 605.1,
+              "p99_ms": 605.7,
+              "max_ms": 605.7
+            },
+            "endpointing": {
+              "n": 80,
+              "p50_ms": 301.4,
+              "p90_ms": 302.1,
+              "p95_ms": 302.3,
+              "p99_ms": 303.6,
+              "max_ms": 303.6
+            },
+            "think_speak": {
+              "n": 80,
+              "p50_ms": 301.6,
+              "p90_ms": 303.2,
+              "p95_ms": 303.8,
+              "p99_ms": 304.2,
+              "max_ms": 304.2
+            },
+            "turn_latency": {
+              "n": 80,
+              "p50_ms": 2602.9,
+              "p90_ms": 2604.9,
+              "p95_ms": 2605.1,
+              "p99_ms": 2605.7,
+              "max_ms": 2605.7
+            },
+            "transport_rtt": {
+              "n": 80,
+              "p50_ms": 100.8,
+              "p90_ms": 101,
+              "p95_ms": 101,
+              "p99_ms": 101.2,
+              "max_ms": 101.2
+            },
+            "agent_ttfa": {
+              "n": 80,
+              "p50_ms": 502.1,
+              "p90_ms": 504,
+              "p95_ms": 504.5,
+              "p99_ms": 505.1,
+              "max_ms": 505.1
+            },
+            "agent_endpointing": {
+              "n": 80,
+              "p50_ms": 200.8,
+              "p90_ms": 201.3,
+              "p95_ms": 201.4,
+              "p99_ms": 203.1,
+              "max_ms": 203.1
+            },
+            "worst_harness_drift_ms": 101,
+            "conversation": {
+              "talk_ratio": 0.29,
+              "agent_wpm": 150,
+              "caller_wpm": 169.4,
+              "interruptions": 0,
+              "interruption_rate": 0,
+              "interruption_score": 5,
+              "dead_air_turns": 0,
+              "dead_air_seconds": 0,
+              "agent_speech_seconds": 160,
+              "caller_speech_seconds": 391,
+              "turns": 80
+            },
+            "cost": {
+              "agent_minutes": 9.988
+            },
+            "barge_in": {
+              "turns": 0,
+              "yielded": 0,
+              "yield_p50_ms": 0,
+              "yield_p95_ms": 0,
+              "worst_ms": 0
+            },
+            "wer": {
+              "turns": 0,
+              "mean": 0,
+              "worst": 0,
+              "substitutions": 0,
+              "deletions": 0,
+              "insertions": 0,
+              "ref_words": 0
+            },
+            "phase": {
+              "kind": "ramp",
+              "held_s": 81.8,
+              "first_half": {
+                "n": 40,
+                "p50_ms": 602.6,
+                "p90_ms": 603.9,
+                "p95_ms": 604.5,
+                "p99_ms": 605.2,
+                "max_ms": 605.2
+              },
+              "second_half": {
+                "n": 40,
+                "p50_ms": 602.9,
+                "p90_ms": 604.9,
+                "p95_ms": 605.5,
+                "p99_ms": 605.7,
+                "max_ms": 605.7
+              },
+              "drift_pct": 0,
+              "drift": "steady"
+            },
+            "harness_degraded": true,
+            "p95_ratio": 1.19,
+            "verdict": "pass",
+            "vs_clean": 1.19,
+            "nodes": [
+              {
+                "node": "open",
+                "visits": 16,
+                "checked": 16,
+                "passed": 16,
+                "pass_rate": 1
+              },
+              {
+                "node": "number",
+                "visits": 32,
+                "checked": 32,
+                "passed": 32,
+                "pass_rate": 1
+              },
+              {
+                "node": "refund",
+                "visits": 16,
+                "checked": 16,
+                "passed": 0,
+                "pass_rate": 0,
+                "miss": "said none of [\"refund\"]"
+              },
+              {
+                "node": "close",
+                "visits": 16,
+                "checked": 0,
+                "passed": 0,
+                "pass_rate": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "impairment": {
+          "name": "jitter-50",
+          "delay_ms": 100,
+          "jitter_ms": 50
+        },
+        "tc_command": "tc qdisc replace dev eth0 root netem delay 100ms 50ms",
+        "qdisc": "qdisc netem 8003: root refcnt 9 limit 1000 delay 100ms  50ms",
+        "steps": [
+          {
+            "name": "c2",
+            "concurrency": 2,
+            "calls": 6,
+            "calls_attempted": 6,
+            "calls_connected": 6,
+            "turns_total": 30,
+            "turns_failed": 0,
+            "turns_yielded": 0,
+            "setup_success": 1,
+            "ttfa": {
+              "n": 30,
+              "p50_ms": 2157.3,
+              "p90_ms": 2732.4,
+              "p95_ms": 2774.4,
+              "p99_ms": 2948.2,
+              "max_ms": 2948.2
+            },
+            "endpointing": {
+              "n": 30,
+              "p50_ms": 1857,
+              "p90_ms": 2430.8,
+              "p95_ms": 2473.5,
+              "p99_ms": 2657.3,
+              "max_ms": 2657.3
+            },
+            "think_speak": {
+              "n": 30,
+              "p50_ms": 300.9,
+              "p90_ms": 301.8,
+              "p95_ms": 301.9,
+              "p99_ms": 302.8,
+              "max_ms": 302.8
+            },
+            "turn_latency": {
+              "n": 30,
+              "p50_ms": 4157.3,
+              "p90_ms": 4732.4,
+              "p95_ms": 4774.4,
+              "p99_ms": 4948.2,
+              "max_ms": 4948.2
+            },
+            "transport_rtt": {
+              "n": 30,
+              "p50_ms": 1531.3,
+              "p90_ms": 1817.5,
+              "p95_ms": 1897.4,
+              "p99_ms": 1973.9,
+              "max_ms": 1973.9
+            },
+            "agent_ttfa": {
+              "n": 30,
+              "p50_ms": 663.7,
+              "p90_ms": 1141.9,
+              "p95_ms": 1234.7,
+              "p99_ms": 1340.3,
+              "max_ms": 1340.3
+            },
+            "agent_endpointing": {
+              "n": 30,
+              "p50_ms": 369.5,
+              "p90_ms": 851,
+              "p95_ms": 933.9,
+              "p99_ms": 1040.3,
+              "max_ms": 1040.3
+            },
+            "worst_harness_drift_ms": 1876.2,
+            "conversation": {
+              "talk_ratio": 0.29,
+              "agent_wpm": 150,
+              "caller_wpm": 169.4,
+              "interruptions": 0,
+              "interruption_rate": 0,
+              "interruption_score": 5,
+              "dead_air_turns": 17,
+              "dead_air_seconds": 41.9,
+              "agent_speech_seconds": 60,
+              "caller_speech_seconds": 146.6,
+              "turns": 30
+            },
+            "cost": {
+              "agent_minutes": 4.49
+            },
+            "barge_in": {
+              "turns": 0,
+              "yielded": 0,
+              "yield_p50_ms": 0,
+              "yield_p95_ms": 0,
+              "worst_ms": 0
+            },
+            "wer": {
+              "turns": 0,
+              "mean": 0,
+              "worst": 0,
+              "substitutions": 0,
+              "deletions": 0,
+              "insertions": 0,
+              "ref_words": 0
+            },
+            "phase": {
+              "kind": "ramp",
+              "held_s": 162.7,
+              "first_half": {
+                "n": 15,
+                "p50_ms": 2194.4,
+                "p90_ms": 2617.3,
+                "p95_ms": 2948.2,
+                "p99_ms": 2948.2,
+                "max_ms": 2948.2
+              },
+              "second_half": {
+                "n": 15,
+                "p50_ms": 2134.4,
+                "p90_ms": 2754.8,
+                "p95_ms": 2774.4,
+                "p99_ms": 2774.4,
+                "max_ms": 2774.4
+              },
+              "drift_pct": -0.027,
+              "drift": "steady"
+            },
+            "harness_degraded": true,
+            "p95_ratio": 5.47,
+            "verdict": "fail",
+            "vs_clean": 5.47,
+            "nodes": [
+              {
+                "node": "open",
+                "visits": 6,
+                "checked": 6,
+                "passed": 6,
+                "pass_rate": 1
+              },
+              {
+                "node": "number",
+                "visits": 12,
+                "checked": 12,
+                "passed": 12,
+                "pass_rate": 1
+              },
+              {
+                "node": "refund",
+                "visits": 6,
+                "checked": 6,
+                "passed": 0,
+                "pass_rate": 0,
+                "miss": "said none of [\"refund\"]"
+              },
+              {
+                "node": "close",
+                "visits": 6,
+                "checked": 0,
+                "passed": 0,
+                "pass_rate": 0
+              }
+            ]
+          },
+          {
+            "name": "c8",
+            "concurrency": 8,
+            "calls": 16,
+            "calls_attempted": 16,
+            "calls_connected": 16,
+            "turns_total": 80,
+            "turns_failed": 0,
+            "turns_yielded": 0,
+            "setup_success": 1,
+            "ttfa": {
+              "n": 80,
+              "p50_ms": 2160.5,
+              "p90_ms": 2563.4,
+              "p95_ms": 2616.3,
+              "p99_ms": 2837.4,
+              "max_ms": 2837.4
+            },
+            "endpointing": {
+              "n": 80,
+              "p50_ms": 1859.8,
+              "p90_ms": 2267.9,
+              "p95_ms": 2334.9,
+              "p99_ms": 2537.6,
+              "max_ms": 2537.6
+            },
+            "think_speak": {
+              "n": 80,
+              "p50_ms": 300.4,
+              "p90_ms": 301.5,
+              "p95_ms": 302.1,
+              "p99_ms": 303.9,
+              "max_ms": 303.9
+            },
+            "turn_latency": {
+              "n": 80,
+              "p50_ms": 4160.5,
+              "p90_ms": 4563.4,
+              "p95_ms": 4616.3,
+              "p99_ms": 4837.4,
+              "max_ms": 4837.4
+            },
+            "transport_rtt": {
+              "n": 80,
+              "p50_ms": 1522.1,
+              "p90_ms": 1794.4,
+              "p95_ms": 1862.4,
+              "p99_ms": 2193.3,
+              "max_ms": 2193.3
+            },
+            "agent_ttfa": {
+              "n": 80,
+              "p50_ms": 701,
+              "p90_ms": 1146.4,
+              "p95_ms": 1343.1,
+              "p99_ms": 1736.6,
+              "max_ms": 1736.6
+            },
+            "agent_endpointing": {
+              "n": 80,
+              "p50_ms": 399.8,
+              "p90_ms": 845.7,
+              "p95_ms": 1053.8,
+              "p99_ms": 1490.5,
+              "max_ms": 1490.5
+            },
+            "worst_harness_drift_ms": 2624.2,
+            "conversation": {
+              "talk_ratio": 0.29,
+              "agent_wpm": 150,
+              "caller_wpm": 169.4,
+              "interruptions": 0,
+              "interruption_rate": 0,
+              "interruption_score": 5,
+              "dead_air_turns": 55,
+              "dead_air_seconds": 128,
+              "agent_speech_seconds": 160,
+              "caller_speech_seconds": 391,
+              "turns": 80
+            },
+            "cost": {
+              "agent_minutes": 12.047
+            },
+            "barge_in": {
+              "turns": 0,
+              "yielded": 0,
+              "yield_p50_ms": 0,
+              "yield_p95_ms": 0,
+              "worst_ms": 0
+            },
+            "wer": {
+              "turns": 0,
+              "mean": 0,
+              "worst": 0,
+              "substitutions": 0,
+              "deletions": 0,
+              "insertions": 0,
+              "ref_words": 0
+            },
+            "phase": {
+              "kind": "ramp",
+              "held_s": 111.6,
+              "first_half": {
+                "n": 40,
+                "p50_ms": 2160.5,
+                "p90_ms": 2499.5,
+                "p95_ms": 2585.7,
+                "p99_ms": 2837.4,
+                "max_ms": 2837.4
+              },
+              "second_half": {
+                "n": 40,
+                "p50_ms": 2134.9,
+                "p90_ms": 2600.9,
+                "p95_ms": 2622.4,
+                "p99_ms": 2801.1,
+                "max_ms": 2801.1
+              },
+              "drift_pct": -0.012,
+              "drift": "steady"
+            },
+            "harness_degraded": true,
+            "p95_ratio": 5.16,
+            "verdict": "fail",
+            "vs_clean": 5.13,
+            "nodes": [
+              {
+                "node": "open",
+                "visits": 16,
+                "checked": 16,
+                "passed": 16,
+                "pass_rate": 1
+              },
+              {
+                "node": "number",
+                "visits": 32,
+                "checked": 32,
+                "passed": 32,
+                "pass_rate": 1
+              },
+              {
+                "node": "refund",
+                "visits": 16,
+                "checked": 16,
+                "passed": 0,
+                "pass_rate": 0,
+                "miss": "said none of [\"refund\"]"
+              },
+              {
+                "node": "close",
+                "visits": 16,
+                "checked": 0,
+                "passed": 0,
+                "pass_rate": 0
+              }
+            ]
+          }
+        ],
+        "breakpoint": "c2"
+      },
+      {
+        "impairment": {
+          "name": "loss-3",
+          "loss_pct": 3
+        },
+        "tc_command": "tc qdisc replace dev eth0 root netem loss 3%",
+        "qdisc": "qdisc netem 8003: root refcnt 9 limit 1000 loss 3%",
+        "steps": [
+          {
+            "name": "c2",
+            "concurrency": 2,
+            "calls": 6,
+            "calls_attempted": 6,
+            "calls_connected": 6,
+            "turns_total": 30,
+            "turns_failed": 0,
+            "turns_yielded": 0,
+            "setup_success": 1,
+            "ttfa": {
+              "n": 30,
+              "p50_ms": 502.6,
+              "p90_ms": 503.5,
+              "p95_ms": 504.5,
+              "p99_ms": 534.5,
+              "max_ms": 534.5
+            },
+            "endpointing": {
+              "n": 30,
+              "p50_ms": 201.4,
+              "p90_ms": 202.3,
+              "p95_ms": 202.7,
+              "p99_ms": 233.5,
+              "max_ms": 233.5
+            },
+            "think_speak": {
+              "n": 30,
+              "p50_ms": 301.3,
+              "p90_ms": 302.1,
+              "p95_ms": 302.4,
+              "p99_ms": 302.8,
+              "max_ms": 302.8
+            },
+            "turn_latency": {
+              "n": 30,
+              "p50_ms": 2502.6,
+              "p90_ms": 2503.5,
+              "p95_ms": 2504.5,
+              "p99_ms": 2534.5,
+              "max_ms": 2534.5
+            },
+            "transport_rtt": {
+              "n": 30,
+              "p50_ms": 0.6,
+              "p90_ms": 0.7,
+              "p95_ms": 0.9,
+              "p99_ms": 0.9,
+              "max_ms": 0.9
+            },
+            "agent_ttfa": {
+              "n": 30,
+              "p50_ms": 502,
+              "p90_ms": 503,
+              "p95_ms": 504,
+              "p99_ms": 534,
+              "max_ms": 534
+            },
+            "agent_endpointing": {
+              "n": 30,
+              "p50_ms": 200.7,
+              "p90_ms": 201.6,
+              "p95_ms": 202.1,
+              "p99_ms": 233,
+              "max_ms": 233
+            },
+            "worst_harness_drift_ms": 18.7,
+            "conversation": {
+              "talk_ratio": 0.29,
+              "agent_wpm": 150,
+              "caller_wpm": 169.4,
+              "interruptions": 0,
+              "interruption_rate": 0,
+              "interruption_score": 5,
+              "dead_air_turns": 0,
+              "dead_air_seconds": 0,
+              "agent_speech_seconds": 60,
+              "caller_speech_seconds": 146.6,
+              "turns": 30
+            },
+            "cost": {
+              "agent_minutes": 3.696
+            },
+            "barge_in": {
+              "turns": 0,
+              "yielded": 0,
+              "yield_p50_ms": 0,
+              "yield_p95_ms": 0,
+              "worst_ms": 0
+            },
+            "wer": {
+              "turns": 0,
+              "mean": 0,
+              "worst": 0,
+              "substitutions": 0,
+              "deletions": 0,
+              "insertions": 0,
+              "ref_words": 0
+            },
+            "phase": {
+              "kind": "ramp",
+              "held_s": 118.7,
+              "first_half": {
+                "n": 15,
+                "p50_ms": 502.4,
+                "p90_ms": 503.4,
+                "p95_ms": 503.7,
+                "p99_ms": 503.7,
+                "max_ms": 503.7
+              },
+              "second_half": {
+                "n": 15,
+                "p50_ms": 503.3,
+                "p90_ms": 504.5,
+                "p95_ms": 534.5,
+                "p99_ms": 534.5,
+                "max_ms": 534.5
+              },
+              "drift_pct": 0.002,
+              "drift": "steady"
+            },
+            "p95_ratio": 1,
+            "verdict": "pass",
+            "vs_clean": 1,
+            "nodes": [
+              {
+                "node": "open",
+                "visits": 6,
+                "checked": 6,
+                "passed": 6,
+                "pass_rate": 1
+              },
+              {
+                "node": "number",
+                "visits": 12,
+                "checked": 12,
+                "passed": 12,
+                "pass_rate": 1
+              },
+              {
+                "node": "refund",
+                "visits": 6,
+                "checked": 6,
+                "passed": 0,
+                "pass_rate": 0,
+                "miss": "said none of [\"refund\"]"
+              },
+              {
+                "node": "close",
+                "visits": 6,
+                "checked": 0,
+                "passed": 0,
+                "pass_rate": 0
+              }
+            ]
+          },
+          {
+            "name": "c8",
+            "concurrency": 8,
+            "calls": 16,
+            "calls_attempted": 16,
+            "calls_connected": 16,
+            "turns_total": 80,
+            "turns_failed": 0,
+            "turns_yielded": 0,
+            "setup_success": 1,
+            "ttfa": {
+              "n": 80,
+              "p50_ms": 502.8,
+              "p90_ms": 505.3,
+              "p95_ms": 522.3,
+              "p99_ms": 523.3,
+              "max_ms": 523.3
+            },
+            "endpointing": {
+              "n": 80,
+              "p50_ms": 201.2,
+              "p90_ms": 215.3,
+              "p95_ms": 221.3,
+              "p99_ms": 385.8,
+              "max_ms": 385.8
+            },
+            "think_speak": {
+              "n": 80,
+              "p50_ms": 301.4,
+              "p90_ms": 303,
+              "p95_ms": 303.5,
+              "p99_ms": 304.9,
+              "max_ms": 304.9
+            },
+            "turn_latency": {
+              "n": 80,
+              "p50_ms": 2502.8,
+              "p90_ms": 2505.3,
+              "p95_ms": 2522.3,
+              "p99_ms": 2523.3,
+              "max_ms": 2523.3
+            },
+            "transport_rtt": {
+              "n": 80,
+              "p50_ms": 0.7,
+              "p90_ms": 0.9,
+              "p95_ms": 1,
+              "p99_ms": 1.2,
+              "max_ms": 1.2
+            },
+            "agent_ttfa": {
+              "n": 80,
+              "p50_ms": 502.2,
+              "p90_ms": 504.7,
+              "p95_ms": 521.6,
+              "p99_ms": 522.7,
+              "max_ms": 522.7
+            },
+            "agent_endpointing": {
+              "n": 80,
+              "p50_ms": 200.6,
+              "p90_ms": 214.8,
+              "p95_ms": 220.8,
+              "p99_ms": 385.1,
+              "max_ms": 385.1
+            },
+            "worst_harness_drift_ms": 19.5,
+            "conversation": {
+              "talk_ratio": 0.29,
+              "agent_wpm": 150,
+              "caller_wpm": 169.4,
+              "interruptions": 0,
+              "interruption_rate": 0,
+              "interruption_score": 5,
+              "dead_air_turns": 0,
+              "dead_air_seconds": 0,
+              "agent_speech_seconds": 160,
+              "caller_speech_seconds": 391,
+              "turns": 80
+            },
+            "cost": {
+              "agent_minutes": 9.857
+            },
+            "barge_in": {
+              "turns": 0,
+              "yielded": 0,
+              "yield_p50_ms": 0,
+              "yield_p95_ms": 0,
+              "worst_ms": 0
+            },
+            "wer": {
+              "turns": 0,
+              "mean": 0,
+              "worst": 0,
+              "substitutions": 0,
+              "deletions": 0,
+              "insertions": 0,
+              "ref_words": 0
+            },
+            "phase": {
+              "kind": "ramp",
+              "held_s": 85.1,
+              "first_half": {
+                "n": 40,
+                "p50_ms": 503,
+                "p90_ms": 504.4,
+                "p95_ms": 522.3,
+                "p99_ms": 522.8,
+                "max_ms": 522.8
+              },
+              "second_half": {
+                "n": 40,
+                "p50_ms": 502.6,
+                "p90_ms": 505.6,
+                "p95_ms": 515,
+                "p99_ms": 523.3,
+                "max_ms": 523.3
+              },
+              "drift_pct": -0.001,
+              "drift": "steady"
+            },
+            "p95_ratio": 1.03,
+            "verdict": "pass",
+            "vs_clean": 1.02,
+            "nodes": [
+              {
+                "node": "open",
+                "visits": 16,
+                "checked": 16,
+                "passed": 16,
+                "pass_rate": 1
+              },
+              {
+                "node": "number",
+                "visits": 32,
+                "checked": 32,
+                "passed": 32,
+                "pass_rate": 1
+              },
+              {
+                "node": "refund",
+                "visits": 16,
+                "checked": 16,
+                "passed": 0,
+                "pass_rate": 0,
+                "miss": "said none of [\"refund\"]"
+              },
+              {
+                "node": "close",
+                "visits": 16,
+                "checked": 0,
+                "passed": 0,
+                "pass_rate": 0
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "references": [
+    {
+      "id": "hamming-observed-production-p50",
+      "label": "Hamming observed production median",
+      "kind": "observed",
+      "ms": 1400,
+      "to_ms": 1700,
+      "percentile": 50,
+      "axis": "end_of_speech",
+      "boundary": "Median latency observed across more than 10 million minutes of production calls. The start and end instants are not restated beside the figure.",
+      "placement": "No boundary is stated with it, so it is read on the widest Callstorm clock: an agent under this range from true end of speech is under it on any narrower clock too.",
+      "cites": [
+        {
+          "source": "Hamming",
+          "title": "voice agent latency guide",
+          "published": "2026-01"
+        }
+      ]
+    },
+    {
+      "id": "coval-load-p95",
+      "label": "Coval p95 target under load",
+      "kind": "target",
+      "ms": 2000,
+      "percentile": 95,
+      "axis": "end_of_speech",
+      "boundary": "Response latency under load, p95 under 2s. The start and end instants are not defined beside the threshold.",
+      "placement": "No boundary is stated with it, so it is read on the widest Callstorm clock, where holding it means holding it on any narrower one.",
+      "cites": [
+        {
+          "source": "Coval",
+          "title": "load testing methodology",
+          "published": "2026-03-07"
+        }
+      ]
+    },
+    {
+      "id": "hamming-ttfw-breakdown",
+      "label": "Hamming TTFW breakdown line",
+      "kind": "target",
+      "ms": 800,
+      "percentile": 0,
+      "axis": "detection",
+      "boundary": "TTFW, from VAD silence detection to the first agent audio byte. Past 800ms is conversation breakdown. No percentile is stated.",
+      "placement": "Its clock starts at detection, so it is read on think/speak. Callstorm's detection instant is the agent's transcript arriving, later than VAD detection by transcript finalization, so this reading leans in the agent's favour.",
+      "cites": [
+        {
+          "source": "Hamming",
+          "title": "voice agent analytics guide",
+          "published": "2026-02-10"
+        }
+      ]
+    },
+    {
+      "id": "human-turn-offset",
+      "label": "Human turn-taking marker",
+      "kind": "perceptual",
+      "ms": 300,
+      "percentile": 50,
+      "axis": "end_of_speech",
+      "boundary": "People answer about 208ms after the other speaker stops, across languages. 300ms is the edge Hamming labels natural.",
+      "placement": "A human gap runs from the moment the other speaker actually stops, so it is read on the end-of-speech clock at the median. It marks what a person does; it is not a pass line.",
+      "cites": [
+        {
+          "source": "Cekura",
+          "title": "voice agent latency guide",
+          "published": "2026-09-03"
+        },
+        {
+          "source": "Hamming",
+          "title": "voice agent analytics guide",
+          "published": "2026-02-10"
+        }
+      ]
+    }
+  ]
+}

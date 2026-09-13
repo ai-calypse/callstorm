@@ -1,0 +1,2929 @@
+{
+  "profile": "sweep-deepgram-30",
+  "scenario": "refund-branching",
+  "target": "",
+  "baseline": "baseline",
+  "started_at": "2026-09-13T17:59:34.50189697Z",
+  "duration_s": 2257.572443289,
+  "ended_at": "2026-09-13T18:37:11.870999337Z",
+  "steps": [
+    {
+      "name": "baseline",
+      "concurrency": 1,
+      "calls": 30,
+      "calls_attempted": 30,
+      "calls_connected": 30,
+      "turns_total": 150,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 150,
+        "p50_ms": 841.5,
+        "p90_ms": 1008.8,
+        "p95_ms": 1148,
+        "p99_ms": 3205.3,
+        "max_ms": 3632.6
+      },
+      "endpointing": {
+        "n": 150,
+        "p50_ms": 301.1,
+        "p90_ms": 343,
+        "p95_ms": 402.4,
+        "p99_ms": 771.9,
+        "max_ms": 3167.8
+      },
+      "think_speak": {
+        "n": 150,
+        "p50_ms": 534,
+        "p90_ms": 677.2,
+        "p95_ms": 722.9,
+        "p99_ms": 2909.8,
+        "max_ms": 2962.3
+      },
+      "turn_latency": {
+        "n": 150,
+        "p50_ms": 4608.3,
+        "p90_ms": 5975.8,
+        "p95_ms": 6597.1,
+        "p99_ms": 7587.2,
+        "max_ms": 8005.4
+      },
+      "transport_rtt": {
+        "n": 150,
+        "p50_ms": 81.4,
+        "p90_ms": 84.2,
+        "p95_ms": 84.9,
+        "p99_ms": 87.9,
+        "max_ms": 88.5
+      },
+      "agent_ttfa": {
+        "n": 150,
+        "p50_ms": 759.9,
+        "p90_ms": 926.9,
+        "p95_ms": 1061.6,
+        "p99_ms": 3119.9,
+        "max_ms": 3549.3
+      },
+      "agent_endpointing": {
+        "n": 150,
+        "p50_ms": 220.1,
+        "p90_ms": 261.4,
+        "p95_ms": 321.2,
+        "p99_ms": 689.3,
+        "max_ms": 3084.5
+      },
+      "worst_harness_drift_ms": 40.2,
+      "started_at": "2026-09-13T17:59:35.07311892Z",
+      "ended_at": "2026-09-13T18:25:08.596697973Z",
+      "timeline": [
+        {
+          "at": "2026-09-13T17:59:35.07311892Z",
+          "ttfa_ms": 903.2
+        },
+        {
+          "at": "2026-09-13T18:00:28.414749973Z",
+          "ttfa_ms": 889.2
+        },
+        {
+          "at": "2026-09-13T18:01:16.887313151Z",
+          "ttfa_ms": 825.9
+        },
+        {
+          "at": "2026-09-13T18:02:08.713026859Z",
+          "ttfa_ms": 848.3
+        },
+        {
+          "at": "2026-09-13T18:02:58.199825733Z",
+          "ttfa_ms": 825.3
+        },
+        {
+          "at": "2026-09-13T18:03:46.468752275Z",
+          "ttfa_ms": 889.4
+        },
+        {
+          "at": "2026-09-13T18:04:33.787605738Z",
+          "ttfa_ms": 944.1
+        },
+        {
+          "at": "2026-09-13T18:05:28.562903025Z",
+          "ttfa_ms": 841.5
+        },
+        {
+          "at": "2026-09-13T18:06:20.380806628Z",
+          "ttfa_ms": 803.7
+        },
+        {
+          "at": "2026-09-13T18:07:10.246132725Z",
+          "ttfa_ms": 829.7
+        },
+        {
+          "at": "2026-09-13T18:08:00.828298197Z",
+          "ttfa_ms": 868
+        },
+        {
+          "at": "2026-09-13T18:08:52.028211383Z",
+          "ttfa_ms": 852.7
+        },
+        {
+          "at": "2026-09-13T18:09:39.904536769Z",
+          "ttfa_ms": 950.3
+        },
+        {
+          "at": "2026-09-13T18:10:32.355436983Z",
+          "ttfa_ms": 885.4
+        },
+        {
+          "at": "2026-09-13T18:11:20.214905024Z",
+          "ttfa_ms": 822.7
+        },
+        {
+          "at": "2026-09-13T18:12:07.448868915Z",
+          "ttfa_ms": 856.3
+        },
+        {
+          "at": "2026-09-13T18:12:56.590618022Z",
+          "ttfa_ms": 824.6
+        },
+        {
+          "at": "2026-09-13T18:13:46.345642962Z",
+          "ttfa_ms": 796.1
+        },
+        {
+          "at": "2026-09-13T18:14:37.33029212Z",
+          "ttfa_ms": 917.3
+        },
+        {
+          "at": "2026-09-13T18:15:27.361667737Z",
+          "ttfa_ms": 957.1
+        },
+        {
+          "at": "2026-09-13T18:16:19.101115427Z",
+          "ttfa_ms": 838.9
+        },
+        {
+          "at": "2026-09-13T18:17:12.958992613Z",
+          "ttfa_ms": 879.8
+        },
+        {
+          "at": "2026-09-13T18:18:13.368505209Z",
+          "ttfa_ms": 789.3
+        },
+        {
+          "at": "2026-09-13T18:19:02.87217559Z",
+          "ttfa_ms": 769.2
+        },
+        {
+          "at": "2026-09-13T18:19:53.806894863Z",
+          "ttfa_ms": 753.3
+        },
+        {
+          "at": "2026-09-13T18:20:46.437121908Z",
+          "ttfa_ms": 828.4
+        },
+        {
+          "at": "2026-09-13T18:21:38.293126468Z",
+          "ttfa_ms": 741.1
+        },
+        {
+          "at": "2026-09-13T18:22:32.0131315Z",
+          "ttfa_ms": 803
+        },
+        {
+          "at": "2026-09-13T18:23:22.715738695Z",
+          "ttfa_ms": 750.1
+        },
+        {
+          "at": "2026-09-13T18:24:15.970585876Z",
+          "ttfa_ms": 800
+        }
+      ],
+      "conversation": {
+        "talk_ratio": 0.421,
+        "agent_wpm": 152.2,
+        "caller_wpm": 180.5,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 4,
+        "dead_air_seconds": 12.7,
+        "repeated_replies": 0,
+        "calls_with_repeats": 0,
+        "agent_speech_seconds": 514.4,
+        "caller_speech_seconds": 706.1,
+        "turns": 150
+      },
+      "cost": {
+        "agent_minutes": 22.652
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 150,
+        "mean": 0.025894538606403013,
+        "worst": 0.25,
+        "substitutions": 1,
+        "deletions": 53,
+        "insertions": 1,
+        "ref_words": 2124
+      },
+      "leading_silence": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "audible_ttfa": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "caller_line": "Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 857.8,
+            "p90_ms": 1001.2,
+            "p95_ms": 1085.7,
+            "p99_ms": 1097.6,
+            "max_ms": 1097.6
+          },
+          "endpointing_p50_ms": 304.2,
+          "think_speak_p50_ms": 557.2
+        },
+        {
+          "turn": 2,
+          "caller_line": "Sure, it's four four eight one two. It was a pair of wireless headphones.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 830.6,
+            "p90_ms": 920,
+            "p95_ms": 991.3,
+            "p99_ms": 1020.5,
+            "max_ms": 1020.5
+          },
+          "endpointing_p50_ms": 300.6,
+          "think_speak_p50_ms": 518.9
+        },
+        {
+          "turn": 3,
+          "caller_line": "I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 824.3,
+            "p90_ms": 920.9,
+            "p95_ms": 981.7,
+            "p99_ms": 1002,
+            "max_ms": 1002
+          },
+          "endpointing_p50_ms": 302.3,
+          "think_speak_p50_ms": 513.8
+        },
+        {
+          "turn": 4,
+          "caller_line": "Okay. And how long is that going to take to actually show up on my card?",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 856.3,
+            "p90_ms": 982.5,
+            "p95_ms": 1024.1,
+            "p99_ms": 1148,
+            "max_ms": 1148
+          },
+          "endpointing_p50_ms": 301.1,
+          "think_speak_p50_ms": 556.3
+        },
+        {
+          "turn": 5,
+          "caller_line": "Alright, that works. Thanks for sorting it out.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 838,
+            "p90_ms": 2685.4,
+            "p95_ms": 3205.3,
+            "p99_ms": 3632.6,
+            "max_ms": 3632.6
+          },
+          "endpointing_p50_ms": 243,
+          "think_speak_p50_ms": 541.8
+        }
+      ],
+      "waits": {
+        "turns": 150,
+        "up_to_800ms": 39,
+        "800_to_1200ms": 104,
+        "1200_to_2000ms": 3,
+        "over_2000ms": 4
+      },
+      "quality": {
+        "verdict": "pass",
+        "compared": [
+          "failed turns",
+          "words misheard",
+          "interruptions"
+        ]
+      },
+      "phase": {
+        "kind": "ramp",
+        "held_s": 1534.3,
+        "first_half": {
+          "n": 75,
+          "p50_ms": 856,
+          "p90_ms": 1002,
+          "p95_ms": 1097.6,
+          "p99_ms": 3632.6,
+          "max_ms": 3632.6
+        },
+        "second_half": {
+          "n": 75,
+          "p50_ms": 816.7,
+          "p90_ms": 1024.1,
+          "p95_ms": 1288.9,
+          "p99_ms": 3129.7,
+          "max_ms": 3129.7
+        },
+        "drift_pct": -0.046,
+        "drift": "steady"
+      },
+      "p95_ratio": 1,
+      "verdict": "pass",
+      "nodes": [
+        {
+          "node": "turn-1",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-2",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-3",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-4",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-5",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        }
+      ]
+    },
+    {
+      "name": "c5",
+      "concurrency": 5,
+      "calls": 30,
+      "calls_attempted": 30,
+      "calls_connected": 30,
+      "turns_total": 150,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 150,
+        "p50_ms": 792.2,
+        "p90_ms": 976,
+        "p95_ms": 1085.8,
+        "p99_ms": 1654.3,
+        "max_ms": 2675.6
+      },
+      "endpointing": {
+        "n": 150,
+        "p50_ms": 306.9,
+        "p90_ms": 349.8,
+        "p95_ms": 387.7,
+        "p99_ms": 606.8,
+        "max_ms": 696.6
+      },
+      "think_speak": {
+        "n": 150,
+        "p50_ms": 477.9,
+        "p90_ms": 621.8,
+        "p95_ms": 705,
+        "p99_ms": 1427.8,
+        "max_ms": 2454
+      },
+      "turn_latency": {
+        "n": 150,
+        "p50_ms": 4165.1,
+        "p90_ms": 5602.6,
+        "p95_ms": 6072.2,
+        "p99_ms": 6764.4,
+        "max_ms": 6884.5
+      },
+      "transport_rtt": {
+        "n": 150,
+        "p50_ms": 86,
+        "p90_ms": 89.3,
+        "p95_ms": 90.6,
+        "p99_ms": 99.1,
+        "max_ms": 105.4
+      },
+      "agent_ttfa": {
+        "n": 150,
+        "p50_ms": 705.9,
+        "p90_ms": 890.3,
+        "p95_ms": 994.8,
+        "p99_ms": 1574.2,
+        "max_ms": 2587.4
+      },
+      "agent_endpointing": {
+        "n": 150,
+        "p50_ms": 222,
+        "p90_ms": 262,
+        "p95_ms": 303.6,
+        "p99_ms": 514.7,
+        "max_ms": 607.2
+      },
+      "worst_harness_drift_ms": 20.7,
+      "started_at": "2026-09-13T18:25:09.152953317Z",
+      "ended_at": "2026-09-13T18:30:14.902793565Z",
+      "timeline": [
+        {
+          "at": "2026-09-13T18:25:09.152953317Z",
+          "ttfa_ms": 802.7
+        },
+        {
+          "at": "2026-09-13T18:25:09.158200527Z",
+          "ttfa_ms": 902.3
+        },
+        {
+          "at": "2026-09-13T18:25:09.166982642Z",
+          "ttfa_ms": 835.9
+        },
+        {
+          "at": "2026-09-13T18:25:09.170471919Z",
+          "ttfa_ms": 781.5
+        },
+        {
+          "at": "2026-09-13T18:25:09.171031798Z",
+          "ttfa_ms": 799.9
+        },
+        {
+          "at": "2026-09-13T18:25:56.544227073Z",
+          "ttfa_ms": 896.5
+        },
+        {
+          "at": "2026-09-13T18:25:58.108759229Z",
+          "ttfa_ms": 832.7
+        },
+        {
+          "at": "2026-09-13T18:25:58.590960394Z",
+          "ttfa_ms": 793.9
+        },
+        {
+          "at": "2026-09-13T18:25:58.678491065Z",
+          "ttfa_ms": 774.8
+        },
+        {
+          "at": "2026-09-13T18:25:59.014493307Z",
+          "ttfa_ms": 759.7
+        },
+        {
+          "at": "2026-09-13T18:26:43.582077416Z",
+          "ttfa_ms": 769.2
+        },
+        {
+          "at": "2026-09-13T18:26:46.570706654Z",
+          "ttfa_ms": 762.1
+        },
+        {
+          "at": "2026-09-13T18:26:47.335778865Z",
+          "ttfa_ms": 754
+        },
+        {
+          "at": "2026-09-13T18:26:47.838903554Z",
+          "ttfa_ms": 780.8
+        },
+        {
+          "at": "2026-09-13T18:26:49.69624178Z",
+          "ttfa_ms": 792
+        },
+        {
+          "at": "2026-09-13T18:27:31.567991092Z",
+          "ttfa_ms": 761.9
+        },
+        {
+          "at": "2026-09-13T18:27:35.830431132Z",
+          "ttfa_ms": 820.4
+        },
+        {
+          "at": "2026-09-13T18:27:39.772417492Z",
+          "ttfa_ms": 802.8
+        },
+        {
+          "at": "2026-09-13T18:27:40.124383535Z",
+          "ttfa_ms": 780.5
+        },
+        {
+          "at": "2026-09-13T18:27:41.64239513Z",
+          "ttfa_ms": 766.6
+        },
+        {
+          "at": "2026-09-13T18:28:17.962117066Z",
+          "ttfa_ms": 755.9
+        },
+        {
+          "at": "2026-09-13T18:28:24.864363619Z",
+          "ttfa_ms": 875.2
+        },
+        {
+          "at": "2026-09-13T18:28:28.424742963Z",
+          "ttfa_ms": 782.8
+        },
+        {
+          "at": "2026-09-13T18:28:30.205348407Z",
+          "ttfa_ms": 805.9
+        },
+        {
+          "at": "2026-09-13T18:28:32.995363662Z",
+          "ttfa_ms": 807.4
+        },
+        {
+          "at": "2026-09-13T18:29:06.757972458Z",
+          "ttfa_ms": 747.2
+        },
+        {
+          "at": "2026-09-13T18:29:15.638664466Z",
+          "ttfa_ms": 721
+        },
+        {
+          "at": "2026-09-13T18:29:18.856525104Z",
+          "ttfa_ms": 766.2
+        },
+        {
+          "at": "2026-09-13T18:29:21.439605737Z",
+          "ttfa_ms": 713.5
+        },
+        {
+          "at": "2026-09-13T18:29:22.979514732Z",
+          "ttfa_ms": 764.1
+        }
+      ],
+      "conversation": {
+        "talk_ratio": 0.407,
+        "agent_wpm": 155,
+        "caller_wpm": 180.5,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 1,
+        "dead_air_seconds": 2.7,
+        "repeated_replies": 2,
+        "calls_with_repeats": 1,
+        "agent_speech_seconds": 483.9,
+        "caller_speech_seconds": 706.1,
+        "turns": 150
+      },
+      "cost": {
+        "agent_minutes": 21.915
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 150,
+        "mean": 0.027306967984934087,
+        "worst": 0.07142857142857142,
+        "substitutions": 2,
+        "deletions": 56,
+        "insertions": 0,
+        "ref_words": 2124
+      },
+      "leading_silence": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "audible_ttfa": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "caller_line": "Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 804.1,
+            "p90_ms": 1011.9,
+            "p95_ms": 1022,
+            "p99_ms": 1044.8,
+            "max_ms": 1044.8
+          },
+          "endpointing_p50_ms": 311.4,
+          "think_speak_p50_ms": 496.2
+        },
+        {
+          "turn": 2,
+          "caller_line": "Sure, it's four four eight one two. It was a pair of wireless headphones.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 788.7,
+            "p90_ms": 869.6,
+            "p95_ms": 949.9,
+            "p99_ms": 1080,
+            "max_ms": 1080
+          },
+          "endpointing_p50_ms": 306.9,
+          "think_speak_p50_ms": 472.2
+        },
+        {
+          "turn": 3,
+          "caller_line": "I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 772.3,
+            "p90_ms": 856.7,
+            "p95_ms": 877.4,
+            "p99_ms": 890.8,
+            "max_ms": 890.8
+          },
+          "endpointing_p50_ms": 308.1,
+          "think_speak_p50_ms": 451.2
+        },
+        {
+          "turn": 4,
+          "caller_line": "Okay. And how long is that going to take to actually show up on my card?",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 824,
+            "p90_ms": 952.2,
+            "p95_ms": 1096,
+            "p99_ms": 1192.1,
+            "max_ms": 1192.1
+          },
+          "endpointing_p50_ms": 310.7,
+          "think_speak_p50_ms": 511.4
+        },
+        {
+          "turn": 5,
+          "caller_line": "Alright, that works. Thanks for sorting it out.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 727.9,
+            "p90_ms": 1148,
+            "p95_ms": 1654.3,
+            "p99_ms": 2675.6,
+            "max_ms": 2675.6
+          },
+          "endpointing_p50_ms": 249.2,
+          "think_speak_p50_ms": 472.8
+        }
+      ],
+      "waits": {
+        "turns": 150,
+        "up_to_800ms": 80,
+        "800_to_1200ms": 67,
+        "1200_to_2000ms": 2,
+        "over_2000ms": 1
+      },
+      "quality": {
+        "verdict": "pass",
+        "compared": [
+          "failed turns",
+          "words misheard",
+          "interruptions"
+        ]
+      },
+      "phase": {
+        "kind": "ramp",
+        "held_s": 306.3,
+        "first_half": {
+          "n": 75,
+          "p50_ms": 799.9,
+          "p90_ms": 937.9,
+          "p95_ms": 1022,
+          "p99_ms": 1148,
+          "max_ms": 1148
+        },
+        "second_half": {
+          "n": 75,
+          "p50_ms": 780.5,
+          "p90_ms": 1012.9,
+          "p95_ms": 1192.1,
+          "p99_ms": 2675.6,
+          "max_ms": 2675.6
+        },
+        "drift_pct": -0.024,
+        "drift": "steady"
+      },
+      "p95_ratio": 0.95,
+      "verdict": "pass",
+      "nodes": [
+        {
+          "node": "turn-1",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-2",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-3",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-4",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-5",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        }
+      ]
+    },
+    {
+      "name": "c10",
+      "concurrency": 10,
+      "calls": 30,
+      "calls_attempted": 30,
+      "calls_connected": 30,
+      "turns_total": 150,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 150,
+        "p50_ms": 789.3,
+        "p90_ms": 958.4,
+        "p95_ms": 1118.5,
+        "p99_ms": 3181.3,
+        "max_ms": 3182.2
+      },
+      "endpointing": {
+        "n": 150,
+        "p50_ms": 307.4,
+        "p90_ms": 351.7,
+        "p95_ms": 369.4,
+        "p99_ms": 628.2,
+        "max_ms": 633.2
+      },
+      "think_speak": {
+        "n": 150,
+        "p50_ms": 469.2,
+        "p90_ms": 624.4,
+        "p95_ms": 751,
+        "p99_ms": 2931.4,
+        "max_ms": 2954.3
+      },
+      "turn_latency": {
+        "n": 150,
+        "p50_ms": 4466.5,
+        "p90_ms": 5575.9,
+        "p95_ms": 6062.5,
+        "p99_ms": 6658.1,
+        "max_ms": 7426.4
+      },
+      "transport_rtt": {
+        "n": 150,
+        "p50_ms": 87.1,
+        "p90_ms": 90.6,
+        "p95_ms": 91,
+        "p99_ms": 92.3,
+        "max_ms": 96
+      },
+      "agent_ttfa": {
+        "n": 150,
+        "p50_ms": 701.7,
+        "p90_ms": 874,
+        "p95_ms": 1033.1,
+        "p99_ms": 3093.4,
+        "max_ms": 3093.9
+      },
+      "agent_endpointing": {
+        "n": 150,
+        "p50_ms": 221,
+        "p90_ms": 264.8,
+        "p95_ms": 280.1,
+        "p99_ms": 542,
+        "max_ms": 547.9
+      },
+      "worst_harness_drift_ms": 54.6,
+      "started_at": "2026-09-13T18:30:15.47580103Z",
+      "ended_at": "2026-09-13T18:32:54.271707649Z",
+      "timeline": [
+        {
+          "at": "2026-09-13T18:30:15.47580103Z",
+          "ttfa_ms": 798.7
+        },
+        {
+          "at": "2026-09-13T18:30:15.476082122Z",
+          "ttfa_ms": 772.6
+        },
+        {
+          "at": "2026-09-13T18:30:15.477858936Z",
+          "ttfa_ms": 765.6
+        },
+        {
+          "at": "2026-09-13T18:30:15.485320282Z",
+          "ttfa_ms": 815.9
+        },
+        {
+          "at": "2026-09-13T18:30:15.489412569Z",
+          "ttfa_ms": 707.5
+        },
+        {
+          "at": "2026-09-13T18:30:15.489775795Z",
+          "ttfa_ms": 864.4
+        },
+        {
+          "at": "2026-09-13T18:30:15.493898513Z",
+          "ttfa_ms": 797.4
+        },
+        {
+          "at": "2026-09-13T18:30:15.494133435Z",
+          "ttfa_ms": 806.1
+        },
+        {
+          "at": "2026-09-13T18:30:15.494375466Z",
+          "ttfa_ms": 779.3
+        },
+        {
+          "at": "2026-09-13T18:30:15.499685194Z",
+          "ttfa_ms": 885.7
+        },
+        {
+          "at": "2026-09-13T18:31:02.690458077Z",
+          "ttfa_ms": 771.6
+        },
+        {
+          "at": "2026-09-13T18:31:03.514471058Z",
+          "ttfa_ms": 887
+        },
+        {
+          "at": "2026-09-13T18:31:03.562227226Z",
+          "ttfa_ms": 749.8
+        },
+        {
+          "at": "2026-09-13T18:31:04.062950108Z",
+          "ttfa_ms": 796
+        },
+        {
+          "at": "2026-09-13T18:31:04.352812621Z",
+          "ttfa_ms": 746.7
+        },
+        {
+          "at": "2026-09-13T18:31:04.502120688Z",
+          "ttfa_ms": 746.5
+        },
+        {
+          "at": "2026-09-13T18:31:04.523810725Z",
+          "ttfa_ms": 746.3
+        },
+        {
+          "at": "2026-09-13T18:31:04.979227075Z",
+          "ttfa_ms": 824.9
+        },
+        {
+          "at": "2026-09-13T18:31:06.466303371Z",
+          "ttfa_ms": 762.1
+        },
+        {
+          "at": "2026-09-13T18:31:08.348894959Z",
+          "ttfa_ms": 822.5
+        },
+        {
+          "at": "2026-09-13T18:31:50.755275892Z",
+          "ttfa_ms": 779.7
+        },
+        {
+          "at": "2026-09-13T18:31:50.933091631Z",
+          "ttfa_ms": 789.4
+        },
+        {
+          "at": "2026-09-13T18:31:54.055699949Z",
+          "ttfa_ms": 742.5
+        },
+        {
+          "at": "2026-09-13T18:31:54.220405919Z",
+          "ttfa_ms": 862.2
+        },
+        {
+          "at": "2026-09-13T18:31:54.733260894Z",
+          "ttfa_ms": 759.4
+        },
+        {
+          "at": "2026-09-13T18:31:54.858043565Z",
+          "ttfa_ms": 840.1
+        },
+        {
+          "at": "2026-09-13T18:31:55.371854921Z",
+          "ttfa_ms": 770.1
+        },
+        {
+          "at": "2026-09-13T18:31:56.235350283Z",
+          "ttfa_ms": 705
+        },
+        {
+          "at": "2026-09-13T18:32:03.432683359Z",
+          "ttfa_ms": 874.2
+        },
+        {
+          "at": "2026-09-13T18:32:03.754694374Z",
+          "ttfa_ms": 768.4
+        }
+      ],
+      "conversation": {
+        "talk_ratio": 0.41,
+        "agent_wpm": 156.3,
+        "caller_wpm": 180.5,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 5,
+        "dead_air_seconds": 15.8,
+        "repeated_replies": 0,
+        "calls_with_repeats": 0,
+        "agent_speech_seconds": 489.9,
+        "caller_speech_seconds": 706.1,
+        "turns": 150
+      },
+      "cost": {
+        "agent_minutes": 22.149
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 150,
+        "mean": 0.03154425612052731,
+        "worst": 1,
+        "substitutions": 1,
+        "deletions": 66,
+        "insertions": 0,
+        "ref_words": 2124
+      },
+      "leading_silence": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "audible_ttfa": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "caller_line": "Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 824.7,
+            "p90_ms": 1000.6,
+            "p95_ms": 1067.7,
+            "p99_ms": 1091,
+            "max_ms": 1091
+          },
+          "endpointing_p50_ms": 311.8,
+          "think_speak_p50_ms": 504.8
+        },
+        {
+          "turn": 2,
+          "caller_line": "Sure, it's four four eight one two. It was a pair of wireless headphones.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 797.4,
+            "p90_ms": 862.2,
+            "p95_ms": 899.7,
+            "p99_ms": 922.7,
+            "max_ms": 922.7
+          },
+          "endpointing_p50_ms": 308.3,
+          "think_speak_p50_ms": 484.7
+        },
+        {
+          "turn": 3,
+          "caller_line": "I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 757.9,
+            "p90_ms": 863,
+            "p95_ms": 909.4,
+            "p99_ms": 1167.8,
+            "max_ms": 1167.8
+          },
+          "endpointing_p50_ms": 327.2,
+          "think_speak_p50_ms": 442.9
+        },
+        {
+          "turn": 4,
+          "caller_line": "Okay. And how long is that going to take to actually show up on my card?",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 787.9,
+            "p90_ms": 870.4,
+            "p95_ms": 901.4,
+            "p99_ms": 940.5,
+            "max_ms": 940.5
+          },
+          "endpointing_p50_ms": 308.7,
+          "think_speak_p50_ms": 465.8
+        },
+        {
+          "turn": 5,
+          "caller_line": "Alright, that works. Thanks for sorting it out.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 746.7,
+            "p90_ms": 3152.8,
+            "p95_ms": 3181.3,
+            "p99_ms": 3182.2,
+            "max_ms": 3182.2
+          },
+          "endpointing_p50_ms": 243.9,
+          "think_speak_p50_ms": 481.3
+        }
+      ],
+      "waits": {
+        "turns": 150,
+        "up_to_800ms": 83,
+        "800_to_1200ms": 61,
+        "1200_to_2000ms": 1,
+        "over_2000ms": 5
+      },
+      "quality": {
+        "verdict": "pass",
+        "compared": [
+          "failed turns",
+          "words misheard",
+          "interruptions"
+        ]
+      },
+      "phase": {
+        "kind": "ramp",
+        "held_s": 159.4,
+        "first_half": {
+          "n": 75,
+          "p50_ms": 797.4,
+          "p90_ms": 955.1,
+          "p95_ms": 1118.5,
+          "p99_ms": 3181.3,
+          "max_ms": 3181.3
+        },
+        "second_half": {
+          "n": 75,
+          "p50_ms": 779.7,
+          "p90_ms": 967.2,
+          "p95_ms": 1873.7,
+          "p99_ms": 3182.2,
+          "max_ms": 3182.2
+        },
+        "drift_pct": -0.022,
+        "drift": "steady"
+      },
+      "p95_ratio": 0.97,
+      "verdict": "pass",
+      "nodes": [
+        {
+          "node": "turn-1",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-2",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-3",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-4",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-5",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        }
+      ]
+    },
+    {
+      "name": "c20",
+      "concurrency": 20,
+      "calls": 40,
+      "calls_attempted": 40,
+      "calls_connected": 40,
+      "turns_total": 200,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 200,
+        "p50_ms": 792.9,
+        "p90_ms": 980.6,
+        "p95_ms": 1125.2,
+        "p99_ms": 3231.2,
+        "max_ms": 5464.2
+      },
+      "endpointing": {
+        "n": 200,
+        "p50_ms": 309.6,
+        "p90_ms": 346.8,
+        "p95_ms": 364.9,
+        "p99_ms": 611.7,
+        "max_ms": 776
+      },
+      "think_speak": {
+        "n": 200,
+        "p50_ms": 475.7,
+        "p90_ms": 633.6,
+        "p95_ms": 686.8,
+        "p99_ms": 2977.7,
+        "max_ms": 5234.2
+      },
+      "turn_latency": {
+        "n": 200,
+        "p50_ms": 4539.2,
+        "p90_ms": 5764.3,
+        "p95_ms": 6074.7,
+        "p99_ms": 6757.5,
+        "max_ms": 7904.2
+      },
+      "transport_rtt": {
+        "n": 200,
+        "p50_ms": 85.7,
+        "p90_ms": 88.7,
+        "p95_ms": 89.7,
+        "p99_ms": 90.9,
+        "max_ms": 91.5
+      },
+      "agent_ttfa": {
+        "n": 200,
+        "p50_ms": 709.2,
+        "p90_ms": 893.4,
+        "p95_ms": 1040.1,
+        "p99_ms": 3148,
+        "max_ms": 5376.2
+      },
+      "agent_endpointing": {
+        "n": 200,
+        "p50_ms": 223.3,
+        "p90_ms": 262,
+        "p95_ms": 278.7,
+        "p99_ms": 526.6,
+        "max_ms": 686.6
+      },
+      "worst_harness_drift_ms": 20.6,
+      "started_at": "2026-09-13T18:32:54.761614312Z",
+      "ended_at": "2026-09-13T18:34:39.483501174Z",
+      "timeline": [
+        {
+          "at": "2026-09-13T18:32:54.761614312Z",
+          "ttfa_ms": 746.9
+        },
+        {
+          "at": "2026-09-13T18:32:54.761614589Z",
+          "ttfa_ms": 813.7
+        },
+        {
+          "at": "2026-09-13T18:32:54.770160017Z",
+          "ttfa_ms": 779.3
+        },
+        {
+          "at": "2026-09-13T18:32:54.770596585Z",
+          "ttfa_ms": 794.4
+        },
+        {
+          "at": "2026-09-13T18:32:54.770855054Z",
+          "ttfa_ms": 742.1
+        },
+        {
+          "at": "2026-09-13T18:32:54.772480887Z",
+          "ttfa_ms": 770.9
+        },
+        {
+          "at": "2026-09-13T18:32:54.778103802Z",
+          "ttfa_ms": 728.6
+        },
+        {
+          "at": "2026-09-13T18:32:54.780097782Z",
+          "ttfa_ms": 880.7
+        },
+        {
+          "at": "2026-09-13T18:32:54.780247458Z",
+          "ttfa_ms": 798.8
+        },
+        {
+          "at": "2026-09-13T18:32:54.780625778Z",
+          "ttfa_ms": 781.1
+        },
+        {
+          "at": "2026-09-13T18:32:54.781478189Z",
+          "ttfa_ms": 895.9
+        },
+        {
+          "at": "2026-09-13T18:32:54.781494407Z",
+          "ttfa_ms": 791.3
+        },
+        {
+          "at": "2026-09-13T18:32:54.781878577Z",
+          "ttfa_ms": 899.5
+        },
+        {
+          "at": "2026-09-13T18:32:54.782836713Z",
+          "ttfa_ms": 812
+        },
+        {
+          "at": "2026-09-13T18:32:54.783059645Z",
+          "ttfa_ms": 736.1
+        },
+        {
+          "at": "2026-09-13T18:32:54.786733895Z",
+          "ttfa_ms": 772.2
+        },
+        {
+          "at": "2026-09-13T18:32:54.787362322Z",
+          "ttfa_ms": 725.7
+        },
+        {
+          "at": "2026-09-13T18:32:54.790982411Z",
+          "ttfa_ms": 840
+        },
+        {
+          "at": "2026-09-13T18:32:54.79214628Z",
+          "ttfa_ms": 1012.4
+        },
+        {
+          "at": "2026-09-13T18:32:54.793818523Z",
+          "ttfa_ms": 773
+        },
+        {
+          "at": "2026-09-13T18:33:41.329336002Z",
+          "ttfa_ms": 779.8
+        },
+        {
+          "at": "2026-09-13T18:33:42.038342173Z",
+          "ttfa_ms": 848.5
+        },
+        {
+          "at": "2026-09-13T18:33:42.098588135Z",
+          "ttfa_ms": 795.4
+        },
+        {
+          "at": "2026-09-13T18:33:42.555617941Z",
+          "ttfa_ms": 764.7
+        },
+        {
+          "at": "2026-09-13T18:33:43.09215709Z",
+          "ttfa_ms": 739.6
+        },
+        {
+          "at": "2026-09-13T18:33:43.739227901Z",
+          "ttfa_ms": 816.7
+        },
+        {
+          "at": "2026-09-13T18:33:43.771103276Z",
+          "ttfa_ms": 798
+        },
+        {
+          "at": "2026-09-13T18:33:44.119657909Z",
+          "ttfa_ms": 842.8
+        },
+        {
+          "at": "2026-09-13T18:33:44.159029778Z",
+          "ttfa_ms": 816.2
+        },
+        {
+          "at": "2026-09-13T18:33:44.203917971Z",
+          "ttfa_ms": 825.7
+        },
+        {
+          "at": "2026-09-13T18:33:44.506110393Z",
+          "ttfa_ms": 756.3
+        },
+        {
+          "at": "2026-09-13T18:33:44.749186005Z",
+          "ttfa_ms": 755.7
+        },
+        {
+          "at": "2026-09-13T18:33:44.767378101Z",
+          "ttfa_ms": 874.5
+        },
+        {
+          "at": "2026-09-13T18:33:46.035762803Z",
+          "ttfa_ms": 762.4
+        },
+        {
+          "at": "2026-09-13T18:33:46.41720929Z",
+          "ttfa_ms": 747.1
+        },
+        {
+          "at": "2026-09-13T18:33:46.978485977Z",
+          "ttfa_ms": 802.7
+        },
+        {
+          "at": "2026-09-13T18:33:47.315074025Z",
+          "ttfa_ms": 747.6
+        },
+        {
+          "at": "2026-09-13T18:33:47.968790271Z",
+          "ttfa_ms": 772.9
+        },
+        {
+          "at": "2026-09-13T18:33:49.164915079Z",
+          "ttfa_ms": 843.9
+        },
+        {
+          "at": "2026-09-13T18:33:51.664717385Z",
+          "ttfa_ms": 805.4
+        }
+      ],
+      "conversation": {
+        "talk_ratio": 0.413,
+        "agent_wpm": 156,
+        "caller_wpm": 180.6,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 6,
+        "dead_air_seconds": 23.6,
+        "repeated_replies": 1,
+        "calls_with_repeats": 1,
+        "agent_speech_seconds": 662.4,
+        "caller_speech_seconds": 941.7,
+        "turns": 200
+      },
+      "cost": {
+        "agent_minutes": 29.748
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 200,
+        "mean": 0.038461538461538464,
+        "worst": 1,
+        "substitutions": 4,
+        "deletions": 105,
+        "insertions": 0,
+        "ref_words": 2834
+      },
+      "leading_silence": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "audible_ttfa": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "caller_line": "Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.",
+          "ttfa": {
+            "n": 40,
+            "p50_ms": 800.3,
+            "p90_ms": 980.6,
+            "p95_ms": 1009.9,
+            "p99_ms": 1017.6,
+            "max_ms": 1017.6
+          },
+          "endpointing_p50_ms": 319.3,
+          "think_speak_p50_ms": 485.3
+        },
+        {
+          "turn": 2,
+          "caller_line": "Sure, it's four four eight one two. It was a pair of wireless headphones.",
+          "ttfa": {
+            "n": 40,
+            "p50_ms": 816.2,
+            "p90_ms": 895.9,
+            "p95_ms": 921.9,
+            "p99_ms": 992.2,
+            "max_ms": 992.2
+          },
+          "endpointing_p50_ms": 310.5,
+          "think_speak_p50_ms": 491.3
+        },
+        {
+          "turn": 3,
+          "caller_line": "I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?",
+          "ttfa": {
+            "n": 40,
+            "p50_ms": 751.8,
+            "p90_ms": 931.8,
+            "p95_ms": 1077.5,
+            "p99_ms": 1388.8,
+            "max_ms": 1388.8
+          },
+          "endpointing_p50_ms": 321.6,
+          "think_speak_p50_ms": 444.1
+        },
+        {
+          "turn": 4,
+          "caller_line": "Okay. And how long is that going to take to actually show up on my card?",
+          "ttfa": {
+            "n": 40,
+            "p50_ms": 805.4,
+            "p90_ms": 901.5,
+            "p95_ms": 936.6,
+            "p99_ms": 1034.7,
+            "max_ms": 1034.7
+          },
+          "endpointing_p50_ms": 309,
+          "think_speak_p50_ms": 495.9
+        },
+        {
+          "turn": 5,
+          "caller_line": "Alright, that works. Thanks for sorting it out.",
+          "ttfa": {
+            "n": 40,
+            "p50_ms": 712.6,
+            "p90_ms": 3169.8,
+            "p95_ms": 3231.2,
+            "p99_ms": 5464.2,
+            "max_ms": 5464.2
+          },
+          "endpointing_p50_ms": 250.6,
+          "think_speak_p50_ms": 449
+        }
+      ],
+      "waits": {
+        "turns": 200,
+        "up_to_800ms": 106,
+        "800_to_1200ms": 85,
+        "1200_to_2000ms": 3,
+        "over_2000ms": 6
+      },
+      "quality": {
+        "verdict": "pass",
+        "compared": [
+          "failed turns",
+          "words misheard",
+          "interruptions"
+        ]
+      },
+      "phase": {
+        "kind": "ramp",
+        "held_s": 105.2,
+        "first_half": {
+          "n": 100,
+          "p50_ms": 791.3,
+          "p90_ms": 980.6,
+          "p95_ms": 1034.7,
+          "p99_ms": 3231.2,
+          "max_ms": 5411.3
+        },
+        "second_half": {
+          "n": 100,
+          "p50_ms": 795.4,
+          "p90_ms": 958.7,
+          "p95_ms": 1125.2,
+          "p99_ms": 3193.8,
+          "max_ms": 5464.2
+        },
+        "drift_pct": 0.005,
+        "drift": "steady"
+      },
+      "p95_ratio": 0.98,
+      "verdict": "pass",
+      "nodes": [
+        {
+          "node": "turn-1",
+          "visits": 40,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-2",
+          "visits": 40,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-3",
+          "visits": 40,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-4",
+          "visits": 40,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-5",
+          "visits": 40,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        }
+      ]
+    },
+    {
+      "name": "c40",
+      "concurrency": 40,
+      "calls": 80,
+      "calls_attempted": 80,
+      "calls_connected": 80,
+      "turns_total": 400,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 400,
+        "p50_ms": 803.1,
+        "p90_ms": 1013.8,
+        "p95_ms": 1296.4,
+        "p99_ms": 3173.9,
+        "max_ms": 5654.5
+      },
+      "endpointing": {
+        "n": 400,
+        "p50_ms": 319,
+        "p90_ms": 412.5,
+        "p95_ms": 476.1,
+        "p99_ms": 725.6,
+        "max_ms": 847.3
+      },
+      "think_speak": {
+        "n": 400,
+        "p50_ms": 477.8,
+        "p90_ms": 653.3,
+        "p95_ms": 773.2,
+        "p99_ms": 2929.8,
+        "max_ms": 5405.7
+      },
+      "turn_latency": {
+        "n": 400,
+        "p50_ms": 4394.8,
+        "p90_ms": 5652.4,
+        "p95_ms": 6179.2,
+        "p99_ms": 7317.9,
+        "max_ms": 8814.5
+      },
+      "transport_rtt": {
+        "n": 400,
+        "p50_ms": 85.8,
+        "p90_ms": 90.8,
+        "p95_ms": 94.3,
+        "p99_ms": 150.7,
+        "max_ms": 218.8
+      },
+      "agent_ttfa": {
+        "n": 400,
+        "p50_ms": 717.3,
+        "p90_ms": 924.4,
+        "p95_ms": 1205.4,
+        "p99_ms": 3086.9,
+        "max_ms": 5565.5
+      },
+      "agent_endpointing": {
+        "n": 400,
+        "p50_ms": 227,
+        "p90_ms": 318.3,
+        "p95_ms": 376,
+        "p99_ms": 635,
+        "max_ms": 766.2
+      },
+      "worst_harness_drift_ms": 554.7,
+      "started_at": "2026-09-13T18:34:40.064485513Z",
+      "ended_at": "2026-09-13T18:37:11.766107288Z",
+      "timeline": [
+        {
+          "at": "2026-09-13T18:34:40.064485513Z",
+          "ttfa_ms": 782.6
+        },
+        {
+          "at": "2026-09-13T18:34:40.066016847Z",
+          "ttfa_ms": 816.7
+        },
+        {
+          "at": "2026-09-13T18:34:40.066032505Z",
+          "ttfa_ms": 729.3
+        },
+        {
+          "at": "2026-09-13T18:34:40.069274305Z",
+          "ttfa_ms": 870.4
+        },
+        {
+          "at": "2026-09-13T18:34:40.071707846Z",
+          "ttfa_ms": 856.9
+        },
+        {
+          "at": "2026-09-13T18:34:40.071887288Z",
+          "ttfa_ms": 767.8
+        },
+        {
+          "at": "2026-09-13T18:34:40.072074533Z",
+          "ttfa_ms": 745.8
+        },
+        {
+          "at": "2026-09-13T18:34:40.072974838Z",
+          "ttfa_ms": 756
+        },
+        {
+          "at": "2026-09-13T18:34:40.073082033Z",
+          "ttfa_ms": 785.7
+        },
+        {
+          "at": "2026-09-13T18:34:40.073781135Z",
+          "ttfa_ms": 907.8
+        },
+        {
+          "at": "2026-09-13T18:34:40.073808322Z",
+          "ttfa_ms": 774.8
+        },
+        {
+          "at": "2026-09-13T18:34:40.07384734Z",
+          "ttfa_ms": 750.6
+        },
+        {
+          "at": "2026-09-13T18:34:40.074398852Z",
+          "ttfa_ms": 873.9
+        },
+        {
+          "at": "2026-09-13T18:34:40.078219779Z",
+          "ttfa_ms": 793.2
+        },
+        {
+          "at": "2026-09-13T18:34:40.080671229Z",
+          "ttfa_ms": 788.4
+        },
+        {
+          "at": "2026-09-13T18:34:40.081818519Z",
+          "ttfa_ms": 797.9
+        },
+        {
+          "at": "2026-09-13T18:34:40.086190287Z",
+          "ttfa_ms": 789.4
+        },
+        {
+          "at": "2026-09-13T18:34:40.086207036Z",
+          "ttfa_ms": 792.1
+        },
+        {
+          "at": "2026-09-13T18:34:40.086353739Z",
+          "ttfa_ms": 753
+        },
+        {
+          "at": "2026-09-13T18:34:40.086807612Z",
+          "ttfa_ms": 826.1
+        },
+        {
+          "at": "2026-09-13T18:34:40.088386478Z",
+          "ttfa_ms": 854.4
+        },
+        {
+          "at": "2026-09-13T18:34:40.091933926Z",
+          "ttfa_ms": 721.6
+        },
+        {
+          "at": "2026-09-13T18:34:40.209858526Z",
+          "ttfa_ms": 885.8
+        },
+        {
+          "at": "2026-09-13T18:34:40.213469932Z",
+          "ttfa_ms": 686.5
+        },
+        {
+          "at": "2026-09-13T18:34:40.217140307Z",
+          "ttfa_ms": 815
+        },
+        {
+          "at": "2026-09-13T18:34:40.221811985Z",
+          "ttfa_ms": 781.3
+        },
+        {
+          "at": "2026-09-13T18:34:40.225968345Z",
+          "ttfa_ms": 835.4
+        },
+        {
+          "at": "2026-09-13T18:34:40.227945463Z",
+          "ttfa_ms": 852.1
+        },
+        {
+          "at": "2026-09-13T18:34:40.228007145Z",
+          "ttfa_ms": 761.5
+        },
+        {
+          "at": "2026-09-13T18:34:40.230692912Z",
+          "ttfa_ms": 802.2
+        },
+        {
+          "at": "2026-09-13T18:34:40.231933065Z",
+          "ttfa_ms": 796.4
+        },
+        {
+          "at": "2026-09-13T18:34:40.235753139Z",
+          "ttfa_ms": 802.9
+        },
+        {
+          "at": "2026-09-13T18:34:40.238024113Z",
+          "ttfa_ms": 788.5
+        },
+        {
+          "at": "2026-09-13T18:34:40.238620629Z",
+          "ttfa_ms": 839.9
+        },
+        {
+          "at": "2026-09-13T18:34:40.24951638Z",
+          "ttfa_ms": 784.9
+        },
+        {
+          "at": "2026-09-13T18:35:25.751421337Z",
+          "ttfa_ms": 987.4
+        },
+        {
+          "at": "2026-09-13T18:35:25.765516029Z",
+          "ttfa_ms": 843.2
+        },
+        {
+          "at": "2026-09-13T18:35:27.007459464Z",
+          "ttfa_ms": 802.7
+        },
+        {
+          "at": "2026-09-13T18:35:27.711089586Z",
+          "ttfa_ms": 966.6
+        },
+        {
+          "at": "2026-09-13T18:35:27.926724982Z",
+          "ttfa_ms": 790.3
+        },
+        {
+          "at": "2026-09-13T18:35:28.057983934Z",
+          "ttfa_ms": 788.3
+        },
+        {
+          "at": "2026-09-13T18:35:28.458811159Z",
+          "ttfa_ms": 726.8
+        },
+        {
+          "at": "2026-09-13T18:35:29.166550985Z",
+          "ttfa_ms": 770.4
+        },
+        {
+          "at": "2026-09-13T18:35:29.21428678Z",
+          "ttfa_ms": 873.9
+        },
+        {
+          "at": "2026-09-13T18:35:29.335051195Z",
+          "ttfa_ms": 904.4
+        },
+        {
+          "at": "2026-09-13T18:35:29.403450565Z",
+          "ttfa_ms": 805.9
+        },
+        {
+          "at": "2026-09-13T18:35:29.415921016Z",
+          "ttfa_ms": 835.6
+        },
+        {
+          "at": "2026-09-13T18:35:29.61764718Z",
+          "ttfa_ms": 750.7
+        },
+        {
+          "at": "2026-09-13T18:35:29.629041873Z",
+          "ttfa_ms": 881.5
+        },
+        {
+          "at": "2026-09-13T18:35:29.762718633Z",
+          "ttfa_ms": 782.6
+        },
+        {
+          "at": "2026-09-13T18:35:29.78825863Z",
+          "ttfa_ms": 721
+        },
+        {
+          "at": "2026-09-13T18:35:30.371451633Z",
+          "ttfa_ms": 779.2
+        },
+        {
+          "at": "2026-09-13T18:35:30.823872453Z",
+          "ttfa_ms": 1059.2
+        },
+        {
+          "at": "2026-09-13T18:35:30.848034291Z",
+          "ttfa_ms": 826.2
+        },
+        {
+          "at": "2026-09-13T18:35:30.86399777Z",
+          "ttfa_ms": 813.9
+        },
+        {
+          "at": "2026-09-13T18:35:30.966751668Z",
+          "ttfa_ms": 820.2
+        },
+        {
+          "at": "2026-09-13T18:35:31.283573709Z",
+          "ttfa_ms": 846.5
+        },
+        {
+          "at": "2026-09-13T18:35:31.372965079Z",
+          "ttfa_ms": 843.1
+        },
+        {
+          "at": "2026-09-13T18:35:31.377567898Z",
+          "ttfa_ms": 797.5
+        },
+        {
+          "at": "2026-09-13T18:35:31.52326455Z",
+          "ttfa_ms": 941
+        },
+        {
+          "at": "2026-09-13T18:35:31.536325695Z",
+          "ttfa_ms": 870.3
+        },
+        {
+          "at": "2026-09-13T18:35:31.764715134Z",
+          "ttfa_ms": 789.9
+        },
+        {
+          "at": "2026-09-13T18:35:31.871553987Z",
+          "ttfa_ms": 819.5
+        },
+        {
+          "at": "2026-09-13T18:35:31.951618819Z",
+          "ttfa_ms": 854.2
+        },
+        {
+          "at": "2026-09-13T18:35:32.153732413Z",
+          "ttfa_ms": 878.5
+        },
+        {
+          "at": "2026-09-13T18:35:32.650910292Z",
+          "ttfa_ms": 893.4
+        },
+        {
+          "at": "2026-09-13T18:35:33.363815752Z",
+          "ttfa_ms": 868.5
+        },
+        {
+          "at": "2026-09-13T18:35:33.373043841Z",
+          "ttfa_ms": 885.5
+        },
+        {
+          "at": "2026-09-13T18:35:33.994502071Z",
+          "ttfa_ms": 886.2
+        },
+        {
+          "at": "2026-09-13T18:35:42.143903146Z",
+          "ttfa_ms": 783.7
+        },
+        {
+          "at": "2026-09-13T18:36:14.66210509Z",
+          "ttfa_ms": 782.4
+        },
+        {
+          "at": "2026-09-13T18:36:14.979233776Z",
+          "ttfa_ms": 787.1
+        },
+        {
+          "at": "2026-09-13T18:36:14.980552731Z",
+          "ttfa_ms": 794.3
+        },
+        {
+          "at": "2026-09-13T18:36:15.470692683Z",
+          "ttfa_ms": 789.4
+        },
+        {
+          "at": "2026-09-13T18:36:16.88759608Z",
+          "ttfa_ms": 749.8
+        },
+        {
+          "at": "2026-09-13T18:36:17.866581001Z",
+          "ttfa_ms": 747.1
+        },
+        {
+          "at": "2026-09-13T18:36:17.962249778Z",
+          "ttfa_ms": 819.8
+        },
+        {
+          "at": "2026-09-13T18:36:18.734320522Z",
+          "ttfa_ms": 784.1
+        },
+        {
+          "at": "2026-09-13T18:36:19.599039034Z",
+          "ttfa_ms": 828.7
+        },
+        {
+          "at": "2026-09-13T18:36:20.951682651Z",
+          "ttfa_ms": 831.5
+        }
+      ],
+      "conversation": {
+        "talk_ratio": 0.411,
+        "agent_wpm": 153.9,
+        "caller_wpm": 180.7,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 10,
+        "dead_air_seconds": 35.2,
+        "repeated_replies": 0,
+        "calls_with_repeats": 0,
+        "agent_speech_seconds": 1315.5,
+        "caller_speech_seconds": 1884.1,
+        "turns": 400
+      },
+      "cost": {
+        "agent_minutes": 59.363
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 400,
+        "mean": 0.03048995417694748,
+        "worst": 1,
+        "substitutions": 8,
+        "deletions": 163,
+        "insertions": 2,
+        "ref_words": 5674
+      },
+      "leading_silence": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "audible_ttfa": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "caller_line": "Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.",
+          "ttfa": {
+            "n": 80,
+            "p50_ms": 797.9,
+            "p90_ms": 1001.1,
+            "p95_ms": 1017.1,
+            "p99_ms": 1073.5,
+            "max_ms": 1073.5
+          },
+          "endpointing_p50_ms": 319.5,
+          "think_speak_p50_ms": 470.6
+        },
+        {
+          "turn": 2,
+          "caller_line": "Sure, it's four four eight one two. It was a pair of wireless headphones.",
+          "ttfa": {
+            "n": 80,
+            "p50_ms": 819.8,
+            "p90_ms": 975.8,
+            "p95_ms": 1017.1,
+            "p99_ms": 1739.5,
+            "max_ms": 1739.5
+          },
+          "endpointing_p50_ms": 327.1,
+          "think_speak_p50_ms": 481.7
+        },
+        {
+          "turn": 3,
+          "caller_line": "I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?",
+          "ttfa": {
+            "n": 80,
+            "p50_ms": 789.3,
+            "p90_ms": 935.6,
+            "p95_ms": 1125.6,
+            "p99_ms": 1386.3,
+            "max_ms": 1386.3
+          },
+          "endpointing_p50_ms": 327.6,
+          "think_speak_p50_ms": 467.5
+        },
+        {
+          "turn": 4,
+          "caller_line": "Okay. And how long is that going to take to actually show up on my card?",
+          "ttfa": {
+            "n": 80,
+            "p50_ms": 817.2,
+            "p90_ms": 972,
+            "p95_ms": 1027.5,
+            "p99_ms": 1296.4,
+            "max_ms": 1296.4
+          },
+          "endpointing_p50_ms": 321.3,
+          "think_speak_p50_ms": 482.6
+        },
+        {
+          "turn": 5,
+          "caller_line": "Alright, that works. Thanks for sorting it out.",
+          "ttfa": {
+            "n": 80,
+            "p50_ms": 770.4,
+            "p90_ms": 2706.7,
+            "p95_ms": 3173.9,
+            "p99_ms": 5654.5,
+            "max_ms": 5654.5
+          },
+          "endpointing_p50_ms": 260.9,
+          "think_speak_p50_ms": 472.9
+        }
+      ],
+      "waits": {
+        "turns": 400,
+        "up_to_800ms": 193,
+        "800_to_1200ms": 185,
+        "1200_to_2000ms": 12,
+        "over_2000ms": 10
+      },
+      "quality": {
+        "verdict": "pass",
+        "compared": [
+          "failed turns",
+          "words misheard",
+          "interruptions"
+        ]
+      },
+      "phase": {
+        "kind": "ramp",
+        "held_s": 152.3,
+        "first_half": {
+          "n": 200,
+          "p50_ms": 797.6,
+          "p90_ms": 973.4,
+          "p95_ms": 1034.4,
+          "p99_ms": 3173.9,
+          "max_ms": 3223.6
+        },
+        "second_half": {
+          "n": 200,
+          "p50_ms": 819.8,
+          "p90_ms": 1052.6,
+          "p95_ms": 1374.8,
+          "p99_ms": 3155.1,
+          "max_ms": 5654.5
+        },
+        "drift_pct": 0.028,
+        "drift": "steady"
+      },
+      "harness_degraded": true,
+      "p95_ratio": 1.13,
+      "verdict": "pass",
+      "nodes": [
+        {
+          "node": "turn-1",
+          "visits": 80,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-2",
+          "visits": 80,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-3",
+          "visits": 80,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-4",
+          "visits": 80,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-5",
+          "visits": 80,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        }
+      ]
+    }
+  ],
+  "judge": {
+    "backend": "groq openai/gpt-oss-120b",
+    "criteria": [
+      "The assistant asks the user for an order number before the assistant discusses the specific order",
+      "The assistant confirms a refund at any point in the call"
+    ],
+    "judged": 20,
+    "passed": 20,
+    "errored": 0,
+    "misses": [
+      {
+        "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+        "missed": 0,
+        "judged": 20
+      },
+      {
+        "criterion": "The assistant confirms a refund at any point in the call",
+        "missed": 0,
+        "judged": 20
+      }
+    ],
+    "calls": [
+      {
+        "step": "baseline",
+        "request_id": "01a09bed-81a0-7e02-ba39-84ee97a905dc",
+        "wer": 0.014084507042253521,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c10",
+        "request_id": "01a09c08-c66f-7b93-932d-99858b8d4c61",
+        "wer": 0.014084507042253521,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c10",
+        "request_id": "01a09c08-c667-7640-976a-d4ea211ee0d7",
+        "wer": 0.014084507042253521,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c10",
+        "request_id": "01a09c08-c65e-79e2-8cc2-a3fa5c8ddb53",
+        "wer": 0.014084507042253521,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c20",
+        "request_id": "01a09c0b-34b8-77b2-8c96-e538fc43d3c5",
+        "wer": 0.014084507042253521,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c40",
+        "request_id": "01a09c0c-cff1-7bd2-a8d9-b9dcaa5f3fb6",
+        "wer": 0.014084507042253521,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c40",
+        "request_id": "01a09c0c-d0ad-7440-9d7b-e82bc9477355",
+        "wer": 0.014084507042253521,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "baseline",
+        "request_id": "01a09bec-b133-7533-a1de-20a5865c954e",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "baseline",
+        "request_id": "01a09bef-0960-71c2-9553-3820e3e30ab3",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c5",
+        "request_id": "01a09c04-19d3-7b70-9e91-876f734d44ed",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c5",
+        "request_id": "01a09c04-19dc-7b01-a6ed-f5da41ea9a4f",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c5",
+        "request_id": "01a09c04-19db-7f11-89e3-6235dad1581f",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c5",
+        "request_id": "01a09c04-19c1-7912-b364-55e0429e05e2",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c10",
+        "request_id": "01a09c08-c66d-7e11-94b4-77e004e176ed",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c20",
+        "request_id": "01a09c0b-34b4-70d0-9177-01023d63075b",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c20",
+        "request_id": "01a09c0b-34a3-7e70-82be-1d4725254db3",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c20",
+        "request_id": "01a09c0b-34a3-7ac3-a805-633e68529847",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c40",
+        "request_id": "01a09c0c-cff0-7173-a812-c92d850eafaf",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "baseline",
+        "request_id": "01a09bee-3ee5-7722-897f-050a6b1efdf8",
+        "wer": 0.04225352112676056,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c40",
+        "request_id": "01a09c0c-cff3-7463-9f19-38724348d375",
+        "wer": 0.04225352112676056,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      }
+    ],
+    "correlation": {
+      "calls": 20,
+      "threshold": 0.05,
+      "clean_calls": 20,
+      "clean_passed": 20,
+      "misheard_calls": 0,
+      "misheard_passed": 0,
+      "clean_pass_rate": 1,
+      "misheard_pass_rate": 0,
+      "gap": 0,
+      "median_wer_passed": 0.028169014084507043,
+      "median_wer_failed": 0,
+      "conclusive": false,
+      "note": "every judged call was heard cleanly, so there is nothing to compare it against"
+    },
+    "waits": {
+      "line_ms": 1200,
+      "calls": 20,
+      "slow_calls": 0,
+      "slow_passed": 0,
+      "quick_calls": 20,
+      "quick_passed": 20,
+      "slow_pass_rate": 0,
+      "quick_pass_rate": 1,
+      "conclusive": false,
+      "note": "no judged call waited past the line, so there is nothing to compare"
+    },
+    "judgements": [
+      {
+        "step": "baseline",
+        "request_id": "01a09bec-b133-7533-a1de-20a5865c954e",
+        "judged_at": "2026-09-13T15:58:29.5853174-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Please provide your order number.\"; turn 2 assistant: \"I’ll arrange a replacement shipment for your wireless headphones.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and later discusses the specific product (wireless headphones) in turn 2, which occurs after the request, fulfilling the requirement."
+          },
+          {
+            "criterion": "The assistant confirms a refund at any point in the call",
+            "met": true,
+            "evidence": "turn 3 assistant: \"I can process a refund for you. Confirming the refund now.\"",
+            "reasoning": "The assistant explicitly confirms a refund in turn 3, satisfying the criterion."
+          }
+        ]
+      },
+      {
+        "step": "baseline",
+        "request_id": "01a09bed-81a0-7e02-ba39-84ee97a905dc",
+        "judged_at": "2026-09-13T15:58:35.3030615-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"What's your order number?\"; turn 2 assistant: \"I'll arrange a replacement shipment for your wireless headphones.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and later discusses the specific product in turn 2, so the request precedes the discussion as required."
+          },
+          {
+            "criterion": "The assistant confirms a refund at any point in the call",
+            "met": true,
+            "evidence": "turn 3 assistant: \"I can process a refund for you.\"",
+            "reasoning": "The assistant explicitly confirms a refund in turn 3, satisfying the criterion."
+          }
+        ]
+      },
+      {
+        "step": "baseline",
+        "request_id": "01a09bee-3ee5-7722-897f-050a6b1efdf8",
+        "judged_at": "2026-09-13T15:58:42.0932567-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can you provide me with your order number, please?\"; turn 2 assistant: \"I’ll arrange a replacement shipment for your order of wireless headphones.\"",
+            "reasoning": "The assistant asks for the order number in turn 1, and later discusses the specific order (wireless headphones) in turn 2. The request occurs before the discussion, satisfying the criterion."
+          },
+          {
+            "criterion": "The assistant confirms a refund at any point in the call",
+            "met": true,
+            "evidence": "turn 3 assistant: \"I can issue a refund for you. Confirming the refund now.\"",
+            "reasoning": "The assistant explicitly states that it is confirming a refund in turn 3, meeting the requirement to confirm a refund at any point."
+          }
+        ]
+      },
+      {
+        "step": "baseline",
+        "request_id": "01a09bef-0960-71c2-9553-3820e3e30ab3",
+        "judged_at": "2026-09-13T15:58:52.072987-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Could you please provide your order number?\"; turn 2 assistant: \"I’ll arrange a replacement shipment for your wireless headphones.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and then discusses the specific order (wireless headphones) in turn 2, satisfying the required order."
+          },
+          {
+            "criterion": "The assistant confirms a refund at any point in the call",
+            "met": true,
+            "evidence": "turn 3 assistant: \"I can issue a refund for you.\"",
+            "reasoning": "The assistant confirms a refund in turn 3, meeting the criterion."
+          }
+        ]
+      },
+      {
+        "step": "c5",
+        "request_id": "01a09c04-19d3-7b70-9e91-876f734d44ed",
+        "judged_at": "2026-09-13T15:58:58.812887-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can you provide me with your order number, please?\"; turn 2 assistant: \"I’ll arrange a replacement shipment for your wireless headphones.\"",
+            "reasoning": "The assistant asks for the order number in turn 1, and later discusses the specific order (wireless headphones) in turn 2. The request precedes the discussion, satisfying the criterion."
+          },
+          {
+            "criterion": "The assistant confirms a refund at any point in the call",
+            "met": true,
+            "evidence": "turn 3 assistant: \"I can process a refund for you.\"",
+            "reasoning": "The assistant explicitly states they can process a refund, confirming a refund at that point in the call."
+          }
+        ]
+      },
+      {
+        "step": "c5",
+        "request_id": "01a09c04-19dc-7b01-a6ed-f5da41ea9a4f",
+        "judged_at": "2026-09-13T15:59:08.2371607-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can you please provide me with your order number?\"; turn 2 assistant: \"I’ll arrange a replacement shipment for your wireless headphones now.\"",
+            "reasoning": "The assistant asks for the order number in turn 1, and later discusses the specific order (wireless headphones) in turn 2, satisfying the required order."
+          },
+          {
+            "criterion": "The assistant confirms a refund at any point in the call",
+            "met": true,
+            "evidence": "turn 3 assistant: \"I can process a refund for you.\"",
+            "reasoning": "The assistant explicitly confirms a refund in turn 3, meeting the criterion."
+          }
+        ]
+      },
+      {
+        "step": "c5",
+        "request_id": "01a09c04-19db-7f11-89e3-6235dad1581f",
+        "judged_at": "2026-09-13T15:59:17.1435927-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can you please provide your order number?\"; turn 2 assistant: \"I’ll arrange a replacement shipment for your wireless headphones.\"",
+            "reasoning": "The assistant explicitly asks for the order number in turn 1, and later discusses the specific product (wireless headphones) in turn 2. The request precedes the discussion, satisfying the requirement."
+          },
+          {
+            "criterion": "The assistant confirms a refund at any point in the call",
+            "met": true,
+            "evidence": "turn 3 assistant: \"I can process a refund for you now.\"",
+            "reasoning": "In turn 3 the assistant states it can process a refund, which confirms a refund at some point in the call."
+          }
+        ]
+      },
+      {
+        "step": "c5",
+        "request_id": "01a09c04-19c1-7912-b364-55e0429e05e2",
+        "judged_at": "2026-09-13T15:59:25.5074534-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can I have your order number, please?\"; turn 2 assistant: \"I’ll arrange a replacement shipment for your wireless headphones.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and later discusses the specific product in turn 2, satisfying the required order."
+          },
+          {
+            "criterion": "The assistant confirms a refund at any point in the call",
+            "met": true,
+            "evidence": "turn 3 assistant: \"I can process a refund for you. Confirming the refund now.\"",
+            "reasoning": "The assistant explicitly confirms a refund in turn 3, meeting the criterion."
+          }
+        ]
+      },
+      {
+        "step": "c10",
+        "request_id": "01a09c08-c66f-7b93-932d-99858b8d4c61",
+        "judged_at": "2026-09-13T15:59:32.3857586-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can you please provide the order number?\"; turn 2 assistant: \"I'll arrange a replacement shipment for those headphones now.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and later discusses the specific order (the headphones) in turn 2, satisfying the required sequence."
+          },
+          {
+            "criterion": "The assistant confirms a refund at any point in the call",
+            "met": true,
+            "evidence": "turn 3 assistant: \"I can process a refund for you.\"",
+            "reasoning": "The assistant confirms a refund in turn 3, meeting the criterion that a refund is confirmed at any point."
+          }
+        ]
+      },
+      {
+        "step": "c10",
+        "request_id": "01a09c08-c667-7640-976a-d4ea211ee0d7",
+        "judged_at": "2026-09-13T15:59:44.821677-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Please provide your order number.\"; turn 2 assistant: \"I'll arrange a replacement shipment for those headphones.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and then discusses the specific order (the headphones) in turn 2, which occurs after the request, satisfying the required order."
+          },
+          {
+            "criterion": "The assistant confirms a refund at any point in the call",
+            "met": true,
+            "evidence": "turn 3 assistant: \"I can issue a refund for you.\"",
+            "reasoning": "The assistant explicitly confirms a refund in turn 3, meeting the criterion."
+          }
+        ]
+      },
+      {
+        "step": "c10",
+        "request_id": "01a09c08-c65e-79e2-8cc2-a3fa5c8ddb53",
+        "judged_at": "2026-09-13T15:59:50.8537497-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can you provide me with your order number, please?\"; turn 2 assistant: \"I will arrange a replacement shipment for your wireless headphones.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and later discusses the specific order (wireless headphones) in turn 2, which occurs after the request, satisfying the requirement."
+          },
+          {
+            "criterion": "The assistant confirms a refund at any point in the call",
+            "met": true,
+            "evidence": "turn 3 assistant: \"I can issue a refund for you.\"",
+            "reasoning": "The assistant explicitly states they can issue a refund, confirming a refund at that point in the call."
+          }
+        ]
+      },
+      {
+        "step": "c10",
+        "request_id": "01a09c08-c66d-7e11-94b4-77e004e176ed",
+        "judged_at": "2026-09-13T16:00:01.387578-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can you provide me with your order number?\"; turn 2 assistant: \"I’ll arrange a replacement shipment for your wireless headphones.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and later discusses the specific order (the wireless headphones) in turn 2, satisfying the required sequence."
+          },
+          {
+            "criterion": "The assistant confirms a refund at any point in the call",
+            "met": true,
+            "evidence": "turn 3 assistant: \"I can process a refund for you.\"",
+            "reasoning": "The assistant explicitly confirms that a refund will be processed, meeting the criterion."
+          }
+        ]
+      },
+      {
+        "step": "c20",
+        "request_id": "01a09c0b-34b8-77b2-8c96-e538fc43d3c5",
+        "judged_at": "2026-09-13T16:00:06.1635101-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can you please provide your order number?\"; turn 2 assistant: \"I’ll arrange a replacement shipment for your headphones.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and later discusses the specific order (headphones) in turn 2, satisfying the required sequence."
+          },
+          {
+            "criterion": "The assistant confirms a refund at any point in the call",
+            "met": true,
+            "evidence": "turn 3 assistant: \"I can issue a refund for you.\"",
+            "reasoning": "The assistant confirms a refund in turn 3, meeting the criterion that a refund is confirmed at any point."
+          }
+        ]
+      },
+      {
+        "step": "c20",
+        "request_id": "01a09c0b-34b4-70d0-9177-01023d63075b",
+        "judged_at": "2026-09-13T16:00:13.3464556-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can you please provide your order number?\"; turn 2 assistant: \"I will arrange a replacement shipment for your wireless headphones.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and then discusses the specific order (wireless headphones) in turn 2, which occurs after the request, satisfying the required order."
+          },
+          {
+            "criterion": "The assistant confirms a refund at any point in the call",
+            "met": true,
+            "evidence": "turn 3 assistant: \"I can process a refund for you.\"",
+            "reasoning": "The assistant states they can process a refund, which confirms a refund at that point in the call."
+          }
+        ]
+      },
+      {
+        "step": "c20",
+        "request_id": "01a09c0b-34a3-7e70-82be-1d4725254db3",
+        "judged_at": "2026-09-13T16:00:18.9000353-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can you please provide me with your order number?\"; turn 2 assistant: \"I'll arrange a replacement shipment for your wireless headphones.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and later discusses the specific product in turn 2, satisfying the required order."
+          },
+          {
+            "criterion": "The assistant confirms a refund at any point in the call",
+            "met": true,
+            "evidence": "turn 3 assistant: \"I can process a refund for you.\"",
+            "reasoning": "The assistant explicitly confirms that a refund will be processed, meeting the criterion."
+          }
+        ]
+      },
+      {
+        "step": "c20",
+        "request_id": "01a09c0b-34a3-7ac3-a805-633e68529847",
+        "judged_at": "2026-09-13T16:00:26.4725611-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can you provide me with your order number?\"; turn 2 assistant: \"I’ll arrange a replacement shipment for your wireless headphones.\"",
+            "reasoning": "The assistant asks for the order number in turn 1, and later discusses the specific order (wireless headphones) in turn 2, satisfying the required order."
+          },
+          {
+            "criterion": "The assistant confirms a refund at any point in the call",
+            "met": true,
+            "evidence": "turn 3 assistant: \"I can process a refund for you now.\"",
+            "reasoning": "The assistant explicitly confirms a refund in turn 3, meeting the criterion."
+          }
+        ]
+      },
+      {
+        "step": "c40",
+        "request_id": "01a09c0c-cff1-7bd2-a8d9-b9dcaa5f3fb6",
+        "judged_at": "2026-09-13T16:00:31.4121345-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can you please provide your order number?\"; turn 2 assistant: \"I'll arrange a replacement shipment for those headphones now.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and later discusses the specific order (the headphones) in turn 2, satisfying the required order."
+          },
+          {
+            "criterion": "The assistant confirms a refund at any point in the call",
+            "met": true,
+            "evidence": "turn 3 assistant: \"I can issue a refund for you.\"",
+            "reasoning": "The assistant confirms a refund in turn 3, meeting the criterion."
+          }
+        ]
+      },
+      {
+        "step": "c40",
+        "request_id": "01a09c0c-cff0-7173-a812-c92d850eafaf",
+        "judged_at": "2026-09-13T16:00:41.6804588-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Could you please provide me with your order number?\" and turn 2 assistant: \"I'll arrange a replacement shipment for your wireless headphones now.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and later discusses the specific order (wireless headphones) in turn 2, so the request precedes the discussion as required."
+          },
+          {
+            "criterion": "The assistant confirms a refund at any point in the call",
+            "met": true,
+            "evidence": "turn 3 assistant: \"I can process a refund for you now.\"",
+            "reasoning": "The assistant explicitly confirms that a refund will be processed, satisfying the criterion."
+          }
+        ]
+      },
+      {
+        "step": "c40",
+        "request_id": "01a09c0c-cff3-7463-9f19-38724348d375",
+        "judged_at": "2026-09-13T16:00:45.104882-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can you provide me with your order number?\"; turn 2 assistant: \"I'll arrange a replacement shipment for your wireless headphones.\"",
+            "reasoning": "The assistant asks for the order number in turn 1, and later discusses the specific order (the wireless headphones) in turn 2. The request precedes the discussion, satisfying the criterion."
+          },
+          {
+            "criterion": "The assistant confirms a refund at any point in the call",
+            "met": true,
+            "evidence": "turn 3 assistant: \"I can issue a refund for you.\"",
+            "reasoning": "The assistant explicitly confirms that a refund can be issued in turn 3, meeting the requirement to confirm a refund at any point."
+          }
+        ]
+      },
+      {
+        "step": "c40",
+        "request_id": "01a09c0c-d0ad-7440-9d7b-e82bc9477355",
+        "judged_at": "2026-09-13T16:00:52.5557931-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Please provide your order number.\"; turn 2 assistant: \"I’ll arrange a replacement shipment for your wireless headphones.\"",
+            "reasoning": "The assistant explicitly asks for the order number in turn 1, and later discusses the specific order (wireless headphones) in turn 2, satisfying the required sequence."
+          },
+          {
+            "criterion": "The assistant confirms a refund at any point in the call",
+            "met": true,
+            "evidence": "turn 3 assistant: \"I can process a refund for you.\"",
+            "reasoning": "The assistant confirms a refund in turn 3, meeting the criterion that a refund is confirmed at any point in the call."
+          }
+        ]
+      }
+    ]
+  },
+  "integrity": {
+    "dispatch": {
+      "dispatched": 210,
+      "received": 210,
+      "duplicates": 2,
+      "missing": 0,
+      "late": 0,
+      "steps": [
+        {
+          "step": "baseline",
+          "dispatched": 30,
+          "received": 30,
+          "duplicates": 0,
+          "missing": 0,
+          "late": 0
+        },
+        {
+          "step": "c5",
+          "dispatched": 30,
+          "received": 30,
+          "duplicates": 2,
+          "missing": 0,
+          "late": 0
+        },
+        {
+          "step": "c10",
+          "dispatched": 30,
+          "received": 30,
+          "duplicates": 0,
+          "missing": 0,
+          "late": 0
+        },
+        {
+          "step": "c20",
+          "dispatched": 40,
+          "received": 40,
+          "duplicates": 0,
+          "missing": 0,
+          "late": 0
+        },
+        {
+          "step": "c40",
+          "dispatched": 80,
+          "received": 80,
+          "duplicates": 0,
+          "missing": 0,
+          "late": 0
+        }
+      ]
+    },
+    "turn_events": {
+      "published": 0,
+      "dropped": 0
+    }
+  },
+  "references": [
+    {
+      "id": "hamming-observed-production-p50",
+      "label": "Hamming observed production median",
+      "kind": "observed",
+      "ms": 1400,
+      "to_ms": 1700,
+      "percentile": 50,
+      "axis": "end_of_speech",
+      "boundary": "Median latency observed across more than 10 million minutes of production calls. The start and end instants are not restated beside the figure.",
+      "placement": "No boundary is stated with it, so it is read on the widest Callstorm clock: an agent under this range from true end of speech is under it on any narrower clock too.",
+      "cites": [
+        {
+          "source": "Hamming",
+          "title": "voice agent latency guide",
+          "published": "2026-01"
+        }
+      ]
+    },
+    {
+      "id": "coval-load-p95",
+      "label": "Coval p95 target under load",
+      "kind": "target",
+      "ms": 2000,
+      "percentile": 95,
+      "axis": "end_of_speech",
+      "boundary": "Response latency under load, p95 under 2s. The start and end instants are not defined beside the threshold.",
+      "placement": "No boundary is stated with it, so it is read on the widest Callstorm clock, where holding it means holding it on any narrower one.",
+      "cites": [
+        {
+          "source": "Coval",
+          "title": "load testing methodology",
+          "published": "2026-03-07"
+        }
+      ]
+    },
+    {
+      "id": "hamming-ttfw-breakdown",
+      "label": "Hamming TTFW breakdown line",
+      "kind": "target",
+      "ms": 800,
+      "percentile": 0,
+      "axis": "detection",
+      "boundary": "TTFW, from VAD silence detection to the first agent audio byte. Past 800ms is conversation breakdown. No percentile is stated.",
+      "placement": "Its clock starts at detection, so it is read on think/speak. Callstorm's detection instant is the agent's transcript arriving, later than VAD detection by transcript finalization, so this reading leans in the agent's favour.",
+      "cites": [
+        {
+          "source": "Hamming",
+          "title": "voice agent analytics guide",
+          "published": "2026-02-10"
+        }
+      ]
+    },
+    {
+      "id": "human-turn-offset",
+      "label": "Human turn-taking marker",
+      "kind": "perceptual",
+      "ms": 300,
+      "percentile": 50,
+      "axis": "end_of_speech",
+      "boundary": "People answer about 208ms after the other speaker stops, across languages. 300ms is the edge Hamming labels natural.",
+      "placement": "A human gap runs from the moment the other speaker actually stops, so it is read on the end-of-speech clock at the median. It marks what a person does; it is not a pass line.",
+      "cites": [
+        {
+          "source": "Cekura",
+          "title": "voice agent latency guide",
+          "published": "2026-09-03"
+        },
+        {
+          "source": "Hamming",
+          "title": "voice agent analytics guide",
+          "published": "2026-02-10"
+        }
+      ]
+    }
+  ],
+  "scenario_hash": "c630ec6906ff8a042879100502d42223da37484fd257ba92793553a22ec324d9",
+  "profile_hash": "ee7c5e6bed501b4b405ffd826634e1789aa95ed9a91e9d89a88d6df3d73a2e99",
+  "suite": "deepgram-full-20260913-1644"
+}

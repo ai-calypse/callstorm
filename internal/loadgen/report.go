@@ -8,9 +8,11 @@ import (
 	"github.com/yakshgandhi/callstorm/internal/metrics"
 )
 
-// Verdict thresholds follow the published voice-agent load-testing guidance:
-// score a step by how far it has degraded relative to the baseline step, not
-// against an absolute latency target, because a target that is generous for one
+// The fail line follows the degradation rule in Coval's load-testing
+// methodology (March 2026), p95 within 2x the baseline at peak; the warn line
+// at 1.5x is Callstorm's own. A step is scored by how far it has degraded
+// relative to the baseline step, not against an absolute latency target,
+// because published targets disagree and a target that is generous for one
 // agent is unreachable for another.
 const (
 	warnRatio = 1.5 // p95 up to 1.5x baseline passes
@@ -27,8 +29,12 @@ const (
 
 // Summary is the percentile spread of one metric over one step.
 type Summary struct {
-	N      int     `json:"n"`
-	P50Ms  float64 `json:"p50_ms"`
+	N     int     `json:"n"`
+	P50Ms float64 `json:"p50_ms"`
+
+	// P90Ms sits between the usual turn and the tail, and is offered on the
+	// impairment heatmap beside p50 and p95.
+	P90Ms  float64 `json:"p90_ms"`
 	P95Ms  float64 `json:"p95_ms"`
 	P99Ms  float64 `json:"p99_ms"`
 	MaxMs  float64 `json:"max_ms"`
@@ -46,6 +52,7 @@ func summarize(ds []time.Duration) Summary {
 	return Summary{
 		N:      len(ds),
 		P50Ms:  ms(metrics.Percentile(ds, 50)),
+		P90Ms:  ms(metrics.Percentile(ds, 90)),
 		P95Ms:  ms(p95),
 		P99Ms:  ms(metrics.Percentile(ds, 99)),
 		MaxMs:  ms(metrics.Percentile(ds, 100)),
@@ -73,7 +80,26 @@ type StepReport struct {
 	ThinkSpeak  Summary `json:"think_speak"`
 	TurnLatency Summary `json:"turn_latency"`
 
+	// TransportRTT is the round trip to the agent's edge measured during this
+	// step's turns. AgentTTFA and AgentEndpointing are TTFA and endpointing with
+	// each turn's own round trip subtracted: an estimate of the share of the
+	// wait the agent owns. The observed figures above are what the caller
+	// experienced, and stay the ones the verdict is scored on. A turn with no
+	// pong counts in the observed figures and not here, so AgentTTFA.N below
+	// TTFA.N says how much of the step could be corrected.
+	TransportRTT     Summary `json:"transport_rtt"`
+	AgentTTFA        Summary `json:"agent_ttfa"`
+	AgentEndpointing Summary `json:"agent_endpointing"`
+
 	WorstDriftMs float64 `json:"worst_harness_drift_ms"`
+
+	// StartedAt and EndedAt are when the step's first call started and its last
+	// call hung up. Timeline is every call in the step in start order with its
+	// median TTFA: what a per-step percentile flattens away, and what recovery
+	// time and slowing over time are read from.
+	StartedAt time.Time   `json:"started_at"`
+	EndedAt   time.Time   `json:"ended_at"`
+	Timeline  []CallPoint `json:"timeline,omitempty"`
 
 	// Conversation is how the calls sounded: pace, share of the talking,
 	// interruptions and dead air. Latency says how fast; this says how it felt.
@@ -90,11 +116,20 @@ type StepReport struct {
 	// and to a question nobody asked.
 	WER WERStats `json:"wer"`
 
-	// Grade is where this step falls on the absolute latency scale, reported
-	// beside the relative verdict because the two answer different questions.
-	// A run can pass every step against its own baseline and still be graded a
-	// breakdown throughout -- which is the finding a relative score hides.
-	Grade Grade `json:"grade"`
+	// LeadingSilence is how long replies stayed silent after their first audio
+	// arrived, and AudibleTTFA is TTFA plus it: the wait until the caller could
+	// hear anything. Only turns where sound was found count, and zero here is
+	// the good result.
+	LeadingSilence Summary `json:"leading_silence"`
+	AudibleTTFA    Summary `json:"audible_ttfa"`
+
+	// Turns is the wait at each turn of the conversation, and Waits counts
+	// turns by how long the caller waited. Both come from the step's calls.
+	Turns []TurnWait `json:"turns,omitempty"`
+	Waits WaitBands  `json:"waits"`
+
+	// Quality is the step's verdict on doing the job, beside Verdict on speed.
+	Quality Quality `json:"quality"`
 
 	// Phase is how the step behaved across its own duration: the shape a
 	// single percentile flattens away.
@@ -109,6 +144,14 @@ type StepReport struct {
 	// pass, warn or fail against that ratio and the setup success rate.
 	P95Ratio float64 `json:"p95_ratio"`
 	Verdict  string  `json:"verdict"`
+
+	// VsClean is this step's p95 TTFA over the same step in the clean cohort
+	// of an impairment matrix: what the network cost, with the load held equal.
+	// Zero outside a matrix.
+	VsClean float64 `json:"vs_clean,omitempty"`
+
+	// Nodes is the pass rate of each scenario node's assertion over this step.
+	Nodes []NodeStats `json:"nodes,omitempty"`
 
 	Errors map[string]int `json:"errors,omitempty"`
 }
@@ -157,6 +200,7 @@ type Report struct {
 	Baseline  string       `json:"baseline"`
 	StartedAt time.Time    `json:"started_at"`
 	Duration  float64      `json:"duration_s"`
+	EndedAt   time.Time    `json:"ended_at"`
 	Steps     []StepReport `json:"steps"`
 
 	// Judge is what an LLM grader made of the conversations, present only when
@@ -165,6 +209,31 @@ type Report struct {
 	// misheard are the calls it failed -- needs the transcripts and the
 	// verdicts in the same document.
 	Judge *TaskSuccess `json:"judge,omitempty"`
+
+	// Matrix is present when the run crossed its profile with network
+	// impairment. Steps above are then the clean cohort, so every card that
+	// reads a plain run reads the same-session control.
+	Matrix *Matrix `json:"matrix,omitempty"`
+
+	// Integrity is whether the harness's own event pipeline delivered what it
+	// sent. Absent when the run used no pipeline to check.
+	Integrity *Integrity `json:"integrity,omitempty"`
+
+	// References are the published lines this run was read against, copied in
+	// at the time it ran. The list will change as vendors publish, and a
+	// report should still say what it was compared with.
+	References []Reference `json:"references,omitempty"`
+
+	// ScenarioHash and ProfileHash fingerprint the scenario and load profile
+	// exactly as the run executed them, defaults applied. Two runs with the
+	// same hashes against the same target asked the same question.
+	ScenarioHash string `json:"scenario_hash,omitempty"`
+	ProfileHash  string `json:"profile_hash,omitempty"`
+
+	// Suite names the load test this run was one part of. A test that covers
+	// several scenarios, or a sweep and a network matrix, is several runs --
+	// each keeps its own baseline -- and this is what reads them as one.
+	Suite string `json:"suite,omitempty"`
 
 	// Calls is every conversation the run produced, kept out of the report
 	// card and written alongside it. The report card answers how fast the
@@ -181,6 +250,21 @@ type CallRecord struct {
 	// Worker names the pod that placed the call, empty when the run was not
 	// distributed. It is what lets a chaos run show which calls moved.
 	Worker string `json:"worker,omitempty"`
+
+	// Cohort names the impairment profile the call was placed under, empty
+	// outside a matrix. Step names repeat across cohorts, so without it a call
+	// cannot be traced back to the network it ran on.
+	Cohort string `json:"cohort,omitempty"`
+
+	// StartedAt and EndedAt are when the call's clock started and when it hung
+	// up, and Events is its full event log, each instant in milliseconds from
+	// StartedAt. Error is set on a call that failed, which is recorded like any
+	// other: a call that never connected is part of what happened, and the log
+	// should say when.
+	StartedAt time.Time       `json:"started_at"`
+	EndedAt   time.Time       `json:"ended_at"`
+	Events    []metrics.Event `json:"events,omitempty"`
+	Error     string          `json:"error,omitempty"`
 
 	Turns []metrics.TurnMetric `json:"turns"`
 }
@@ -199,6 +283,12 @@ type callOutcome struct {
 	// calls and drift across it cannot be seen at all.
 	startedAt time.Time
 	endedAt   time.Time
+
+	// clockZero and callEnded are the worker's own timestamps for the call,
+	// and events its event log. All three are zero for a call that never ran.
+	clockZero time.Time
+	callEnded time.Time
+	events    []metrics.Event
 }
 
 // buildStepReport folds every call placed during one step into its report.
@@ -211,6 +301,8 @@ func buildStepReportAt(step Step, outcomes []callOutcome, ratePerMinute float64)
 	r := StepReport{Step: step, Errors: map[string]int{}}
 
 	var ttfa, endpointing, thinkSpeak, turnLatency []time.Duration
+	var agentTTFA, agentEndpointing, rtts []time.Duration
+	var silences, audible []time.Duration
 	var worstDrift time.Duration
 
 	var (
@@ -287,6 +379,26 @@ func buildStepReportAt(step Step, outcomes []callOutcome, ratePerMinute float64)
 			if t.TurnLatency > 0 {
 				turnLatency = append(turnLatency, t.TurnLatency)
 			}
+
+			// Only a turn with a measured round trip is corrected. A turn with
+			// no pong is still what the caller waited through, so it stays in
+			// the observed figures and is simply not estimated here.
+			if t.TransportRTTMeasured {
+				rtts = append(rtts, t.TransportRTT)
+				if t.TTFA > 0 {
+					agentTTFA = append(agentTTFA, t.TTFA-t.TransportRTT)
+				}
+				if t.Endpointing > 0 {
+					agentEndpointing = append(agentEndpointing, t.Endpointing-t.TransportRTT)
+				}
+			}
+
+			if t.LeadingSilenceMeasured {
+				silences = append(silences, t.LeadingSilence)
+				if t.TTFA > 0 {
+					audible = append(audible, t.TTFA+t.LeadingSilence)
+				}
+			}
 		}
 	}
 
@@ -297,6 +409,11 @@ func buildStepReportAt(step Step, outcomes []callOutcome, ratePerMinute float64)
 	r.Endpointing = summarize(endpointing)
 	r.ThinkSpeak = summarize(thinkSpeak)
 	r.TurnLatency = summarize(turnLatency)
+	r.TransportRTT = summarize(rtts)
+	r.AgentTTFA = summarize(agentTTFA)
+	r.AgentEndpointing = summarize(agentEndpointing)
+	r.LeadingSilence = summarize(silences)
+	r.AudibleTTFA = summarize(audible)
 	r.WorstDriftMs = math.Round(float64(worstDrift.Microseconds())/1000*10) / 10
 	r.HarnessDegraded = math.Abs(r.WorstDriftMs) > MaxHealthyDriftMs
 
@@ -310,9 +427,10 @@ func buildStepReportAt(step Step, outcomes []callOutcome, ratePerMinute float64)
 	}
 
 	r.Conversation = summarizeConversation(outcomes)
+	analyzeCalls(&r, connectedTurns(outcomes))
 	r.Cost = summarizeCost(outcomes, ratePerMinute)
 	r.Phase = summarizePhase(step, outcomes)
-	gradeStep(&r)
+	r.StartedAt, r.EndedAt, r.Timeline = summarizeTimeline(outcomes)
 
 	// A step held for a duration was configured with no call count, so the
 	// report supplies the one it actually placed. Otherwise every consumer
@@ -343,16 +461,28 @@ func buildStepReportAt(step Step, outcomes []callOutcome, ratePerMinute float64)
 // score fills in each step's degradation ratio and verdict, relative to the
 // baseline step.
 func (rep *Report) score() {
-	var base time.Duration
+	rep.scoreAgainst(rep.baselineP95())
+	rep.ScoreQuality()
+}
+
+// baselineP95 is the p95 TTFA of the run's own baseline step.
+func (rep *Report) baselineP95() time.Duration {
 	for _, s := range rep.Steps {
 		if s.Name == rep.Baseline {
-			base = s.TTFA.p95Raw
-			break
+			return s.TTFA.p95Raw
 		}
 	}
+	return 0
+}
 
+// scoreAgainst fills in each step's ratio and verdict against a given p95. An
+// impaired cohort is scored against the clean cohort's baseline rather than its
+// own, so its verdicts say what the network cost and not merely what load did
+// on an already degraded line.
+func (rep *Report) scoreAgainst(base time.Duration) {
 	for i := range rep.Steps {
 		s := &rep.Steps[i]
+		s.P95Ratio = 0
 		switch {
 		case s.CallsAttempted > 0 && s.SetupSuccess < minSetupSuccess:
 			s.Verdict = "fail"
@@ -376,6 +506,7 @@ func (rep *Report) score() {
 		// latency means the agent returned rather than stayed broken.
 		if s.Phase.Kind == KindRecovery {
 			s.Phase.Recovered = s.P95Ratio > 0 && s.P95Ratio <= recoveredRatio
+			s.Phase.BackToNormal, s.Phase.BackToNormalAfterS = backToNormal(*s, rep.baselineP50Ms())
 		}
 	}
 }

@@ -56,6 +56,12 @@ type Result struct {
 	RequestID string    `json:"request_id"`
 	StartedAt time.Time `json:"started_at"`
 
+	// ClockZero is the wall-clock instant the call's clock started, once the
+	// connection was up; every event's t_ms counts from it. EndedAt is when the
+	// call hung up.
+	ClockZero time.Time `json:"clock_zero"`
+	EndedAt   time.Time `json:"ended_at"`
+
 	Turns  []metrics.TurnMetric `json:"turns"`
 	Events []metrics.Event      `json:"events"`
 
@@ -106,6 +112,9 @@ type worker struct {
 	// greeting. Branching reads it to decide the caller's next line, which is
 	// the difference between a caller who responds and one who recites.
 	lastAgentText string
+
+	// rtt is this call's round-trip samples; see pingLoop.
+	rtt rttLog
 }
 
 // Run places one call and returns its measurements.
@@ -159,6 +168,7 @@ func Run(ctx context.Context, cfg Config) (*Result, error) {
 	defer stopPump()
 	go w.pump.run(pumpCtx)
 	go w.readLoop(ctx)
+	go w.pingLoop(pumpCtx)
 
 	var turns []metrics.TurnMetric
 
@@ -168,22 +178,45 @@ func Run(ctx context.Context, cfg Config) (*Result, error) {
 		}
 	}
 
-	for i, t := range cfg.Scenario.Turns {
-		// A turn that barges in changes the turn before it: that reply has to
-		// be cut short so the interruption lands while the agent is talking.
-		var interruptAfter time.Duration
-		if i+1 < len(cfg.Scenario.Turns) {
-			interruptAfter = cfg.Scenario.Turns[i+1].BargeIn()
-		}
-		barging := t.BargeIn() > 0
+	// Walk the scenario graph. The node after this one is decided before this
+	// line is spoken -- the branch is chosen on the agent's previous reply -- so
+	// a barge-in on the next node can still arm against this turn's reply.
+	nodes := cfg.Scenario.Turns
+	limit := cfg.Scenario.TurnLimit()
+	for n, i := 0, 0; n < limit && i < len(nodes); n++ {
+		t := nodes[i]
 
-		say, matched := t.Choose(w.lastAgentText)
+		say, matched, jump := t.Choose(w.lastAgentText)
 		if matched != "" {
 			w.printf("  (branch: agent said %q)\n", matched)
 		}
+		next := i + 1
+		if jump != "" {
+			next = cfg.Scenario.Index(jump)
+		}
 
-		m := w.runTurn(ctx, i+1, utterances[say], say, interruptAfter, barging)
+		// A turn that barges in changes the turn before it: that reply has to
+		// be cut short so the interruption lands while the agent is talking.
+		var interruptAfter time.Duration
+		if next < len(nodes) && n+1 < limit {
+			interruptAfter = nodes[next].BargeIn()
+		}
+		barging := t.BargeIn() > 0
+
+		m := w.runTurn(ctx, n+1, utterances[say], say, interruptAfter, barging)
 		m.Branch = matched
+		m.Node = t.ID
+		if t.Expect != nil {
+			m.ExpectChecked = true
+			if m.AgentText == "" {
+				m.ExpectMiss = "no reply"
+				if m.FailReason != "" {
+					m.ExpectMiss += ": " + m.FailReason
+				}
+			} else {
+				m.ExpectMet, m.ExpectMiss = t.Expect.Check(m.AgentText)
+			}
+		}
 		m.Finalize()
 		turns = append(turns, m)
 		if cfg.OnTurn != nil {
@@ -192,6 +225,7 @@ func Run(ctx context.Context, cfg Config) (*Result, error) {
 		if m.Failed && m.FailReason != "turn timeout" {
 			break
 		}
+		i = next
 	}
 
 	w.log.Mark(metrics.CallEnd, 0, "")
@@ -204,6 +238,8 @@ func Run(ctx context.Context, cfg Config) (*Result, error) {
 		Persona:        cfg.Scenario.Persona,
 		RequestID:      w.requestID,
 		StartedAt:      startedAt,
+		ClockZero:      w.log.Start(),
+		EndedAt:        w.log.Start().Add(total),
 		Turns:          turns,
 		Events:         w.log.Events(),
 		CallDurationMs: float64(total.Milliseconds()),
@@ -305,6 +341,20 @@ func (w *worker) readLoop(ctx context.Context) {
 	// over the tail of every reply.
 	var playoutEnd time.Duration
 
+	// onset finds the first sound a caller could hear in each reply, and marks
+	// places each chunk of the reply on its playout: the sample it starts at and
+	// when it plays. A reply that opens with silence is heard later than its
+	// first byte arrives, and the chunk the sound is found in says how much.
+	type chunkMark struct {
+		sample int
+		plays  time.Duration
+	}
+	var (
+		onset   *audio.Onset
+		marks   []chunkMark
+		samples int
+	)
+
 	for {
 		typ, data, err := w.conn.Read(ctx)
 		if err != nil {
@@ -326,6 +376,7 @@ func (w *worker) readLoop(ctx context.Context) {
 			if !speaking {
 				speaking = true
 				playoutEnd = at
+				onset, marks, samples = audio.NewOnset(w.cfg.SampleRate), marks[:0], 0
 				w.markBytes(metrics.AgentFirstAudio, len(data))
 				w.emit(srvEvent{kind: metrics.AgentFirstAudio, at: at})
 			}
@@ -333,6 +384,25 @@ func (w *worker) readLoop(ctx context.Context) {
 			// chunk finishes -- whichever is later.
 			if playoutEnd < at {
 				playoutEnd = at
+			}
+			if onset != nil {
+				marks = append(marks, chunkMark{samples, playoutEnd})
+				samples += len(data) / 2
+				if onset.Write(data) {
+					// The first audible window can begin in an earlier chunk
+					// than the one that completed it.
+					start, _ := onset.Start()
+					m := marks[0]
+					for _, c := range marks {
+						if c.sample <= start {
+							m = c
+						}
+					}
+					audible := m.plays + time.Duration(float64(start-m.sample)/float64(w.cfg.SampleRate)*float64(time.Second))
+					w.log.MarkAt(audible, metrics.AgentAudible, int(w.curTurn.Load()), (audible - marks[0].plays).String())
+					w.emit(srvEvent{kind: metrics.AgentAudible, at: audible})
+					onset = nil
+				}
 			}
 			playoutEnd += audio.Duration(data, w.cfg.SampleRate)
 			continue

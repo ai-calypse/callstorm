@@ -20,6 +20,28 @@ RUN CGO_ENABLED=0 go build -trimpath -o /out/worker ./cmd/worker && \
     CGO_ENABLED=0 go build -trimpath -o /out/callstorm ./cmd/callstorm && \
     CGO_ENABLED=0 go build -trimpath -o /out/dashboard ./cmd/dashboard
 
+# The impairment matrix image: build with --target impair.
+#
+# netem is driven by tc, which distroless does not carry, and changing a pod's
+# queue discipline needs root with NET_ADMIN, which the worker image refuses on
+# purpose. So the one process allowed to degrade a network gets its own image
+# rather than every worker being given the means to. It also carries tar, which
+# kubectl cp needs to copy the run's artifacts back out.
+FROM debian:bookworm-slim AS impair
+
+# ca-certificates because this image also dispatches and judges: without roots
+# the judge's HTTPS call to Groq fails verification and every verdict errors.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends iproute2 ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /out/callstorm /callstorm
+COPY --from=build /src/scenarios /scenarios
+COPY --from=build /src/profiles /profiles
+COPY .audiocache /cache
+
+ENTRYPOINT ["/callstorm"]
+
 FROM gcr.io/distroless/static-debian12:nonroot
 
 COPY --from=build /out/worker /worker

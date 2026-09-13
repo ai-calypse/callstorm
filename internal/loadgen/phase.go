@@ -5,48 +5,6 @@ import (
 	"time"
 )
 
-// Absolute latency bands, from the conversational-turn-taking literature. The
-// verdict elsewhere in this package is deliberately relative -- each step
-// against the run's own baseline -- because a target that is generous for one
-// agent is unreachable for another. That is the right way to detect
-// degradation and the wrong way to answer "is this any good?", which has an
-// absolute answer: people leave about 200ms of silence between turns, and an
-// agent that takes two seconds is not slightly worse than one that takes
-// three hundred milliseconds, it is a different experience.
-const (
-	naturalMs    = 300 // indistinguishable from a person taking their turn
-	acceptableMs = 500 // noticeable, tolerated
-	sluggishMs   = 800 // the caller starts wondering whether the line dropped
-)
-
-// Grade places a step on that absolute scale, reported alongside the relative
-// verdict rather than instead of it. The two answer different questions and
-// regularly disagree: a run can pass every step against its baseline and still
-// be graded a breakdown throughout, which is exactly the finding a purely
-// relative score hides.
-type Grade struct {
-	// Typical grades p50 -- the wait a caller usually gets. Worst grades p95,
-	// the wait that makes them hang up.
-	Typical string `json:"typical"`
-	Worst   string `json:"worst"`
-}
-
-// Band names the experience a given wait produces.
-func Band(ms float64) string {
-	switch {
-	case ms <= 0:
-		return ""
-	case ms < naturalMs:
-		return "natural"
-	case ms < acceptableMs:
-		return "acceptable"
-	case ms < sluggishMs:
-		return "sluggish"
-	default:
-		return "breakdown"
-	}
-}
-
 const (
 	// driftThreshold is how far a step's median may move across its own
 	// duration before that counts as drift rather than noise.
@@ -105,6 +63,13 @@ type Phase struct {
 	// Recovered is meaningful only on a recovery step: it says whether
 	// returning to the baseline's concurrency returned the baseline's latency.
 	Recovered bool `json:"recovered,omitempty"`
+
+	// BackToNormal and BackToNormalAfterS are meaningful only on a recovery
+	// step with a timeline: whether the agent got back to normal and stayed
+	// there, and how many seconds into the step that began. Normal is every
+	// later call's median TTFA within recoveredRatio of the baseline's median.
+	BackToNormal       bool    `json:"back_to_normal,omitempty"`
+	BackToNormalAfterS float64 `json:"back_to_normal_after_s,omitempty"`
 }
 
 const (
@@ -176,11 +141,6 @@ func phaseTTFA(outcomes []callOutcome) []time.Duration {
 		}
 	}
 	return ds
-}
-
-// gradeStep places a step on the absolute scale.
-func gradeStep(r *StepReport) {
-	r.Grade = Grade{Typical: Band(r.TTFA.P50Ms), Worst: Band(r.TTFA.P95Ms)}
 }
 
 // Drifted reports whether any step of the run got slower over its own

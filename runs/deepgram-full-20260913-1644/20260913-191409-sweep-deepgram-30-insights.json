@@ -1,0 +1,97 @@
+{
+  "kind": "run",
+  "subject": "20260913-191409-sweep-deepgram-30",
+  "runs": [
+    "20260913-191409-sweep-deepgram-30"
+  ],
+  "generated_at": "2026-09-13T22:19:12.3272433Z",
+  "model": "gemini-3.5-flash",
+  "prompt_hash": "9c9d8c617b73",
+  "data_hash": "d6af96e77fb1",
+  "headline": "The voice agent demonstrates high transactional accuracy and stable throughput up to 40 concurrent calls, but suffers from a severe 3-second delay on the final refund turn.",
+  "insights": [
+    {
+      "title": "Severe Latency Spike on the Final Turn",
+      "category": "latency",
+      "severity": "high",
+      "evidence": [
+        "20260913-191409-sweep-deepgram-30, step c40, turn 4: ttfa p50_ms 3147.6",
+        "20260913-191409-sweep-deepgram-30, step c40, turn 4: think_speak_p50_ms 2923",
+        "20260913-191409-sweep-deepgram-30, step c40, turn 4: endpointing_p50_ms 230.7",
+        "20260913-191409-sweep-deepgram-30, step c20, turn 4: ttfa p50_ms 3151.1"
+      ],
+      "finding": "On the fourth and final turn of the conversation, the wait before the agent starts speaking (known as Time to First Audio, or TTFA) spikes to a median of 3147.6 ms at 40 concurrent calls (step c40) and 3151.1 ms at 20 concurrent calls (step c20). This delay is driven entirely by the agent thinking and preparing its reply (think_speak_p50_ms is 2923 in step c40), whereas noticing the caller stopped speaking (endpointing_p50_ms) is extremely fast at 230.7 ms.",
+      "why_it_matters": "A delay of over 3 seconds represents significant 'dead air' at the climax of the conversation. This severely violates the Hamming TTFW breakdown line of 800 ms, past which conversational naturalness breaks down and callers are likely to repeat themselves.",
+      "next_step": "Optimize the backend database processing or API request triggered during Turn 4, or implement streaming responses to begin vocalizing immediately."
+    },
+    {
+      "title": "Overall Tail Latency Violates Coval Target Due to Turn 4",
+      "category": "latency",
+      "severity": "high",
+      "evidence": [
+        "20260913-191409-sweep-deepgram-30, step c40: ttfa p95_ms 3355.2",
+        "20260913-191409-sweep-deepgram-30, step c20: ttfa p95_ms 3435",
+        "20260913-191409-sweep-deepgram-30, step c40, turn 1: ttfa p95_ms 1003",
+        "20260913-191409-sweep-deepgram-30, step c40, turn 2: ttfa p95_ms 874.6",
+        "20260913-191409-sweep-deepgram-30, step c40, turn 3: ttfa p95_ms 798.5"
+      ],
+      "finding": "The overall step-level tail latency (the 95th percentile, or p95, representing the slowest 5% of responses) is 3355.2 ms in step c40 and 3435 ms in step c20. However, this is heavily skewed by the final turn. The p95 TTFA values for turns 1, 2, and 3 are much faster, at 1003 ms, 874.6 ms, and 798.5 ms respectively in step c40.",
+      "why_it_matters": "Because of Turn 4, the overall agent performance violates the Coval target of keeping p95 response latency under load below 2000 ms, even though turns 1 through 3 easily satisfy this target.",
+      "next_step": "Incorporate conversational filler phrases (e.g., 'Sure, let me process that refund for you...') on Turn 4 to mask the underlying latency."
+    },
+    {
+      "title": "Degraded Test Harness Invalidates Lower Load Steps",
+      "category": "test",
+      "severity": "medium",
+      "evidence": [
+        "20260913-191409-sweep-deepgram-30, step baseline: harness_degraded true",
+        "20260913-191409-sweep-deepgram-30, step c5: harness_degraded true",
+        "20260913-191409-sweep-deepgram-30, step c10: harness_degraded true"
+      ],
+      "finding": "The baseline, c5, and c10 steps all suffered from a degraded test environment (harness_degraded is true), indicating that the test-delivery machine itself was overloaded or experiencing performance bottlenecks.",
+      "why_it_matters": "Because these steps measured the limitations of the test rig rather than the agent, no performance or latency conclusions can be safely drawn from them.",
+      "next_step": "Re-run the baseline, c5, and c10 load configurations on a fresh, non-degraded test machine to establish clean, trustworthy low-load performance baselines."
+    },
+    {
+      "title": "Consistent Performance Between 20 and 40 Concurrent Calls",
+      "category": "capacity",
+      "severity": "low",
+      "evidence": [
+        "20260913-191409-sweep-deepgram-30, step c20: ttfa p50_ms 752.2",
+        "20260913-191409-sweep-deepgram-30, step c20: ttfa p95_ms 3435",
+        "20260913-191409-sweep-deepgram-30, step c40: ttfa p50_ms 747.8",
+        "20260913-191409-sweep-deepgram-30, step c40: ttfa p95_ms 3355.2"
+      ],
+      "finding": "When doubling load from 20 to 40 concurrent calls, the agent's typical TTFA (p50) remains steady at 752.2 ms in c20 and 747.8 ms in c40. Similarly, the tail TTFA (p95) remains stable, moving from 3435 ms at c20 to 3355.2 ms at c40.",
+      "why_it_matters": "This consistency proves that the system's capacity is not yet saturated at 40 concurrent calls, confirming that the slowdown is not caused by traffic load but rather by specific turn-based logic.",
+      "next_step": "Increase the load in future tests beyond 40 concurrent calls to identify the true load-bearing ceiling of the system."
+    },
+    {
+      "title": "Exceptional Conversational Accuracy and Success Rates",
+      "category": "quality",
+      "severity": "info",
+      "evidence": [
+        "20260913-191409-sweep-deepgram-30, step c20: wer mean 0.05409090909090909",
+        "20260913-191409-sweep-deepgram-30, step c40: wer mean 0.046136363636363635",
+        "20260913-191409-sweep-deepgram-30, step c40, node refund: pass_rate 1"
+      ],
+      "finding": "The mean Word Error Rate (WER, measuring the percentage of incorrectly transcribed, deleted, or inserted words) is exceptionally low, sitting at 5.4% under 20 concurrent calls (step c20) and 4.6% under 40 concurrent calls (step c40). Furthermore, the task success rate for completing the refund step was 100.0% (pass_rate 1) across all calls in both steps.",
+      "why_it_matters": "The high volume of concurrent calls does not degrade transcription quality or cause the conversational path to break, ensuring a highly reliable transaction.",
+      "next_step": "Lock in the current Deepgram transcription model parameters as they are highly reliable."
+    },
+    {
+      "title": "Conclusive but Limited LLM Judge Evaluation",
+      "category": "test",
+      "severity": "low",
+      "evidence": [
+        "20260913-191409-sweep-deepgram-30, judge: conclusive true",
+        "20260913-191409-sweep-deepgram-30, judge: judged 20",
+        "20260913-191409-sweep-deepgram-30, judge: clean_pass_rate 1",
+        "20260913-191409-sweep-deepgram-30, judge: slow_pass_rate 1"
+      ],
+      "finding": "The automated LLM judge successfully completed a conclusive evaluation (conclusive is true) but only graded 20 calls out of the total test run. Within this small sample, both clean calls and slow calls achieved a perfect 100.0% pass rate (clean_pass_rate 1 and slow_pass_rate 1) against the criteria.",
+      "why_it_matters": "While these results indicate high conversational quality, evaluating only 20 calls from a 210-call test limits our statistical confidence.",
+      "next_step": "Scale up the number of judged calls in the configuration so that a larger, more representative subset of high-concurrency calls is audited."
+    }
+  ]
+}

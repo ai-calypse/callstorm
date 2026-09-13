@@ -21,6 +21,7 @@ if (!RUN) {
 const page = fs.readFileSync("index.html", "utf8");
 const src = [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]).join("\n");
 const run = JSON.parse(fs.readFileSync(RUN, "utf8"));
+const REFS = JSON.parse(fs.readFileSync("../../../internal/loadgen/references.json", "utf8"));
 
 globalThis.window = { addEventListener: () => {} };
 globalThis.document = { getElementById: () => ({}) };
@@ -36,7 +37,7 @@ globalThis.React = stub;
 
 const mod = new Function(src + "\n;return { ReportCard };")();
 const out = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod.ReportCard, { id: "read" }));
+  React.createElement(mod.ReportCard, { id: "read", refs: REFS }));
 
 // Cards are separated by their headings so the readings can be attributed to
 // the chart they belong to.

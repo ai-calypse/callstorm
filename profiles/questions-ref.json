@@ -1,0 +1,13 @@
+{
+  "name": "questions-ref",
+  "baseline": "ramp-c4",
+  "steps": [
+    { "name": "smoke",      "kind": "smoke",    "concurrency": 1,  "calls": 2  },
+    { "name": "ramp-c4",    "kind": "ramp",     "concurrency": 4,  "calls": 8  },
+    { "name": "spike-c16",  "kind": "spike",    "concurrency": 16, "calls": 32 },
+    { "name": "recover-c4", "kind": "recovery", "concurrency": 4,  "calls": 12 },
+    { "name": "ramp-c8",    "kind": "ramp",     "concurrency": 8,  "calls": 16 },
+    { "name": "stress-c16", "kind": "stress",   "concurrency": 16, "calls": 32 },
+    { "name": "soak-c8",    "kind": "soak",     "concurrency": 8,  "hold_s": 180 }
+  ]
+}

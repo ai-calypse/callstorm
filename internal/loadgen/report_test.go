@@ -81,3 +81,35 @@ func TestStepReportWERNoTranscripts(t *testing.T) {
 		t.Errorf("WER = %+v, want zero value", r.WER)
 	}
 }
+
+func TestAgentTTFASubtractsEachTurnsRoundTrip(t *testing.T) {
+	ms := time.Millisecond
+	turnWith := func(ttfa, endpointing, rtt time.Duration, measured bool) metrics.TurnMetric {
+		return metrics.TurnMetric{TTFA: ttfa, Endpointing: endpointing, ThinkSpeak: ttfa - endpointing,
+			TransportRTT: rtt, TransportRTTMeasured: measured}
+	}
+	outcomes := []callOutcome{{step: "c1", turns: []metrics.TurnMetric{
+		turnWith(600*ms, 300*ms, 100*ms, true),
+		turnWith(600*ms, 300*ms, 100*ms, true),
+		// No pong came back. The caller still waited 900ms, so the turn
+		// counts as observed, and is not corrected by a guess.
+		turnWith(900*ms, 600*ms, 0, false),
+		// A pong came back faster than the clock resolves: a real round trip
+		// of zero, so the turn is corrected, by nothing.
+		turnWith(500*ms, 200*ms, 0, true),
+	}}}
+	r := buildStepReport(Step{Name: "c1", Concurrency: 1, Calls: 1}, outcomes)
+
+	if r.TTFA.N != 4 || r.AgentTTFA.N != 3 {
+		t.Fatalf("observed %d turns and corrected %d, want 4 and 3", r.TTFA.N, r.AgentTTFA.N)
+	}
+	if r.AgentTTFA.P95Ms != 500 || r.AgentEndpointing.P95Ms != 200 || r.TransportRTT.P50Ms != 100 {
+		t.Errorf("agent TTFA p95 %v, agent endpointing p95 %v, round trip p50 %v; want 500, 200 and 100",
+			r.AgentTTFA.P95Ms, r.AgentEndpointing.P95Ms, r.TransportRTT.P50Ms)
+	}
+	// Think/speak is not corrected: both of its instants arrive over the same
+	// downlink, so the network already cancels out of it.
+	if r.ThinkSpeak.P50Ms != 300 {
+		t.Errorf("think/speak p50 %v, want 300 untouched", r.ThinkSpeak.P50Ms)
+	}
+}

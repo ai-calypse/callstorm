@@ -1,0 +1,2927 @@
+{
+  "profile": "sweep-deepgram-30",
+  "scenario": "refund-hesitant",
+  "target": "",
+  "baseline": "baseline",
+  "started_at": "2026-09-13T18:37:23.924355597Z",
+  "duration_s": 2191.854422579,
+  "ended_at": "2026-09-13T19:13:55.560548379Z",
+  "steps": [
+    {
+      "name": "baseline",
+      "concurrency": 1,
+      "calls": 30,
+      "calls_attempted": 30,
+      "calls_connected": 30,
+      "turns_total": 150,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 150,
+        "p50_ms": 781.8,
+        "p90_ms": 899.8,
+        "p95_ms": 949.6,
+        "p99_ms": 3166.9,
+        "max_ms": 3186.4
+      },
+      "endpointing": {
+        "n": 150,
+        "p50_ms": 301.4,
+        "p90_ms": 329,
+        "p95_ms": 359.9,
+        "p99_ms": 387.4,
+        "max_ms": 427.2
+      },
+      "think_speak": {
+        "n": 150,
+        "p50_ms": 472.6,
+        "p90_ms": 592.3,
+        "p95_ms": 669.5,
+        "p99_ms": 2922.4,
+        "max_ms": 2942.4
+      },
+      "turn_latency": {
+        "n": 150,
+        "p50_ms": 4090.1,
+        "p90_ms": 5383.9,
+        "p95_ms": 5545.4,
+        "p99_ms": 7184.4,
+        "max_ms": 7411.7
+      },
+      "transport_rtt": {
+        "n": 150,
+        "p50_ms": 81.5,
+        "p90_ms": 86,
+        "p95_ms": 87.8,
+        "p99_ms": 90.8,
+        "max_ms": 91.5
+      },
+      "agent_ttfa": {
+        "n": 150,
+        "p50_ms": 700.6,
+        "p90_ms": 816.5,
+        "p95_ms": 869.7,
+        "p99_ms": 3087,
+        "max_ms": 3102.6
+      },
+      "agent_endpointing": {
+        "n": 150,
+        "p50_ms": 219.8,
+        "p90_ms": 247.3,
+        "p95_ms": 277.4,
+        "p99_ms": 307.2,
+        "max_ms": 346.2
+      },
+      "worst_harness_drift_ms": 65.3,
+      "started_at": "2026-09-13T18:37:24.307660958Z",
+      "ended_at": "2026-09-13T19:01:58.331173923Z",
+      "timeline": [
+        {
+          "at": "2026-09-13T18:37:24.307660958Z",
+          "ttfa_ms": 781.8
+        },
+        {
+          "at": "2026-09-13T18:38:13.343788231Z",
+          "ttfa_ms": 732.6
+        },
+        {
+          "at": "2026-09-13T18:39:01.310483146Z",
+          "ttfa_ms": 799.4
+        },
+        {
+          "at": "2026-09-13T18:39:50.580380093Z",
+          "ttfa_ms": 788.3
+        },
+        {
+          "at": "2026-09-13T18:40:39.182859282Z",
+          "ttfa_ms": 743.6
+        },
+        {
+          "at": "2026-09-13T18:41:33.036380617Z",
+          "ttfa_ms": 688.5
+        },
+        {
+          "at": "2026-09-13T18:42:23.079140039Z",
+          "ttfa_ms": 807.2
+        },
+        {
+          "at": "2026-09-13T18:43:10.244282071Z",
+          "ttfa_ms": 813.1
+        },
+        {
+          "at": "2026-09-13T18:44:06.509964275Z",
+          "ttfa_ms": 772.7
+        },
+        {
+          "at": "2026-09-13T18:44:53.613290819Z",
+          "ttfa_ms": 783.9
+        },
+        {
+          "at": "2026-09-13T18:45:41.774998226Z",
+          "ttfa_ms": 771.3
+        },
+        {
+          "at": "2026-09-13T18:46:29.564935822Z",
+          "ttfa_ms": 817.7
+        },
+        {
+          "at": "2026-09-13T18:47:21.561543504Z",
+          "ttfa_ms": 816.6
+        },
+        {
+          "at": "2026-09-13T18:48:13.767193762Z",
+          "ttfa_ms": 795.7
+        },
+        {
+          "at": "2026-09-13T18:49:01.89474575Z",
+          "ttfa_ms": 772.9
+        },
+        {
+          "at": "2026-09-13T18:49:49.641300269Z",
+          "ttfa_ms": 737
+        },
+        {
+          "at": "2026-09-13T18:50:39.636394167Z",
+          "ttfa_ms": 785.6
+        },
+        {
+          "at": "2026-09-13T18:51:26.957734005Z",
+          "ttfa_ms": 766.1
+        },
+        {
+          "at": "2026-09-13T18:52:12.259387735Z",
+          "ttfa_ms": 813.9
+        },
+        {
+          "at": "2026-09-13T18:53:01.75204467Z",
+          "ttfa_ms": 798.8
+        },
+        {
+          "at": "2026-09-13T18:53:51.245760921Z",
+          "ttfa_ms": 737.8
+        },
+        {
+          "at": "2026-09-13T18:54:38.304956424Z",
+          "ttfa_ms": 795.3
+        },
+        {
+          "at": "2026-09-13T18:55:27.293388782Z",
+          "ttfa_ms": 773.4
+        },
+        {
+          "at": "2026-09-13T18:56:16.979491062Z",
+          "ttfa_ms": 745.7
+        },
+        {
+          "at": "2026-09-13T18:57:04.507985576Z",
+          "ttfa_ms": 834.1
+        },
+        {
+          "at": "2026-09-13T18:57:52.917309338Z",
+          "ttfa_ms": 779.3
+        },
+        {
+          "at": "2026-09-13T18:58:40.426648886Z",
+          "ttfa_ms": 746.3
+        },
+        {
+          "at": "2026-09-13T18:59:32.525777446Z",
+          "ttfa_ms": 879
+        },
+        {
+          "at": "2026-09-13T19:00:24.252415373Z",
+          "ttfa_ms": 791.2
+        },
+        {
+          "at": "2026-09-13T19:01:11.539129173Z",
+          "ttfa_ms": 765.6
+        }
+      ],
+      "conversation": {
+        "talk_ratio": 0.396,
+        "agent_wpm": 158.8,
+        "caller_wpm": 180.8,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 4,
+        "dead_air_seconds": 11.5,
+        "repeated_replies": 0,
+        "calls_with_repeats": 0,
+        "agent_speech_seconds": 462.7,
+        "caller_speech_seconds": 706.8,
+        "turns": 150
+      },
+      "cost": {
+        "agent_minutes": 21.6
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 150,
+        "mean": 0.02535211267605634,
+        "worst": 0.14285714285714285,
+        "substitutions": 2,
+        "deletions": 52,
+        "insertions": 0,
+        "ref_words": 2130
+      },
+      "leading_silence": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "audible_ttfa": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "caller_line": "Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 795.3,
+            "p90_ms": 890.3,
+            "p95_ms": 906.5,
+            "p99_ms": 922.3,
+            "max_ms": 922.3
+          },
+          "endpointing_p50_ms": 305.9,
+          "think_speak_p50_ms": 472.6
+        },
+        {
+          "turn": 2,
+          "caller_line": "Sure, it's four four eight one two. It was a pair of wireless headphones.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 771.7,
+            "p90_ms": 855.2,
+            "p95_ms": 879,
+            "p99_ms": 949.6,
+            "max_ms": 949.6
+          },
+          "endpointing_p50_ms": 302.9,
+          "think_speak_p50_ms": 456.8
+        },
+        {
+          "turn": 3,
+          "caller_line": "I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 765.6,
+            "p90_ms": 857.1,
+            "p95_ms": 933.4,
+            "p99_ms": 1006.7,
+            "max_ms": 1006.7
+          },
+          "endpointing_p50_ms": 301.5,
+          "think_speak_p50_ms": 455.9
+        },
+        {
+          "turn": 4,
+          "caller_line": "Okay. And how long is that going to take to actually show up on my card?",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 798.8,
+            "p90_ms": 872.1,
+            "p95_ms": 895.2,
+            "p99_ms": 919.4,
+            "max_ms": 919.4
+          },
+          "endpointing_p50_ms": 301.1,
+          "think_speak_p50_ms": 497.3
+        },
+        {
+          "turn": 5,
+          "caller_line": "Alright, that works. Thanks for sorting it out.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 735.2,
+            "p90_ms": 2007.4,
+            "p95_ms": 3166.9,
+            "p99_ms": 3186.4,
+            "max_ms": 3186.4
+          },
+          "endpointing_p50_ms": 240.4,
+          "think_speak_p50_ms": 467.7
+        }
+      ],
+      "waits": {
+        "turns": 150,
+        "up_to_800ms": 92,
+        "800_to_1200ms": 53,
+        "1200_to_2000ms": 1,
+        "over_2000ms": 4
+      },
+      "quality": {
+        "verdict": "pass",
+        "compared": [
+          "failed turns",
+          "words misheard",
+          "interruptions"
+        ]
+      },
+      "phase": {
+        "kind": "ramp",
+        "held_s": 1474.6,
+        "first_half": {
+          "n": 75,
+          "p50_ms": 783.9,
+          "p90_ms": 919.4,
+          "p95_ms": 1039.2,
+          "p99_ms": 3186.4,
+          "max_ms": 3186.4
+        },
+        "second_half": {
+          "n": 75,
+          "p50_ms": 779.3,
+          "p90_ms": 890.3,
+          "p95_ms": 923.6,
+          "p99_ms": 2007.4,
+          "max_ms": 2007.4
+        },
+        "drift_pct": -0.006,
+        "drift": "steady"
+      },
+      "p95_ratio": 1,
+      "verdict": "pass",
+      "nodes": [
+        {
+          "node": "turn-1",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-2",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-3",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-4",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-5",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        }
+      ]
+    },
+    {
+      "name": "c5",
+      "concurrency": 5,
+      "calls": 30,
+      "calls_attempted": 30,
+      "calls_connected": 30,
+      "turns_total": 150,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 150,
+        "p50_ms": 789.1,
+        "p90_ms": 978.7,
+        "p95_ms": 1939.9,
+        "p99_ms": 3594.2,
+        "max_ms": 3640.5
+      },
+      "endpointing": {
+        "n": 150,
+        "p50_ms": 304.8,
+        "p90_ms": 344.1,
+        "p95_ms": 365.9,
+        "p99_ms": 3177.1,
+        "max_ms": 3218.2
+      },
+      "think_speak": {
+        "n": 150,
+        "p50_ms": 475.4,
+        "p90_ms": 606.8,
+        "p95_ms": 941.3,
+        "p99_ms": 2926.4,
+        "max_ms": 2988.3
+      },
+      "turn_latency": {
+        "n": 150,
+        "p50_ms": 4231.6,
+        "p90_ms": 5582.1,
+        "p95_ms": 5921,
+        "p99_ms": 6679.3,
+        "max_ms": 6753.3
+      },
+      "transport_rtt": {
+        "n": 150,
+        "p50_ms": 85.4,
+        "p90_ms": 88.8,
+        "p95_ms": 89.9,
+        "p99_ms": 91.2,
+        "max_ms": 91.5
+      },
+      "agent_ttfa": {
+        "n": 150,
+        "p50_ms": 703.3,
+        "p90_ms": 893.7,
+        "p95_ms": 1849.8,
+        "p99_ms": 3508.5,
+        "max_ms": 3555.8
+      },
+      "agent_endpointing": {
+        "n": 150,
+        "p50_ms": 220.3,
+        "p90_ms": 258,
+        "p95_ms": 281.1,
+        "p99_ms": 3091.5,
+        "max_ms": 3133.4
+      },
+      "worst_harness_drift_ms": 28,
+      "started_at": "2026-09-13T19:01:58.825398907Z",
+      "ended_at": "2026-09-13T19:07:00.254864113Z",
+      "timeline": [
+        {
+          "at": "2026-09-13T19:01:58.825398907Z",
+          "ttfa_ms": 764.8
+        },
+        {
+          "at": "2026-09-13T19:01:58.827890348Z",
+          "ttfa_ms": 734.3
+        },
+        {
+          "at": "2026-09-13T19:01:58.83171552Z",
+          "ttfa_ms": 751
+        },
+        {
+          "at": "2026-09-13T19:01:58.834899983Z",
+          "ttfa_ms": 733
+        },
+        {
+          "at": "2026-09-13T19:01:58.835184946Z",
+          "ttfa_ms": 745.2
+        },
+        {
+          "at": "2026-09-13T19:02:45.65915824Z",
+          "ttfa_ms": 757.2
+        },
+        {
+          "at": "2026-09-13T19:02:45.67818119Z",
+          "ttfa_ms": 815.8
+        },
+        {
+          "at": "2026-09-13T19:02:47.859550484Z",
+          "ttfa_ms": 794.5
+        },
+        {
+          "at": "2026-09-13T19:02:49.085474648Z",
+          "ttfa_ms": 779.4
+        },
+        {
+          "at": "2026-09-13T19:02:51.295781571Z",
+          "ttfa_ms": 822.9
+        },
+        {
+          "at": "2026-09-13T19:03:33.509805969Z",
+          "ttfa_ms": 837.5
+        },
+        {
+          "at": "2026-09-13T19:03:34.791021699Z",
+          "ttfa_ms": 764.7
+        },
+        {
+          "at": "2026-09-13T19:03:35.702736186Z",
+          "ttfa_ms": 776.3
+        },
+        {
+          "at": "2026-09-13T19:03:35.87924975Z",
+          "ttfa_ms": 864
+        },
+        {
+          "at": "2026-09-13T19:03:40.202350711Z",
+          "ttfa_ms": 908.3
+        },
+        {
+          "at": "2026-09-13T19:04:24.918265017Z",
+          "ttfa_ms": 773.9
+        },
+        {
+          "at": "2026-09-13T19:04:26.172338963Z",
+          "ttfa_ms": 773
+        },
+        {
+          "at": "2026-09-13T19:04:27.41778675Z",
+          "ttfa_ms": 794.1
+        },
+        {
+          "at": "2026-09-13T19:04:27.742436225Z",
+          "ttfa_ms": 920.3
+        },
+        {
+          "at": "2026-09-13T19:04:28.951617036Z",
+          "ttfa_ms": 821
+        },
+        {
+          "at": "2026-09-13T19:05:12.72979942Z",
+          "ttfa_ms": 738.6
+        },
+        {
+          "at": "2026-09-13T19:05:14.313219516Z",
+          "ttfa_ms": 805.8
+        },
+        {
+          "at": "2026-09-13T19:05:15.982956785Z",
+          "ttfa_ms": 810.6
+        },
+        {
+          "at": "2026-09-13T19:05:18.669112558Z",
+          "ttfa_ms": 845.7
+        },
+        {
+          "at": "2026-09-13T19:05:20.935917152Z",
+          "ttfa_ms": 772.4
+        },
+        {
+          "at": "2026-09-13T19:06:05.470047849Z",
+          "ttfa_ms": 797.7
+        },
+        {
+          "at": "2026-09-13T19:06:05.685240922Z",
+          "ttfa_ms": 752.5
+        },
+        {
+          "at": "2026-09-13T19:06:07.040100325Z",
+          "ttfa_ms": 774
+        },
+        {
+          "at": "2026-09-13T19:06:08.586470944Z",
+          "ttfa_ms": 761.2
+        },
+        {
+          "at": "2026-09-13T19:06:09.788654593Z",
+          "ttfa_ms": 804.4
+        }
+      ],
+      "conversation": {
+        "talk_ratio": 0.401,
+        "agent_wpm": 157.9,
+        "caller_wpm": 180.8,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 7,
+        "dead_air_seconds": 23.1,
+        "repeated_replies": 0,
+        "calls_with_repeats": 0,
+        "agent_speech_seconds": 472.8,
+        "caller_speech_seconds": 706.8,
+        "turns": 150
+      },
+      "cost": {
+        "agent_minutes": 21.98
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 150,
+        "mean": 0.03004694835680751,
+        "worst": 0.875,
+        "substitutions": 0,
+        "deletions": 64,
+        "insertions": 0,
+        "ref_words": 2130
+      },
+      "leading_silence": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "audible_ttfa": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "caller_line": "Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 805.8,
+            "p90_ms": 978.7,
+            "p95_ms": 1049.7,
+            "p99_ms": 1053.1,
+            "max_ms": 1053.1
+          },
+          "endpointing_p50_ms": 304.1,
+          "think_speak_p50_ms": 480.6
+        },
+        {
+          "turn": 2,
+          "caller_line": "Sure, it's four four eight one two. It was a pair of wireless headphones.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 764.8,
+            "p90_ms": 836,
+            "p95_ms": 844.5,
+            "p99_ms": 1283,
+            "max_ms": 1283
+          },
+          "endpointing_p50_ms": 306.3,
+          "think_speak_p50_ms": 453.6
+        },
+        {
+          "turn": 3,
+          "caller_line": "I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 773,
+            "p90_ms": 858.2,
+            "p95_ms": 879.1,
+            "p99_ms": 960.6,
+            "max_ms": 960.6
+          },
+          "endpointing_p50_ms": 307,
+          "think_speak_p50_ms": 462.5
+        },
+        {
+          "turn": 4,
+          "caller_line": "Okay. And how long is that going to take to actually show up on my card?",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 829.7,
+            "p90_ms": 886.5,
+            "p95_ms": 920.3,
+            "p99_ms": 961.6,
+            "max_ms": 961.6
+          },
+          "endpointing_p50_ms": 307.8,
+          "think_speak_p50_ms": 517.9
+        },
+        {
+          "turn": 5,
+          "caller_line": "Alright, that works. Thanks for sorting it out.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 750.9,
+            "p90_ms": 3190,
+            "p95_ms": 3594.2,
+            "p99_ms": 3640.5,
+            "max_ms": 3640.5
+          },
+          "endpointing_p50_ms": 246.3,
+          "think_speak_p50_ms": 468.3
+        }
+      ],
+      "waits": {
+        "turns": 150,
+        "up_to_800ms": 83,
+        "800_to_1200ms": 56,
+        "1200_to_2000ms": 4,
+        "over_2000ms": 7
+      },
+      "quality": {
+        "verdict": "pass",
+        "compared": [
+          "failed turns",
+          "words misheard",
+          "interruptions"
+        ]
+      },
+      "phase": {
+        "kind": "ramp",
+        "held_s": 301.9,
+        "first_half": {
+          "n": 75,
+          "p50_ms": 789.1,
+          "p90_ms": 960.6,
+          "p95_ms": 1433,
+          "p99_ms": 3156.5,
+          "max_ms": 3156.5
+        },
+        "second_half": {
+          "n": 75,
+          "p50_ms": 790,
+          "p90_ms": 995.3,
+          "p95_ms": 3190,
+          "p99_ms": 3640.5,
+          "max_ms": 3640.5
+        },
+        "drift_pct": 0.001,
+        "drift": "steady"
+      },
+      "p95_ratio": 2.04,
+      "verdict": "fail",
+      "nodes": [
+        {
+          "node": "turn-1",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-2",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-3",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-4",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-5",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        }
+      ]
+    },
+    {
+      "name": "c10",
+      "concurrency": 10,
+      "calls": 30,
+      "calls_attempted": 30,
+      "calls_connected": 30,
+      "turns_total": 150,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 150,
+        "p50_ms": 786,
+        "p90_ms": 973.1,
+        "p95_ms": 1252.6,
+        "p99_ms": 3158.5,
+        "max_ms": 3181.8
+      },
+      "endpointing": {
+        "n": 150,
+        "p50_ms": 305.1,
+        "p90_ms": 351.7,
+        "p95_ms": 394.8,
+        "p99_ms": 961.6,
+        "max_ms": 1894.8
+      },
+      "think_speak": {
+        "n": 150,
+        "p50_ms": 471.7,
+        "p90_ms": 615.1,
+        "p95_ms": 741.2,
+        "p99_ms": 2897,
+        "max_ms": 2934
+      },
+      "turn_latency": {
+        "n": 150,
+        "p50_ms": 4375.9,
+        "p90_ms": 5585.9,
+        "p95_ms": 6164.7,
+        "p99_ms": 8977.1,
+        "max_ms": 9406.3
+      },
+      "transport_rtt": {
+        "n": 150,
+        "p50_ms": 86.1,
+        "p90_ms": 88.8,
+        "p95_ms": 89.2,
+        "p99_ms": 90.8,
+        "max_ms": 91.6
+      },
+      "agent_ttfa": {
+        "n": 150,
+        "p50_ms": 700.6,
+        "p90_ms": 889,
+        "p95_ms": 1164.6,
+        "p99_ms": 3071.4,
+        "max_ms": 3093.6
+      },
+      "agent_endpointing": {
+        "n": 150,
+        "p50_ms": 219.3,
+        "p90_ms": 264.7,
+        "p95_ms": 311.8,
+        "p99_ms": 874.4,
+        "max_ms": 1807.2
+      },
+      "worst_harness_drift_ms": 20.5,
+      "started_at": "2026-09-13T19:07:00.733373859Z",
+      "ended_at": "2026-09-13T19:09:35.199677793Z",
+      "timeline": [
+        {
+          "at": "2026-09-13T19:07:00.733373859Z",
+          "ttfa_ms": 800.7
+        },
+        {
+          "at": "2026-09-13T19:07:00.760030572Z",
+          "ttfa_ms": 935.7
+        },
+        {
+          "at": "2026-09-13T19:07:00.763231946Z",
+          "ttfa_ms": 784.4
+        },
+        {
+          "at": "2026-09-13T19:07:00.764857096Z",
+          "ttfa_ms": 769
+        },
+        {
+          "at": "2026-09-13T19:07:00.771588811Z",
+          "ttfa_ms": 718.6
+        },
+        {
+          "at": "2026-09-13T19:07:00.77253885Z",
+          "ttfa_ms": 739.2
+        },
+        {
+          "at": "2026-09-13T19:07:00.772602857Z",
+          "ttfa_ms": 794.3
+        },
+        {
+          "at": "2026-09-13T19:07:00.773426849Z",
+          "ttfa_ms": 741.2
+        },
+        {
+          "at": "2026-09-13T19:07:00.77872164Z",
+          "ttfa_ms": 786
+        },
+        {
+          "at": "2026-09-13T19:07:00.779672121Z",
+          "ttfa_ms": 777.3
+        },
+        {
+          "at": "2026-09-13T19:07:47.498751146Z",
+          "ttfa_ms": 810.9
+        },
+        {
+          "at": "2026-09-13T19:07:48.324440892Z",
+          "ttfa_ms": 858
+        },
+        {
+          "at": "2026-09-13T19:07:48.445103303Z",
+          "ttfa_ms": 785.9
+        },
+        {
+          "at": "2026-09-13T19:07:49.173771958Z",
+          "ttfa_ms": 735.3
+        },
+        {
+          "at": "2026-09-13T19:07:50.84594168Z",
+          "ttfa_ms": 889.7
+        },
+        {
+          "at": "2026-09-13T19:07:50.85399008Z",
+          "ttfa_ms": 818.7
+        },
+        {
+          "at": "2026-09-13T19:07:51.99686559Z",
+          "ttfa_ms": 838.1
+        },
+        {
+          "at": "2026-09-13T19:07:52.028694869Z",
+          "ttfa_ms": 784
+        },
+        {
+          "at": "2026-09-13T19:07:53.77380545Z",
+          "ttfa_ms": 758.1
+        },
+        {
+          "at": "2026-09-13T19:07:53.95845055Z",
+          "ttfa_ms": 815.9
+        },
+        {
+          "at": "2026-09-13T19:08:37.617621747Z",
+          "ttfa_ms": 736.5
+        },
+        {
+          "at": "2026-09-13T19:08:37.618546185Z",
+          "ttfa_ms": 743.9
+        },
+        {
+          "at": "2026-09-13T19:08:38.50927811Z",
+          "ttfa_ms": 782.7
+        },
+        {
+          "at": "2026-09-13T19:08:38.564179786Z",
+          "ttfa_ms": 831.2
+        },
+        {
+          "at": "2026-09-13T19:08:40.409013292Z",
+          "ttfa_ms": 852.5
+        },
+        {
+          "at": "2026-09-13T19:08:41.132448792Z",
+          "ttfa_ms": 787.8
+        },
+        {
+          "at": "2026-09-13T19:08:41.960791226Z",
+          "ttfa_ms": 802.8
+        },
+        {
+          "at": "2026-09-13T19:08:42.265555124Z",
+          "ttfa_ms": 769
+        },
+        {
+          "at": "2026-09-13T19:08:43.238759799Z",
+          "ttfa_ms": 754
+        },
+        {
+          "at": "2026-09-13T19:08:44.1258739Z",
+          "ttfa_ms": 771.8
+        }
+      ],
+      "conversation": {
+        "talk_ratio": 0.409,
+        "agent_wpm": 156.8,
+        "caller_wpm": 180.8,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 3,
+        "dead_air_seconds": 8.8,
+        "repeated_replies": 0,
+        "calls_with_repeats": 0,
+        "agent_speech_seconds": 489.8,
+        "caller_speech_seconds": 706.8,
+        "turns": 150
+      },
+      "cost": {
+        "agent_minutes": 22.085
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 150,
+        "mean": 0.028169014084507043,
+        "worst": 1,
+        "substitutions": 2,
+        "deletions": 58,
+        "insertions": 0,
+        "ref_words": 2130
+      },
+      "leading_silence": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "audible_ttfa": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "caller_line": "Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 777.3,
+            "p90_ms": 941.8,
+            "p95_ms": 966.1,
+            "p99_ms": 1050.8,
+            "max_ms": 1050.8
+          },
+          "endpointing_p50_ms": 307.1,
+          "think_speak_p50_ms": 461.9
+        },
+        {
+          "turn": 2,
+          "caller_line": "Sure, it's four four eight one two. It was a pair of wireless headphones.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 755.8,
+            "p90_ms": 915.5,
+            "p95_ms": 1001.2,
+            "p99_ms": 1412.2,
+            "max_ms": 1412.2
+          },
+          "endpointing_p50_ms": 306.6,
+          "think_speak_p50_ms": 455
+        },
+        {
+          "turn": 3,
+          "caller_line": "I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 785.9,
+            "p90_ms": 883.8,
+            "p95_ms": 973.1,
+            "p99_ms": 1265.4,
+            "max_ms": 1265.4
+          },
+          "endpointing_p50_ms": 304.2,
+          "think_speak_p50_ms": 478.3
+        },
+        {
+          "turn": 4,
+          "caller_line": "Okay. And how long is that going to take to actually show up on my card?",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 818.1,
+            "p90_ms": 894.2,
+            "p95_ms": 939.2,
+            "p99_ms": 1066.4,
+            "max_ms": 1066.4
+          },
+          "endpointing_p50_ms": 304.9,
+          "think_speak_p50_ms": 500.8
+        },
+        {
+          "turn": 5,
+          "caller_line": "Alright, that works. Thanks for sorting it out.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 771.5,
+            "p90_ms": 1585.3,
+            "p95_ms": 3158.5,
+            "p99_ms": 3181.8,
+            "max_ms": 3181.8
+          },
+          "endpointing_p50_ms": 248.7,
+          "think_speak_p50_ms": 456.7
+        }
+      ],
+      "waits": {
+        "turns": 150,
+        "up_to_800ms": 87,
+        "800_to_1200ms": 55,
+        "1200_to_2000ms": 5,
+        "over_2000ms": 3
+      },
+      "quality": {
+        "verdict": "pass",
+        "compared": [
+          "failed turns",
+          "words misheard",
+          "interruptions"
+        ]
+      },
+      "phase": {
+        "kind": "ramp",
+        "held_s": 154.9,
+        "first_half": {
+          "n": 75,
+          "p50_ms": 786,
+          "p90_ms": 1011.2,
+          "p95_ms": 1338.5,
+          "p99_ms": 3181.8,
+          "max_ms": 3181.8
+        },
+        "second_half": {
+          "n": 75,
+          "p50_ms": 787.8,
+          "p90_ms": 949.6,
+          "p95_ms": 1050.8,
+          "p99_ms": 3158.5,
+          "max_ms": 3158.5
+        },
+        "drift_pct": 0.002,
+        "drift": "steady"
+      },
+      "p95_ratio": 1.32,
+      "verdict": "pass",
+      "nodes": [
+        {
+          "node": "turn-1",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-2",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-3",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-4",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-5",
+          "visits": 30,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        }
+      ]
+    },
+    {
+      "name": "c20",
+      "concurrency": 20,
+      "calls": 40,
+      "calls_attempted": 40,
+      "calls_connected": 40,
+      "turns_total": 200,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 200,
+        "p50_ms": 779.3,
+        "p90_ms": 914.6,
+        "p95_ms": 985.5,
+        "p99_ms": 3155,
+        "max_ms": 3581.7
+      },
+      "endpointing": {
+        "n": 200,
+        "p50_ms": 303.1,
+        "p90_ms": 326.3,
+        "p95_ms": 382.1,
+        "p99_ms": 494.3,
+        "max_ms": 3175.2
+      },
+      "think_speak": {
+        "n": 200,
+        "p50_ms": 477.6,
+        "p90_ms": 573.7,
+        "p95_ms": 643.8,
+        "p99_ms": 2905.2,
+        "max_ms": 2907.6
+      },
+      "turn_latency": {
+        "n": 200,
+        "p50_ms": 4087.8,
+        "p90_ms": 5617.7,
+        "p95_ms": 6397.4,
+        "p99_ms": 7190.5,
+        "max_ms": 9476.2
+      },
+      "transport_rtt": {
+        "n": 200,
+        "p50_ms": 85.6,
+        "p90_ms": 89.2,
+        "p95_ms": 90,
+        "p99_ms": 94.9,
+        "max_ms": 113.6
+      },
+      "agent_ttfa": {
+        "n": 200,
+        "p50_ms": 692.4,
+        "p90_ms": 831.8,
+        "p95_ms": 901.6,
+        "p99_ms": 3072.9,
+        "max_ms": 3497.4
+      },
+      "agent_endpointing": {
+        "n": 200,
+        "p50_ms": 217.1,
+        "p90_ms": 241.2,
+        "p95_ms": 292.8,
+        "p99_ms": 410.1,
+        "max_ms": 3090.9
+      },
+      "worst_harness_drift_ms": 20.3,
+      "started_at": "2026-09-13T19:09:35.672686499Z",
+      "ended_at": "2026-09-13T19:11:19.312486867Z",
+      "timeline": [
+        {
+          "at": "2026-09-13T19:09:35.672686499Z",
+          "ttfa_ms": 787
+        },
+        {
+          "at": "2026-09-13T19:09:35.702034591Z",
+          "ttfa_ms": 725.3
+        },
+        {
+          "at": "2026-09-13T19:09:35.703603467Z",
+          "ttfa_ms": 806.8
+        },
+        {
+          "at": "2026-09-13T19:09:35.709324615Z",
+          "ttfa_ms": 767.8
+        },
+        {
+          "at": "2026-09-13T19:09:35.712344653Z",
+          "ttfa_ms": 774.1
+        },
+        {
+          "at": "2026-09-13T19:09:35.722293718Z",
+          "ttfa_ms": 735.7
+        },
+        {
+          "at": "2026-09-13T19:09:35.722373152Z",
+          "ttfa_ms": 774.4
+        },
+        {
+          "at": "2026-09-13T19:09:35.73020311Z",
+          "ttfa_ms": 812.2
+        },
+        {
+          "at": "2026-09-13T19:09:35.730403242Z",
+          "ttfa_ms": 759.2
+        },
+        {
+          "at": "2026-09-13T19:09:35.730547791Z",
+          "ttfa_ms": 776.5
+        },
+        {
+          "at": "2026-09-13T19:09:35.731762476Z",
+          "ttfa_ms": 760.3
+        },
+        {
+          "at": "2026-09-13T19:09:35.731803738Z",
+          "ttfa_ms": 704.6
+        },
+        {
+          "at": "2026-09-13T19:09:35.734600058Z",
+          "ttfa_ms": 761.8
+        },
+        {
+          "at": "2026-09-13T19:09:35.739684528Z",
+          "ttfa_ms": 769.8
+        },
+        {
+          "at": "2026-09-13T19:09:35.739937623Z",
+          "ttfa_ms": 781.3
+        },
+        {
+          "at": "2026-09-13T19:09:35.739952031Z",
+          "ttfa_ms": 804.8
+        },
+        {
+          "at": "2026-09-13T19:09:35.740047295Z",
+          "ttfa_ms": 727.8
+        },
+        {
+          "at": "2026-09-13T19:09:35.740054643Z",
+          "ttfa_ms": 753.7
+        },
+        {
+          "at": "2026-09-13T19:09:35.762060241Z",
+          "ttfa_ms": 797.7
+        },
+        {
+          "at": "2026-09-13T19:09:35.765112723Z",
+          "ttfa_ms": 839.7
+        },
+        {
+          "at": "2026-09-13T19:10:21.827374902Z",
+          "ttfa_ms": 771
+        },
+        {
+          "at": "2026-09-13T19:10:22.097744727Z",
+          "ttfa_ms": 867.8
+        },
+        {
+          "at": "2026-09-13T19:10:22.589808111Z",
+          "ttfa_ms": 828.5
+        },
+        {
+          "at": "2026-09-13T19:10:22.975084637Z",
+          "ttfa_ms": 749.3
+        },
+        {
+          "at": "2026-09-13T19:10:23.358074797Z",
+          "ttfa_ms": 725.1
+        },
+        {
+          "at": "2026-09-13T19:10:23.620566677Z",
+          "ttfa_ms": 783
+        },
+        {
+          "at": "2026-09-13T19:10:23.79906628Z",
+          "ttfa_ms": 774.4
+        },
+        {
+          "at": "2026-09-13T19:10:24.171413659Z",
+          "ttfa_ms": 850.6
+        },
+        {
+          "at": "2026-09-13T19:10:24.39144974Z",
+          "ttfa_ms": 778.2
+        },
+        {
+          "at": "2026-09-13T19:10:25.044412833Z",
+          "ttfa_ms": 798.9
+        },
+        {
+          "at": "2026-09-13T19:10:25.051196116Z",
+          "ttfa_ms": 836.3
+        },
+        {
+          "at": "2026-09-13T19:10:25.25867456Z",
+          "ttfa_ms": 815.4
+        },
+        {
+          "at": "2026-09-13T19:10:25.628826392Z",
+          "ttfa_ms": 787.5
+        },
+        {
+          "at": "2026-09-13T19:10:25.708389171Z",
+          "ttfa_ms": 771.4
+        },
+        {
+          "at": "2026-09-13T19:10:25.820510409Z",
+          "ttfa_ms": 773.8
+        },
+        {
+          "at": "2026-09-13T19:10:26.571045365Z",
+          "ttfa_ms": 792.6
+        },
+        {
+          "at": "2026-09-13T19:10:26.715402014Z",
+          "ttfa_ms": 755.2
+        },
+        {
+          "at": "2026-09-13T19:10:26.741222741Z",
+          "ttfa_ms": 784.8
+        },
+        {
+          "at": "2026-09-13T19:10:27.221602849Z",
+          "ttfa_ms": 842.2
+        },
+        {
+          "at": "2026-09-13T19:10:27.917546786Z",
+          "ttfa_ms": 798.3
+        }
+      ],
+      "conversation": {
+        "talk_ratio": 0.403,
+        "agent_wpm": 155.1,
+        "caller_wpm": 180.8,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 4,
+        "dead_air_seconds": 13.1,
+        "repeated_replies": 0,
+        "calls_with_repeats": 0,
+        "agent_speech_seconds": 634.9,
+        "caller_speech_seconds": 942.4,
+        "turns": 200
+      },
+      "cost": {
+        "agent_minutes": 29.109
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 200,
+        "mean": 0.02535211267605634,
+        "worst": 0.14285714285714285,
+        "substitutions": 1,
+        "deletions": 71,
+        "insertions": 0,
+        "ref_words": 2840
+      },
+      "leading_silence": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "audible_ttfa": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "caller_line": "Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.",
+          "ttfa": {
+            "n": 40,
+            "p50_ms": 787,
+            "p90_ms": 924,
+            "p95_ms": 959.3,
+            "p99_ms": 995.5,
+            "max_ms": 995.5
+          },
+          "endpointing_p50_ms": 304.1,
+          "think_speak_p50_ms": 483.4
+        },
+        {
+          "turn": 2,
+          "caller_line": "Sure, it's four four eight one two. It was a pair of wireless headphones.",
+          "ttfa": {
+            "n": 40,
+            "p50_ms": 761.8,
+            "p90_ms": 833.1,
+            "p95_ms": 850.6,
+            "p99_ms": 994.5,
+            "max_ms": 994.5
+          },
+          "endpointing_p50_ms": 304.7,
+          "think_speak_p50_ms": 453.4
+        },
+        {
+          "turn": 3,
+          "caller_line": "I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?",
+          "ttfa": {
+            "n": 40,
+            "p50_ms": 781.6,
+            "p90_ms": 884.7,
+            "p95_ms": 898.4,
+            "p99_ms": 947.3,
+            "max_ms": 947.3
+          },
+          "endpointing_p50_ms": 303.8,
+          "think_speak_p50_ms": 469.5
+        },
+        {
+          "turn": 4,
+          "caller_line": "Okay. And how long is that going to take to actually show up on my card?",
+          "ttfa": {
+            "n": 40,
+            "p50_ms": 807.7,
+            "p90_ms": 937.7,
+            "p95_ms": 969.6,
+            "p99_ms": 1017.3,
+            "max_ms": 1017.3
+          },
+          "endpointing_p50_ms": 303.9,
+          "think_speak_p50_ms": 506.5
+        },
+        {
+          "turn": 5,
+          "caller_line": "Alright, that works. Thanks for sorting it out.",
+          "ttfa": {
+            "n": 40,
+            "p50_ms": 725.3,
+            "p90_ms": 1923.4,
+            "p95_ms": 3155,
+            "p99_ms": 3581.7,
+            "max_ms": 3581.7
+          },
+          "endpointing_p50_ms": 243.1,
+          "think_speak_p50_ms": 479.1
+        }
+      ],
+      "waits": {
+        "turns": 200,
+        "up_to_800ms": 127,
+        "800_to_1200ms": 66,
+        "1200_to_2000ms": 3,
+        "over_2000ms": 4
+      },
+      "quality": {
+        "verdict": "pass",
+        "compared": [
+          "failed turns",
+          "words misheard",
+          "interruptions"
+        ]
+      },
+      "phase": {
+        "kind": "ramp",
+        "held_s": 104.1,
+        "first_half": {
+          "n": 100,
+          "p50_ms": 769.8,
+          "p90_ms": 870.5,
+          "p95_ms": 935.8,
+          "p99_ms": 3152.1,
+          "max_ms": 3581.7
+        },
+        "second_half": {
+          "n": 100,
+          "p50_ms": 787.5,
+          "p90_ms": 959.3,
+          "p95_ms": 1017.3,
+          "p99_ms": 3155,
+          "max_ms": 3167.1
+        },
+        "drift_pct": 0.023,
+        "drift": "steady"
+      },
+      "p95_ratio": 1.04,
+      "verdict": "pass",
+      "nodes": [
+        {
+          "node": "turn-1",
+          "visits": 40,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-2",
+          "visits": 40,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-3",
+          "visits": 40,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-4",
+          "visits": 40,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-5",
+          "visits": 40,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        }
+      ]
+    },
+    {
+      "name": "c40",
+      "concurrency": 40,
+      "calls": 80,
+      "calls_attempted": 80,
+      "calls_connected": 80,
+      "turns_total": 400,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 400,
+        "p50_ms": 784.7,
+        "p90_ms": 963.1,
+        "p95_ms": 1029.2,
+        "p99_ms": 3116.2,
+        "max_ms": 5514.9
+      },
+      "endpointing": {
+        "n": 400,
+        "p50_ms": 300.7,
+        "p90_ms": 310.4,
+        "p95_ms": 355.8,
+        "p99_ms": 488.6,
+        "max_ms": 646.8
+      },
+      "think_speak": {
+        "n": 400,
+        "p50_ms": 490.5,
+        "p90_ms": 639.8,
+        "p95_ms": 695.1,
+        "p99_ms": 2870.2,
+        "max_ms": 5293
+      },
+      "turn_latency": {
+        "n": 400,
+        "p50_ms": 4161.3,
+        "p90_ms": 5632.1,
+        "p95_ms": 6051,
+        "p99_ms": 6956,
+        "max_ms": 8034.9
+      },
+      "transport_rtt": {
+        "n": 400,
+        "p50_ms": 83.3,
+        "p90_ms": 87.3,
+        "p95_ms": 88.3,
+        "p99_ms": 110.3,
+        "max_ms": 185.1
+      },
+      "agent_ttfa": {
+        "n": 400,
+        "p50_ms": 698.3,
+        "p90_ms": 867,
+        "p95_ms": 948.4,
+        "p99_ms": 3034.9,
+        "max_ms": 5427.7
+      },
+      "agent_endpointing": {
+        "n": 400,
+        "p50_ms": 217.3,
+        "p90_ms": 226.9,
+        "p95_ms": 268.5,
+        "p99_ms": 402.1,
+        "max_ms": 562.6
+      },
+      "worst_harness_drift_ms": 22,
+      "started_at": "2026-09-13T19:11:19.833912093Z",
+      "ended_at": "2026-09-13T19:13:55.469755973Z",
+      "timeline": [
+        {
+          "at": "2026-09-13T19:11:19.833912093Z",
+          "ttfa_ms": 851.4
+        },
+        {
+          "at": "2026-09-13T19:11:19.864825072Z",
+          "ttfa_ms": 947
+        },
+        {
+          "at": "2026-09-13T19:11:19.869496114Z",
+          "ttfa_ms": 798.9
+        },
+        {
+          "at": "2026-09-13T19:11:19.871830089Z",
+          "ttfa_ms": 771.6
+        },
+        {
+          "at": "2026-09-13T19:11:19.873272526Z",
+          "ttfa_ms": 692.8
+        },
+        {
+          "at": "2026-09-13T19:11:19.876161465Z",
+          "ttfa_ms": 773.6
+        },
+        {
+          "at": "2026-09-13T19:11:19.876375543Z",
+          "ttfa_ms": 808.4
+        },
+        {
+          "at": "2026-09-13T19:11:19.877130532Z",
+          "ttfa_ms": 813.7
+        },
+        {
+          "at": "2026-09-13T19:11:19.877346758Z",
+          "ttfa_ms": 861.6
+        },
+        {
+          "at": "2026-09-13T19:11:19.877494223Z",
+          "ttfa_ms": 888.5
+        },
+        {
+          "at": "2026-09-13T19:11:19.877712479Z",
+          "ttfa_ms": 813.1
+        },
+        {
+          "at": "2026-09-13T19:11:19.878132917Z",
+          "ttfa_ms": 811.8
+        },
+        {
+          "at": "2026-09-13T19:11:19.878330232Z",
+          "ttfa_ms": 773.4
+        },
+        {
+          "at": "2026-09-13T19:11:19.878387348Z",
+          "ttfa_ms": 795.7
+        },
+        {
+          "at": "2026-09-13T19:11:19.878677832Z",
+          "ttfa_ms": 748.3
+        },
+        {
+          "at": "2026-09-13T19:11:19.87892898Z",
+          "ttfa_ms": 748.7
+        },
+        {
+          "at": "2026-09-13T19:11:19.880670006Z",
+          "ttfa_ms": 842.6
+        },
+        {
+          "at": "2026-09-13T19:11:19.886131197Z",
+          "ttfa_ms": 839.2
+        },
+        {
+          "at": "2026-09-13T19:11:19.886325457Z",
+          "ttfa_ms": 793.9
+        },
+        {
+          "at": "2026-09-13T19:11:19.886762204Z",
+          "ttfa_ms": 727
+        },
+        {
+          "at": "2026-09-13T19:11:19.886782482Z",
+          "ttfa_ms": 865.4
+        },
+        {
+          "at": "2026-09-13T19:11:19.887032269Z",
+          "ttfa_ms": 783.5
+        },
+        {
+          "at": "2026-09-13T19:11:19.887223631Z",
+          "ttfa_ms": 843.5
+        },
+        {
+          "at": "2026-09-13T19:11:19.888531642Z",
+          "ttfa_ms": 762.5
+        },
+        {
+          "at": "2026-09-13T19:11:19.893588267Z",
+          "ttfa_ms": 785.6
+        },
+        {
+          "at": "2026-09-13T19:11:19.902938702Z",
+          "ttfa_ms": 774.4
+        },
+        {
+          "at": "2026-09-13T19:11:19.903272693Z",
+          "ttfa_ms": 811.6
+        },
+        {
+          "at": "2026-09-13T19:11:19.903405478Z",
+          "ttfa_ms": 838.4
+        },
+        {
+          "at": "2026-09-13T19:11:20.029946193Z",
+          "ttfa_ms": 778.2
+        },
+        {
+          "at": "2026-09-13T19:11:20.875988353Z",
+          "ttfa_ms": 787.9
+        },
+        {
+          "at": "2026-09-13T19:11:20.882485833Z",
+          "ttfa_ms": 777.6
+        },
+        {
+          "at": "2026-09-13T19:11:20.8938504Z",
+          "ttfa_ms": 782.2
+        },
+        {
+          "at": "2026-09-13T19:11:20.893911959Z",
+          "ttfa_ms": 799.9
+        },
+        {
+          "at": "2026-09-13T19:11:20.896737374Z",
+          "ttfa_ms": 742.7
+        },
+        {
+          "at": "2026-09-13T19:11:21.148814982Z",
+          "ttfa_ms": 774.6
+        },
+        {
+          "at": "2026-09-13T19:12:04.967285267Z",
+          "ttfa_ms": 771.4
+        },
+        {
+          "at": "2026-09-13T19:12:05.202875667Z",
+          "ttfa_ms": 720.6
+        },
+        {
+          "at": "2026-09-13T19:12:05.210759024Z",
+          "ttfa_ms": 795.5
+        },
+        {
+          "at": "2026-09-13T19:12:06.760887335Z",
+          "ttfa_ms": 825.2
+        },
+        {
+          "at": "2026-09-13T19:12:06.974768591Z",
+          "ttfa_ms": 749.8
+        },
+        {
+          "at": "2026-09-13T19:12:06.975399038Z",
+          "ttfa_ms": 812.9
+        },
+        {
+          "at": "2026-09-13T19:12:07.041869398Z",
+          "ttfa_ms": 769.4
+        },
+        {
+          "at": "2026-09-13T19:12:07.125859351Z",
+          "ttfa_ms": 774.1
+        },
+        {
+          "at": "2026-09-13T19:12:07.392901019Z",
+          "ttfa_ms": 792.7
+        },
+        {
+          "at": "2026-09-13T19:12:07.460632346Z",
+          "ttfa_ms": 757.1
+        },
+        {
+          "at": "2026-09-13T19:12:07.716803057Z",
+          "ttfa_ms": 753.2
+        },
+        {
+          "at": "2026-09-13T19:12:08.133692776Z",
+          "ttfa_ms": 725.3
+        },
+        {
+          "at": "2026-09-13T19:12:08.156601191Z",
+          "ttfa_ms": 814.4
+        },
+        {
+          "at": "2026-09-13T19:12:08.366717822Z",
+          "ttfa_ms": 743.1
+        },
+        {
+          "at": "2026-09-13T19:12:08.36772074Z",
+          "ttfa_ms": 754.4
+        },
+        {
+          "at": "2026-09-13T19:12:08.919835009Z",
+          "ttfa_ms": 800.8
+        },
+        {
+          "at": "2026-09-13T19:12:08.962742583Z",
+          "ttfa_ms": 797.4
+        },
+        {
+          "at": "2026-09-13T19:12:09.393625096Z",
+          "ttfa_ms": 733.9
+        },
+        {
+          "at": "2026-09-13T19:12:09.40206458Z",
+          "ttfa_ms": 854
+        },
+        {
+          "at": "2026-09-13T19:12:09.473872604Z",
+          "ttfa_ms": 758.2
+        },
+        {
+          "at": "2026-09-13T19:12:09.47627955Z",
+          "ttfa_ms": 814.3
+        },
+        {
+          "at": "2026-09-13T19:12:09.668641911Z",
+          "ttfa_ms": 794.7
+        },
+        {
+          "at": "2026-09-13T19:12:10.232401824Z",
+          "ttfa_ms": 771.5
+        },
+        {
+          "at": "2026-09-13T19:12:10.578380164Z",
+          "ttfa_ms": 810.4
+        },
+        {
+          "at": "2026-09-13T19:12:10.579243621Z",
+          "ttfa_ms": 859.9
+        },
+        {
+          "at": "2026-09-13T19:12:10.579556441Z",
+          "ttfa_ms": 800.8
+        },
+        {
+          "at": "2026-09-13T19:12:11.384973732Z",
+          "ttfa_ms": 731
+        },
+        {
+          "at": "2026-09-13T19:12:11.400793965Z",
+          "ttfa_ms": 812.7
+        },
+        {
+          "at": "2026-09-13T19:12:11.945186137Z",
+          "ttfa_ms": 724
+        },
+        {
+          "at": "2026-09-13T19:12:12.073427106Z",
+          "ttfa_ms": 765.2
+        },
+        {
+          "at": "2026-09-13T19:12:12.972999925Z",
+          "ttfa_ms": 802.7
+        },
+        {
+          "at": "2026-09-13T19:12:13.045539307Z",
+          "ttfa_ms": 784.7
+        },
+        {
+          "at": "2026-09-13T19:12:13.524579006Z",
+          "ttfa_ms": 779.4
+        },
+        {
+          "at": "2026-09-13T19:12:16.711055286Z",
+          "ttfa_ms": 732.8
+        },
+        {
+          "at": "2026-09-13T19:12:16.711714331Z",
+          "ttfa_ms": 808.5
+        },
+        {
+          "at": "2026-09-13T19:12:52.147425481Z",
+          "ttfa_ms": 834.6
+        },
+        {
+          "at": "2026-09-13T19:12:54.303171417Z",
+          "ttfa_ms": 827.1
+        },
+        {
+          "at": "2026-09-13T19:12:54.719836322Z",
+          "ttfa_ms": 751.8
+        },
+        {
+          "at": "2026-09-13T19:12:55.03082079Z",
+          "ttfa_ms": 788.2
+        },
+        {
+          "at": "2026-09-13T19:12:55.642531301Z",
+          "ttfa_ms": 829.7
+        },
+        {
+          "at": "2026-09-13T19:12:55.711266851Z",
+          "ttfa_ms": 762.1
+        },
+        {
+          "at": "2026-09-13T19:12:56.442928584Z",
+          "ttfa_ms": 795.5
+        },
+        {
+          "at": "2026-09-13T19:12:57.763860025Z",
+          "ttfa_ms": 839.1
+        },
+        {
+          "at": "2026-09-13T19:12:57.843457968Z",
+          "ttfa_ms": 766.5
+        },
+        {
+          "at": "2026-09-13T19:12:58.830875902Z",
+          "ttfa_ms": 766.7
+        }
+      ],
+      "conversation": {
+        "talk_ratio": 0.401,
+        "agent_wpm": 158.1,
+        "caller_wpm": 180.8,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 7,
+        "dead_air_seconds": 25.9,
+        "repeated_replies": 0,
+        "calls_with_repeats": 0,
+        "agent_speech_seconds": 1260.6,
+        "caller_speech_seconds": 1884.8,
+        "turns": 400
+      },
+      "cost": {
+        "agent_minutes": 58.113
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 400,
+        "mean": 0.0329225352112676,
+        "worst": 1,
+        "substitutions": 6,
+        "deletions": 179,
+        "insertions": 2,
+        "ref_words": 5680
+      },
+      "leading_silence": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "audible_ttfa": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "caller_line": "Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.",
+          "ttfa": {
+            "n": 80,
+            "p50_ms": 829.7,
+            "p90_ms": 992,
+            "p95_ms": 1001.7,
+            "p99_ms": 1102.4,
+            "max_ms": 1102.4
+          },
+          "endpointing_p50_ms": 303,
+          "think_speak_p50_ms": 526.7
+        },
+        {
+          "turn": 2,
+          "caller_line": "Sure, it's four four eight one two. It was a pair of wireless headphones.",
+          "ttfa": {
+            "n": 80,
+            "p50_ms": 771.4,
+            "p90_ms": 877.8,
+            "p95_ms": 913.6,
+            "p99_ms": 1275.4,
+            "max_ms": 1275.4
+          },
+          "endpointing_p50_ms": 302,
+          "think_speak_p50_ms": 465.3
+        },
+        {
+          "turn": 3,
+          "caller_line": "I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?",
+          "ttfa": {
+            "n": 80,
+            "p50_ms": 770,
+            "p90_ms": 921.1,
+            "p95_ms": 981.6,
+            "p99_ms": 1213.2,
+            "max_ms": 1213.2
+          },
+          "endpointing_p50_ms": 300.9,
+          "think_speak_p50_ms": 473.1
+        },
+        {
+          "turn": 4,
+          "caller_line": "Okay. And how long is that going to take to actually show up on my card?",
+          "ttfa": {
+            "n": 80,
+            "p50_ms": 818.3,
+            "p90_ms": 933.5,
+            "p95_ms": 1011.8,
+            "p99_ms": 1965.9,
+            "max_ms": 1965.9
+          },
+          "endpointing_p50_ms": 303.1,
+          "think_speak_p50_ms": 512.9
+        },
+        {
+          "turn": 5,
+          "caller_line": "Alright, that works. Thanks for sorting it out.",
+          "ttfa": {
+            "n": 80,
+            "p50_ms": 734.8,
+            "p90_ms": 1029.2,
+            "p95_ms": 3116.2,
+            "p99_ms": 5514.9,
+            "max_ms": 5514.9
+          },
+          "endpointing_p50_ms": 242.3,
+          "think_speak_p50_ms": 482.4
+        }
+      ],
+      "waits": {
+        "turns": 400,
+        "up_to_800ms": 231,
+        "800_to_1200ms": 156,
+        "1200_to_2000ms": 6,
+        "over_2000ms": 7
+      },
+      "quality": {
+        "verdict": "pass",
+        "compared": [
+          "failed turns",
+          "words misheard",
+          "interruptions"
+        ]
+      },
+      "phase": {
+        "kind": "ramp",
+        "held_s": 156.2,
+        "first_half": {
+          "n": 200,
+          "p50_ms": 792.7,
+          "p90_ms": 974.2,
+          "p95_ms": 1042,
+          "p99_ms": 3113.8,
+          "max_ms": 5514.9
+        },
+        "second_half": {
+          "n": 200,
+          "p50_ms": 772.7,
+          "p90_ms": 937.9,
+          "p95_ms": 992,
+          "p99_ms": 3116.2,
+          "max_ms": 5513.1
+        },
+        "drift_pct": -0.025,
+        "drift": "steady"
+      },
+      "p95_ratio": 1.08,
+      "verdict": "pass",
+      "nodes": [
+        {
+          "node": "turn-1",
+          "visits": 80,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-2",
+          "visits": 80,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-3",
+          "visits": 80,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-4",
+          "visits": 80,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        },
+        {
+          "node": "turn-5",
+          "visits": 80,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        }
+      ]
+    }
+  ],
+  "judge": {
+    "backend": "groq openai/gpt-oss-120b",
+    "criteria": [
+      "The assistant asks the user for an order number before the assistant discusses the specific order",
+      "The assistant confirms a refund, AND does so after the user declines the replacement OR asks for their money back"
+    ],
+    "judged": 20,
+    "passed": 20,
+    "errored": 0,
+    "misses": [
+      {
+        "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+        "missed": 0,
+        "judged": 20
+      },
+      {
+        "criterion": "The assistant confirms a refund, AND does so after the user declines the replacement OR asks for their money back",
+        "missed": 0,
+        "judged": 20
+      }
+    ],
+    "calls": [
+      {
+        "step": "c10",
+        "request_id": "01a09c2a-6ce4-76c1-98c0-378f215d55d9",
+        "wer": 0.014084507042253521,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c20",
+        "request_id": "01a09c2c-ca19-7292-a54a-38fa957ee26c",
+        "wer": 0.014084507042253521,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c20",
+        "request_id": "01a09c2c-ca34-7ca0-92f5-02f93f0fd5fa",
+        "wer": 0.014084507042253521,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "baseline",
+        "request_id": "01a09c0f-5187-7a13-823d-96e5756af412",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "baseline",
+        "request_id": "01a09c10-1115-7a63-b5b8-4e5cfc3ee047",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "baseline",
+        "request_id": "01a09c10-cc72-7e91-a330-7e1afeeebd25",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "baseline",
+        "request_id": "01a09c11-8ce8-77d0-955e-27bf7e11d639",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c5",
+        "request_id": "01a09c25-d170-7c01-ae3c-b84fd25584c8",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c5",
+        "request_id": "01a09c25-d166-7613-9027-d3f3540d2929",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c5",
+        "request_id": "01a09c25-d16f-7d11-ad2a-e2ee56b4a8b1",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c10",
+        "request_id": "01a09c2a-6ced-7881-a57a-30aa4c7e4029",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c10",
+        "request_id": "01a09c2a-6cdb-7981-9ec2-4b9d8e0a76d8",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c20",
+        "request_id": "01a09c2c-ca46-74a3-8800-d4178d868591",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c40",
+        "request_id": "01a09c2e-6110-7d83-a7e2-f7d61fc35fa2",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c40",
+        "request_id": "01a09c2e-612b-7273-bbce-ed5660078937",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c40",
+        "request_id": "01a09c2e-611d-7a42-8cfc-064921f8cee9",
+        "wer": 0.028169014084507043,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c5",
+        "request_id": "01a09c25-d178-7922-929f-7527117328b7",
+        "wer": 0.04225352112676056,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c10",
+        "request_id": "01a09c2a-6ced-7e70-8608-9c2b9a2b0d55",
+        "wer": 0.04225352112676056,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c20",
+        "request_id": "01a09c2c-ca41-7f02-9b87-4ee6471ca308",
+        "wer": 0.04225352112676056,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      },
+      {
+        "step": "c40",
+        "request_id": "01a09c2e-64f5-7202-a631-3777abd6cf85",
+        "wer": 0.04225352112676056,
+        "ref_words": 71,
+        "met": true,
+        "judged": true
+      }
+    ],
+    "correlation": {
+      "calls": 20,
+      "threshold": 0.05,
+      "clean_calls": 20,
+      "clean_passed": 20,
+      "misheard_calls": 0,
+      "misheard_passed": 0,
+      "clean_pass_rate": 1,
+      "misheard_pass_rate": 0,
+      "gap": 0,
+      "median_wer_passed": 0.028169014084507043,
+      "median_wer_failed": 0,
+      "conclusive": false,
+      "note": "every judged call was heard cleanly, so there is nothing to compare it against"
+    },
+    "waits": {
+      "line_ms": 1200,
+      "calls": 20,
+      "slow_calls": 1,
+      "slow_passed": 1,
+      "quick_calls": 19,
+      "quick_passed": 19,
+      "slow_pass_rate": 1,
+      "quick_pass_rate": 1,
+      "conclusive": true
+    },
+    "judgements": [
+      {
+        "step": "baseline",
+        "request_id": "01a09c0f-5187-7a13-823d-96e5756af412",
+        "judged_at": "2026-09-13T16:01:00.2875868-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can you provide me with your order number, please?\"; turn 2 assistant: \"I’ll arrange a replacement shipment for order number 44812. Please hold.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and then discusses the specific order in turn 2, so the request precedes the discussion as required."
+          },
+          {
+            "criterion": "The assistant confirms a refund, AND does so after the user declines the replacement OR asks for their money back",
+            "met": true,
+            "evidence": "turn 3 user: \"I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?\"; turn 3 assistant: \"I can process a refund for you.\"",
+            "reasoning": "The user declines the replacement and asks for a refund in turn 3, and the assistant confirms a refund in the following assistant turn, satisfying the AND condition."
+          }
+        ]
+      },
+      {
+        "step": "baseline",
+        "request_id": "01a09c10-1115-7a63-b5b8-4e5cfc3ee047",
+        "judged_at": "2026-09-13T16:01:08.8173324-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can you provide me with your order number, please?\"; turn 2 assistant: \"Thank you. I'll arrange a replacement shipment for you.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and later discusses the specific order (arranging a replacement) in turn 2, so the request precedes the discussion as required."
+          },
+          {
+            "criterion": "The assistant confirms a refund, AND does so after the user declines the replacement OR asks for their money back",
+            "met": true,
+            "evidence": "turn 3 user: \"I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?\"; turn 3 assistant: \"I can process that refund for you.\"",
+            "reasoning": "The user declines the replacement and asks for a refund in turn 3 user; the assistant then confirms a refund in turn 3 assistant, which occurs after the user's request, satisfying the AND condition."
+          }
+        ]
+      },
+      {
+        "step": "baseline",
+        "request_id": "01a09c10-cc72-7e91-a330-7e1afeeebd25",
+        "judged_at": "2026-09-13T16:01:17.1681245-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can you please provide me with your order number?\"; turn 2 assistant: \"I'll arrange a replacement shipment for your wireless headphones now.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and later discusses the specific product (wireless headphones) in turn 2, satisfying the required order."
+          },
+          {
+            "criterion": "The assistant confirms a refund, AND does so after the user declines the replacement OR asks for their money back",
+            "met": true,
+            "evidence": "turn 3 user: \"I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?\"; turn 3 assistant: \"I can process a refund for you. Confirming the refund now.\"",
+            "reasoning": "The user declines the replacement and asks for a refund in turn 3, and the assistant confirms the refund in the same turn, which occurs after the user's request, meeting the AND condition."
+          }
+        ]
+      },
+      {
+        "step": "baseline",
+        "request_id": "01a09c11-8ce8-77d0-955e-27bf7e11d639",
+        "judged_at": "2026-09-13T16:01:24.7055161-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can I have your order number, please?\"; turn 2 assistant: \"Thank you. I'll arrange a replacement shipment for your headphones.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and then discusses the specific order (arranging a replacement shipment for the headphones) in turn 2, which is after the request for the order number. Both required parts are present and in the correct order."
+          },
+          {
+            "criterion": "The assistant confirms a refund, AND does so after the user declines the replacement OR asks for their money back",
+            "met": true,
+            "evidence": "turn 3 user: \"I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?\"; turn 3 assistant: \"I can issue a refund for you.\"",
+            "reasoning": "The user in turn 3 declines the replacement and asks for a refund. The assistant then confirms a refund in the same turn, which occurs after the user's request. Both conditions (refund confirmation and occurring after the user's decline/request) are satisfied."
+          }
+        ]
+      },
+      {
+        "step": "c5",
+        "request_id": "01a09c25-d170-7c01-ae3c-b84fd25584c8",
+        "judged_at": "2026-09-13T16:01:37.9222422-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can you provide me with your order number, please?\"; turn 2 assistant: \"I’ll arrange a replacement shipment for your order. Please hold on.\"",
+            "reasoning": "The assistant asks for the order number in turn 1, and only later discusses the specific order (replacement shipment) in turn 2, satisfying the required order."
+          },
+          {
+            "criterion": "The assistant confirms a refund, AND does so after the user declines the replacement OR asks for their money back",
+            "met": true,
+            "evidence": "turn 3 user: \"I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?\"; turn 3 assistant: \"I'll process your refund for you.\"",
+            "reasoning": "The user declines the replacement and requests a refund in turn 3, and the assistant confirms the refund in the same turn, meeting both parts of the criterion."
+          }
+        ]
+      },
+      {
+        "step": "c5",
+        "request_id": "01a09c25-d166-7613-9027-d3f3540d2929",
+        "judged_at": "2026-09-13T16:01:49.3353793-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can I have your order number, please?\"; turn 2 assistant: \"I’ll arrange a replacement shipment for that order.\"",
+            "reasoning": "The assistant explicitly asks for the order number in turn 1, and only later discusses the specific order (arranging a replacement) in turn 2, satisfying the required order."
+          },
+          {
+            "criterion": "The assistant confirms a refund, AND does so after the user declines the replacement OR asks for their money back",
+            "met": true,
+            "evidence": "turn 3 user: \"I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?\"; turn 3 assistant: \"I can process a refund for you.\"",
+            "reasoning": "The user declines the replacement and requests a refund in turn 3, and the assistant confirms a refund in the same turn after the user's request, meeting both parts of the condition."
+          }
+        ]
+      },
+      {
+        "step": "c5",
+        "request_id": "01a09c25-d16f-7d11-ad2a-e2ee56b4a8b1",
+        "judged_at": "2026-09-13T16:01:58.3722148-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can you provide me with your order number, please?\"; turn 2 assistant: \"I’ll arrange a replacement shipment for your wireless headphones.\"",
+            "reasoning": "The assistant asks for the order number in turn 1, and only later (turn 2) discusses the specific product (wireless headphones). This satisfies the requirement that the request for the order number occurs before discussing the specific order."
+          },
+          {
+            "criterion": "The assistant confirms a refund, AND does so after the user declines the replacement OR asks for their money back",
+            "met": true,
+            "evidence": "turn 3 user: \"I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?\"; turn 3 assistant: \"I can issue a refund for you. Confirming now.\"",
+            "reasoning": "The user in turn 3 declines the replacement and asks for a refund. The assistant then confirms a refund in the same turn, which is after the user's request, meeting the AND condition."
+          }
+        ]
+      },
+      {
+        "step": "c5",
+        "request_id": "01a09c25-d178-7922-929f-7527117328b7",
+        "judged_at": "2026-09-13T16:02:08.6886082-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"What is your order number?\"; turn 2 assistant: \"I’ll arrange a replacement shipment for your order.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and only later discusses the specific order (replacement shipment) in turn 2, so the request precedes the discussion as required."
+          },
+          {
+            "criterion": "The assistant confirms a refund, AND does so after the user declines the replacement OR asks for their money back",
+            "met": true,
+            "evidence": "turn 3 user: \"I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?\"; turn 3 assistant: \"I can issue a refund for you. Confirming now.\"",
+            "reasoning": "The user asks for their money back in turn 3, and the assistant confirms a refund in the same turn, satisfying the AND condition that the refund confirmation occurs after the user’s request for money back (or decline of replacement)."
+          }
+        ]
+      },
+      {
+        "step": "c10",
+        "request_id": "01a09c2a-6ced-7881-a57a-30aa4c7e4029",
+        "judged_at": "2026-09-13T16:02:14.051589-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can I have your order number to look it up?\"; turn 2 assistant: \"Thank you. I'll arrange a replacement shipment for your headphones.\"",
+            "reasoning": "The assistant explicitly asks for the order number in turn 1, and only later (turn 2) discusses the specific order by mentioning a replacement shipment for the headphones. The required ordering is satisfied."
+          },
+          {
+            "criterion": "The assistant confirms a refund, AND does so after the user declines the replacement OR asks for their money back",
+            "met": true,
+            "evidence": "turn 3 user: \"I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?\"; turn 3 assistant: \"I'll process a refund for you now.\"",
+            "reasoning": "The user declines the replacement and requests a refund in turn 3, and the assistant confirms a refund in the same turn after the user's request. Both the confirmation and the required preceding user statement are present."
+          }
+        ]
+      },
+      {
+        "step": "c10",
+        "request_id": "01a09c2a-6ced-7e70-8608-9c2b9a2b0d55",
+        "judged_at": "2026-09-13T16:02:28.4259939-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can you please provide your order number?\"; turn 2 assistant: \"I'll arrange a replacement shipment for your wireless headphones.\"",
+            "reasoning": "The assistant asks for the order number in turn 1, and later discusses the specific order (the headphones) in turn 2. The request precedes the discussion, satisfying the criterion."
+          },
+          {
+            "criterion": "The assistant confirms a refund, AND does so after the user declines the replacement OR asks for their money back",
+            "met": true,
+            "evidence": "turn 3 user: \"I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?\"; turn 3 assistant: \"I can process a refund for you.\"",
+            "reasoning": "The user declines the replacement and asks for a refund in turn 3, and the assistant confirms a refund in the same turn after the user's request, meeting the AND condition."
+          }
+        ]
+      },
+      {
+        "step": "c10",
+        "request_id": "01a09c2a-6ce4-76c1-98c0-378f215d55d9",
+        "judged_at": "2026-09-13T16:02:36.2529912-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can you please provide me with your order number?\"; turn 2 assistant: \"Thank you. I’ll arrange a replacement shipment for those headphones.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and then discusses the specific order (arranging a replacement shipment) in turn 2, which occurs after the request, satisfying the requirement that the order‑number request precedes discussion of the specific order."
+          },
+          {
+            "criterion": "The assistant confirms a refund, AND does so after the user declines the replacement OR asks for their money back",
+            "met": true,
+            "evidence": "turn 3 user: \"I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?\"; turn 3 assistant: \"I can process a refund for you.\"",
+            "reasoning": "The user declines the replacement and asks for a refund in turn 3, and the assistant confirms a refund in the same turn after the user's request, meeting the condition that the refund confirmation occurs after the user’s request for money back."
+          }
+        ]
+      },
+      {
+        "step": "c10",
+        "request_id": "01a09c2a-6cdb-7981-9ec2-4b9d8e0a76d8",
+        "judged_at": "2026-09-13T16:02:44.9676438-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can you provide me with your order number, please?\"; turn 2 assistant: \"Thank you. I’ll arrange a replacement shipment for you.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and then discusses the specific order (arranging a replacement) in turn 2, which occurs after the request, satisfying the required before relationship."
+          },
+          {
+            "criterion": "The assistant confirms a refund, AND does so after the user declines the replacement OR asks for their money back",
+            "met": true,
+            "evidence": "turn 3 user: \"I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?\"; turn 3 assistant: \"I can process a refund for you.\"",
+            "reasoning": "The user declines the replacement and asks for a refund in turn 3, and the assistant confirms a refund in the following assistant turn, meeting the AND condition that the confirmation occurs after the user's request."
+          }
+        ]
+      },
+      {
+        "step": "c20",
+        "request_id": "01a09c2c-ca41-7f02-9b87-4ee6471ca308",
+        "judged_at": "2026-09-13T16:02:54.1870399-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can I have your order number, please?\"; turn 2 assistant: \"Thank you. I’ll arrange a replacement shipment for your headphones.\"",
+            "reasoning": "The assistant asks for the order number in turn 1, and later discusses the specific order (headphones) in turn 2, satisfying the required order."
+          },
+          {
+            "criterion": "The assistant confirms a refund, AND does so after the user declines the replacement OR asks for their money back",
+            "met": true,
+            "evidence": "turn 3 user: \"I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?\"; turn 3 assistant: \"I can issue a refund for you.\"",
+            "reasoning": "The user asks for money back (declines replacement) in turn 3, and the assistant confirms a refund in the same turn after the user, meeting the AND condition."
+          }
+        ]
+      },
+      {
+        "step": "c20",
+        "request_id": "01a09c2c-ca19-7292-a54a-38fa957ee26c",
+        "judged_at": "2026-09-13T16:03:04.4438177-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can I have your order number, please?\"; turn 2 assistant: \"Thank you. I’ll arrange a replacement shipment for the headphones.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and only later discusses the specific order (the headphones) in turn 2, so the request precedes the discussion as required."
+          },
+          {
+            "criterion": "The assistant confirms a refund, AND does so after the user declines the replacement OR asks for their money back",
+            "met": true,
+            "evidence": "turn 3 user: \"I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?\"; turn 3 assistant: \"I can issue a refund for you.\"",
+            "reasoning": "The user declines the replacement / asks for a refund in turn 3, and the assistant confirms a refund in the following assistant turn, satisfying the AND condition that the confirmation occurs after the user's request."
+          }
+        ]
+      },
+      {
+        "step": "c20",
+        "request_id": "01a09c2c-ca34-7ca0-92f5-02f93f0fd5fa",
+        "judged_at": "2026-09-13T16:03:20.1136241-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can I have your order number, please?\"; turn 2 assistant: \"Thank you. I'll arrange a replacement shipment for your headphones.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and only later discusses the specific order (the headphones replacement) in turn 2, so the request precedes the discussion."
+          },
+          {
+            "criterion": "The assistant confirms a refund, AND does so after the user declines the replacement OR asks for their money back",
+            "met": true,
+            "evidence": "turn 3 user: \"I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?\"; turn 3 assistant: \"I can issue a refund for you.\"",
+            "reasoning": "The user declines the replacement and asks for a refund in turn 3, and the assistant confirms a refund in the same turn after the user's request, satisfying the required sequence."
+          }
+        ]
+      },
+      {
+        "step": "c20",
+        "request_id": "01a09c2c-ca46-74a3-8800-d4178d868591",
+        "judged_at": "2026-09-13T16:03:24.9080637-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can you please provide your order number?\"; turn 2 assistant: \"I'll arrange a replacement shipment for your headphones. Please hold.\"",
+            "reasoning": "The assistant asks for the order number in turn 1, and only later (turn 2) discusses the specific order (headphones). This satisfies the required order."
+          },
+          {
+            "criterion": "The assistant confirms a refund, AND does so after the user declines the replacement OR asks for their money back",
+            "met": true,
+            "evidence": "turn 3 user: \"I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?\"; turn 3 assistant: \"I can issue a refund for your order.\"",
+            "reasoning": "The user declines the replacement and requests a refund in turn 3, and the assistant confirms a refund in the same turn after the user's request, meeting the AND condition."
+          }
+        ]
+      },
+      {
+        "step": "c40",
+        "request_id": "01a09c2e-6110-7d83-a7e2-f7d61fc35fa2",
+        "judged_at": "2026-09-13T16:03:35.2109739-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can I have your order number, please?\"; turn 2 assistant: \"I'll arrange a replacement shipment for your order.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and then discusses the specific order (arranging a replacement) in turn 2, satisfying the required order."
+          },
+          {
+            "criterion": "The assistant confirms a refund, AND does so after the user declines the replacement OR asks for their money back",
+            "met": true,
+            "evidence": "turn 3 user: \"I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?\"; turn 3 assistant: \"I'll process your refund now.\"",
+            "reasoning": "The user asks for a refund (declining the replacement) in turn 3, and the assistant confirms the refund in the same turn after the user's request, meeting both parts of the condition."
+          }
+        ]
+      },
+      {
+        "step": "c40",
+        "request_id": "01a09c2e-612b-7273-bbce-ed5660078937",
+        "judged_at": "2026-09-13T16:03:42.5659849-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can I have your order number, please?\"; turn 2 assistant: \"I’ll arrange a replacement shipment for your order.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and then discusses the specific order (arranging a replacement) in turn 2, satisfying the required order."
+          },
+          {
+            "criterion": "The assistant confirms a refund, AND does so after the user declines the replacement OR asks for their money back",
+            "met": true,
+            "evidence": "turn 3 user: \"I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?\"; turn 3 assistant: \"I can issue a refund for you.\"",
+            "reasoning": "The user declines the replacement and asks for a refund in turn 3, and the assistant confirms a refund in the same turn after the user's request, meeting both parts of the criterion."
+          }
+        ]
+      },
+      {
+        "step": "c40",
+        "request_id": "01a09c2e-64f5-7202-a631-3777abd6cf85",
+        "judged_at": "2026-09-13T16:03:50.6817303-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can I have your order number, please?\"; turn 2 assistant: \"I will arrange a replacement shipment for your order.\"",
+            "reasoning": "The assistant asks for the order number in turn 1 and later discusses the specific order in turn 2, satisfying the required order."
+          },
+          {
+            "criterion": "The assistant confirms a refund, AND does so after the user declines the replacement OR asks for their money back",
+            "met": true,
+            "evidence": "turn 3 user: \"I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?\"; turn 3 assistant: \"I can process a refund for you.\"",
+            "reasoning": "The user declines the replacement and asks for a refund, and the assistant confirms a refund afterwards, meeting both conditions."
+          }
+        ]
+      },
+      {
+        "step": "c40",
+        "request_id": "01a09c2e-611d-7a42-8cfc-064921f8cee9",
+        "judged_at": "2026-09-13T16:04:00.4097859-04:00",
+        "outcomes": [
+          {
+            "criterion": "The assistant asks the user for an order number before the assistant discusses the specific order",
+            "met": true,
+            "evidence": "turn 1 assistant: \"Can I have your order number to look it up?\"; turn 2 assistant: \"Thank you. I see the order. Would you like a replacement shipment?\"",
+            "reasoning": "The assistant asks for the order number in turn 1, and then discusses the specific order in turn 2, satisfying the required order."
+          },
+          {
+            "criterion": "The assistant confirms a refund, AND does so after the user declines the replacement OR asks for their money back",
+            "met": true,
+            "evidence": "turn 3 user: \"I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?\"; turn 3 assistant: \"I can issue a refund for you.\"",
+            "reasoning": "The user declines the replacement and requests a refund, and the assistant confirms a refund in the same turn after that request, meeting both parts of the criterion."
+          }
+        ]
+      }
+    ]
+  },
+  "integrity": {
+    "dispatch": {
+      "dispatched": 210,
+      "received": 210,
+      "duplicates": 0,
+      "missing": 0,
+      "late": 0,
+      "steps": [
+        {
+          "step": "baseline",
+          "dispatched": 30,
+          "received": 30,
+          "duplicates": 0,
+          "missing": 0,
+          "late": 0
+        },
+        {
+          "step": "c5",
+          "dispatched": 30,
+          "received": 30,
+          "duplicates": 0,
+          "missing": 0,
+          "late": 0
+        },
+        {
+          "step": "c10",
+          "dispatched": 30,
+          "received": 30,
+          "duplicates": 0,
+          "missing": 0,
+          "late": 0
+        },
+        {
+          "step": "c20",
+          "dispatched": 40,
+          "received": 40,
+          "duplicates": 0,
+          "missing": 0,
+          "late": 0
+        },
+        {
+          "step": "c40",
+          "dispatched": 80,
+          "received": 80,
+          "duplicates": 0,
+          "missing": 0,
+          "late": 0
+        }
+      ]
+    },
+    "turn_events": {
+      "published": 0,
+      "dropped": 0
+    }
+  },
+  "references": [
+    {
+      "id": "hamming-observed-production-p50",
+      "label": "Hamming observed production median",
+      "kind": "observed",
+      "ms": 1400,
+      "to_ms": 1700,
+      "percentile": 50,
+      "axis": "end_of_speech",
+      "boundary": "Median latency observed across more than 10 million minutes of production calls. The start and end instants are not restated beside the figure.",
+      "placement": "No boundary is stated with it, so it is read on the widest Callstorm clock: an agent under this range from true end of speech is under it on any narrower clock too.",
+      "cites": [
+        {
+          "source": "Hamming",
+          "title": "voice agent latency guide",
+          "published": "2026-01"
+        }
+      ]
+    },
+    {
+      "id": "coval-load-p95",
+      "label": "Coval p95 target under load",
+      "kind": "target",
+      "ms": 2000,
+      "percentile": 95,
+      "axis": "end_of_speech",
+      "boundary": "Response latency under load, p95 under 2s. The start and end instants are not defined beside the threshold.",
+      "placement": "No boundary is stated with it, so it is read on the widest Callstorm clock, where holding it means holding it on any narrower one.",
+      "cites": [
+        {
+          "source": "Coval",
+          "title": "load testing methodology",
+          "published": "2026-03-07"
+        }
+      ]
+    },
+    {
+      "id": "hamming-ttfw-breakdown",
+      "label": "Hamming TTFW breakdown line",
+      "kind": "target",
+      "ms": 800,
+      "percentile": 0,
+      "axis": "detection",
+      "boundary": "TTFW, from VAD silence detection to the first agent audio byte. Past 800ms is conversation breakdown. No percentile is stated.",
+      "placement": "Its clock starts at detection, so it is read on think/speak. Callstorm's detection instant is the agent's transcript arriving, later than VAD detection by transcript finalization, so this reading leans in the agent's favour.",
+      "cites": [
+        {
+          "source": "Hamming",
+          "title": "voice agent analytics guide",
+          "published": "2026-02-10"
+        }
+      ]
+    },
+    {
+      "id": "human-turn-offset",
+      "label": "Human turn-taking marker",
+      "kind": "perceptual",
+      "ms": 300,
+      "percentile": 50,
+      "axis": "end_of_speech",
+      "boundary": "People answer about 208ms after the other speaker stops, across languages. 300ms is the edge Hamming labels natural.",
+      "placement": "A human gap runs from the moment the other speaker actually stops, so it is read on the end-of-speech clock at the median. It marks what a person does; it is not a pass line.",
+      "cites": [
+        {
+          "source": "Cekura",
+          "title": "voice agent latency guide",
+          "published": "2026-09-03"
+        },
+        {
+          "source": "Hamming",
+          "title": "voice agent analytics guide",
+          "published": "2026-02-10"
+        }
+      ]
+    }
+  ],
+  "scenario_hash": "a53b815fac54501fcc580b281f796f41c11451c190709ea340363bdc8ee27f47",
+  "profile_hash": "ee7c5e6bed501b4b405ffd826634e1789aa95ed9a91e9d89a88d6df3d73a2e99",
+  "suite": "deepgram-full-20260913-1644"
+}

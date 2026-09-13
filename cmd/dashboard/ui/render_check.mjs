@@ -24,6 +24,7 @@ const realError = console.error;
 console.error = (...a) => { warnings.push(String(a[0])); realError(...a); };
 
 const run = JSON.parse(fs.readFileSync(RUN, "utf8"));
+const REFS = JSON.parse(fs.readFileSync("../../../internal/loadgen/references.json", "utf8"));
 const id = path.basename(RUN, ".json");
 const index = [{
   id, profile: run.profile, scenario: run.scenario, target: run.target,
@@ -45,7 +46,7 @@ globalThis.fetch = async (url) => ({
   json: async () => (url.includes("/runs/") ? run : index),
 });
 
-const mod = new Function(src + "\n;return { App, ReportCard, ComponentShare, CostChart, GradeScale, PhaseTable, TaskSuccessCard, bandOf, BANDS };")();
+const mod = new Function(src + "\n;return { App, ReportCard, ComponentShare, CostChart, ReferenceLines, placeRef, PhaseTable, TaskSuccessCard, ImpairmentHeatmap, NodeScores, IntegrityCard, Appendix, AgentLatency };")();
 
 // useEffect does not run during renderToString, so the components are driven
 // directly with the data the fetch would have produced. That is the point:
@@ -87,7 +88,7 @@ stub.useEffect = () => {};
 globalThis.React = stub;
 const mod2 = new Function(src + "\n;return { ReportCard };")();
 const card = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod2.ReportCard, { id }));
+  React.createElement(mod2.ReportCard, { refs: REFS, id }));
 
 const wantCard = [
   ["conversation heading", "How the calls sounded"],
@@ -150,7 +151,7 @@ for (const s of old.steps) { delete s.conversation; delete s.cost; }
 seeded = 0;
 current = old;
 const legacy = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod2.ReportCard, { id }));
+  React.createElement(mod2.ReportCard, { refs: REFS, id }));
 
 const wantLegacy = [
   ["legacy run explains missing conversation data", "predates talk ratio"],
@@ -164,31 +165,47 @@ for (const [name, needle] of wantLegacy) {
 }
 
 
-// The absolute grade. Rendered from the fixture's own steps, then checked
-// against the grade Go wrote into the report: two implementations of the same
-// three thresholds is exactly the kind of pair that drifts apart silently.
-const grade = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod.GradeScale, { steps: run.steps }));
+// Reference lines on two clocks, rendered from the fixture's own steps against
+// the real published list. A line whose citation or clock goes missing fails
+// here rather than in front of a reader.
+const refsHtml = ReactDOMServer.renderToStaticMarkup(
+  React.createElement(mod.ReferenceLines, { steps: run.steps, refs: REFS }));
 
 for (const [name, needle] of [
-  ["grade card", "without comparing it to itself"],
-  ["names the natural band", "NATURAL"],
-  ["explains where the bands come from", "200ms of"],
-  ["grade reading present", "read-do"],
-  ["band scale is drawn", "<rect"],
-  ["each step is placed on it", "<circle"],
+  ["reference card", "Where this run sits against what others have published"],
+  ["draws the end-of-speech clock", "From true end of speech"],
+  ["draws the detection clock", "From detection"],
+  ["says none of them decides the verdict", "none of them decides pass or fail"],
+  ["starts from where real agents are", "Start from where real agents are"],
+  ["an observed range is shaded", "<rect"],
 ]) {
-  const ok = grade.includes(needle);
+  const ok = refsHtml.includes(needle);
   if (!ok) bad++;
   console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
 }
+{
+  // Every citation is named with its date, and linked wherever a URL is known.
+  const cites = REFS.flatMap(r => r.cites);
+  const named = cites.filter(c => refsHtml.includes(`${c.source}, ${c.title}`) && refsHtml.includes(c.published) &&
+    (!c.url || refsHtml.includes(`href="${c.url.replace(/&/g, "&amp;")}"`))).length;
+  const ok = cites.length > 0 && named === cites.length;
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${named} of ${cites.length} citations named with their date`);
 
-for (const s of run.steps) {
-  if (!s.grade || !s.grade.typical) continue;
-  const js = mod.bandOf(s.ttfa.p50_ms);
-  const agree = js === s.grade.typical;
-  if (!agree) bad++;
-  console.log(`${agree ? "ok  " : "FAIL"}  ${s.name}: page grades ${s.ttfa.p50_ms}ms as ${js}, report says ${s.grade.typical}`);
+  // Every step on both clocks: a p50 and a p95 dot per clock with samples.
+  const want = run.steps.filter(s => s.ttfa && s.ttfa.n > 0)
+    .reduce((a, s) => a + ["ttfa", "think_speak"].filter(k => s[k] && s[k].n > 0).length * 2, 0);
+  const dots = (refsHtml.match(/<circle/g) || []).length;
+  const drawn = dots === want;
+  if (!drawn) bad++;
+  console.log(`${drawn ? "ok  " : "FAIL"}  ${dots} dots for ${want} step, clock and percentile readings`);
+}
+{
+  const none = ReactDOMServer.renderToStaticMarkup(
+    React.createElement(mod.ReferenceLines, { steps: run.steps, refs: [] }));
+  const ok = none.includes("No reference lines loaded");
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  a page without the list says so`);
 }
 
 // Phase shape. A plain ramp has nothing to say and must say nothing: a card
@@ -356,7 +373,7 @@ for (const [name, needle] of [
 
 // A second fixture: a real six-phase run against the reference agent, where
 // the injected latency is known in advance. It is here because the first
-// fixture predates the phase model and the absolute grade, so every assertion
+// fixture predates the phase model and the known-answer placements, so every assertion
 // about those would have passed by never running -- the same shape of
 // non-check that let the conversation card ship hidden.
 //
@@ -367,10 +384,10 @@ const phased = JSON.parse(fs.readFileSync("testdata/run-phases.json", "utf8"));
 seeded = 0;
 current = phased;
 const phasedCard = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod2.ReportCard, { id: "run-phases" }));
+  React.createElement(mod2.ReportCard, { refs: REFS, id: "run-phases" }));
 
 for (const [name, needle] of [
-  ["grade card renders inside the report", "without comparing it to itself"],
+  ["reference card renders inside the report", "Where this run sits against what others have published"],
   ["phase card renders inside the report", "over its own duration"],
   ["spike phase is named", ">spike<"],
   ["soak phase is named", ">soak<"],
@@ -384,39 +401,22 @@ for (const [name, needle] of [
   console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
 }
 
-// Two implementations of the same three thresholds, one in Go and one on the
-// page. This is the pair that drifts apart silently, so it is checked on every
-// step of a run whose report actually carries the Go answer.
-let graded = 0;
-for (const s of phased.steps) {
-  if (!s.grade || !s.grade.typical) continue;
-  graded++;
-  for (const [which, jsBand, goBand, v] of [
-    ["p50", mod.bandOf(s.ttfa.p50_ms), s.grade.typical, s.ttfa.p50_ms],
-    ["p95", mod.bandOf(s.ttfa.p95_ms), s.grade.worst, s.ttfa.p95_ms],
-  ]) {
-    if (jsBand === goBand) continue;
-    bad++;
-    console.log(`FAIL  ${s.name} ${which} ${v}ms: page says ${jsBand}, report says ${goBand}`);
-  }
-}
+// The known answer, restated against the published lines. The reference agent
+// was given a capacity of 6 and 25ms per caller past it, so from end of speech
+// the baseline ramp sits near 400ms and the spike near 850ms: both past the
+// human marker and both under the production median, which is arithmetic
+// rather than opinion.
 {
-  const ok = graded === phased.steps.length;
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  grade agreement checked on ${graded} of ${phased.steps.length} steps`);
-}
-
-// The known-answer check, restated on the page: the reference agent was given
-// a capacity of 6 and 25ms of degradation per caller past it, so 24 concurrent
-// must land in the breakdown band and 4 concurrent must not.
-{
+  const human = REFS.find(r => r.kind === "perceptual");
+  const observed = REFS.find(r => r.kind === "observed");
   const spike = phased.steps.find(s => s.phase && s.phase.kind === "spike");
   const ramp = phased.steps.find(s => s.name === phased.baseline);
-  const right = spike && ramp &&
-    mod.bandOf(spike.ttfa.p50_ms) === "breakdown" &&
-    mod.bandOf(ramp.ttfa.p50_ms) === "acceptable";
+  const p50 = (r, s) => mod.placeRef(r, s).find(m => m.percentile === 50);
+  const right = human && observed && spike && ramp &&
+    p50(human, ramp).over && p50(human, spike).over &&
+    p50(observed, ramp).value_ms < observed.ms && p50(observed, spike).value_ms < observed.ms;
   if (!right) bad++;
-  console.log(`${right ? "ok  " : "FAIL"}  the injected latency lands in the band it should (${ramp && Math.round(ramp.ttfa.p50_ms)}ms then ${spike && Math.round(spike.ttfa.p50_ms)}ms)`);
+  console.log(`${right ? "ok  " : "FAIL"}  the injected latency lands where it should against the published lines (${ramp && Math.round(ramp.ttfa.p50_ms)}ms then ${spike && Math.round(spike.ttfa.p50_ms)}ms)`);
 }
 
 // The same run with a judge block attached, to prove the task card mounts
@@ -426,7 +426,7 @@ withJudge.judge = judged;
 seeded = 0;
 current = withJudge;
 const judgedCard = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod2.ReportCard, { id: "run-judged" }));
+  React.createElement(mod2.ReportCard, { refs: REFS, id: "run-judged" }));
 for (const [name, needle] of [
   ["task card mounts in the full report", "Did it actually do the job"],
   ["and brings its finding with it", "Mishearing is costing it the task"],
@@ -434,6 +434,296 @@ for (const [name, needle] of [
   const ok = judgedCard.includes(needle);
   if (!ok) bad++;
   console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
+}
+
+// The impairment matrix, the scenario nodes, harness integrity and the
+// appendix. Every run already on disk predates all four, so the empty states
+// are what ships first and are asserted as closely as the populated ones.
+for (const [name, needle] of [
+  ["an unimpaired run says so", "Placed on an unimpaired network"],
+  ["and says how to impair one", "60-impair-job.yaml"],
+  ["a run with no pipeline says there was nothing to check", "No pipeline to check"],
+  ["and that it is not the target's webhooks", "not the target&#x27;s webhooks"],
+  ["a run before node scoring says so", "predates per-node scoring"],
+  ["a run before round-trip measurement says so", "predates round-trip measurement"],
+  ["the appendix mounts in the report", "How every number is computed"],
+  ["the appendix gives the percentile formula", "⌈p ÷ 100 × n⌉"],
+  ["the appendix maps published boundaries onto Callstorm's clocks", "ASR finalization"],
+]) {
+  const ok = card.includes(needle);
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
+}
+
+// A matrix whose answer is fixed by construction: the severe network fails c8
+// against the clean baseline, its delay lands in endpointing (+500ms) rather
+// than think/speak (+10ms), and the refund node collapses to 2 of 16 there.
+const heldNodes = [
+  { node: "open", visits: 6, checked: 6, passed: 6, pass_rate: 1 },
+  { node: "refund", visits: 6, checked: 6, passed: 6, pass_rate: 1 },
+  { node: "close", visits: 6, checked: 0, passed: 0, pass_rate: 0 },
+];
+const brokeNodes = [
+  { node: "open", visits: 16, checked: 16, passed: 16, pass_rate: 1 },
+  { node: "refund", visits: 16, checked: 16, passed: 2, pass_rate: 0.125, miss: 'said none of ["refund"]' },
+  { node: "close", visits: 0, checked: 0, passed: 0, pass_rate: 0 },
+];
+const mstep = (name, conc, p95, vs, verdict, ep, ts, nodes) => ({
+  name, concurrency: conc, verdict, vs_clean: vs, nodes,
+  ttfa: { n: 20, p50_ms: p95 - 5, p90_ms: p95 - 2, p95_ms: p95 },
+  endpointing: { n: 20, p50_ms: ep, p95_ms: ep }, think_speak: { n: 20, p50_ms: ts, p95_ms: ts },
+});
+const matrixRun = {
+  steps: [], matrix: { device: "eth0", cohorts: [
+    { impairment: { name: "clean" }, tc_command: "tc qdisc del dev eth0 root",
+      qdisc: "qdisc noqueue 0: root refcnt 2",
+      steps: [mstep("c2", 2, 505, 1, "pass", 200, 300, heldNodes), mstep("c8", 8, 510, 1, "pass", 200, 300, heldNodes)] },
+    { impairment: { name: "severe", loss_pct: 5, jitter_ms: 100, delay_ms: 200 },
+      tc_command: "tc qdisc replace dev eth0 root netem delay 200ms 100ms loss 5%",
+      qdisc: "qdisc netem 8001: root refcnt 2 limit 1000 delay 200ms  100ms loss 5%", breakpoint: "c8",
+      steps: [mstep("c2", 2, 900, 1.78, "warn", 700, 310, heldNodes), mstep("c8", 8, 1300, 2.55, "fail", 900, 310, brokeNodes)] },
+  ] },
+};
+const heat = ReactDOMServer.renderToStaticMarkup(React.createElement(mod.ImpairmentHeatmap, { rep: matrixRun }));
+for (const [name, needle] of [
+  ["heatmap card", "Load against network"],
+  ["one row per cohort", ">severe<"],
+  ["the exact tc command", "tc qdisc replace dev eth0 root netem delay 200ms 100ms loss 5%"],
+  ["the kernel's readback", "qdisc netem 8001"],
+  ["a failed cell is marked", "✕"],
+  ["breaks-at column", ">c8<"],
+  ["offers agent p95 as a cell value", "agent p95"],
+  ["names the finding", "The network breaks it before load does"],
+  ["says loss arrives as delay over TCP", "not as damaged audio"],
+  ["places the delay in endpointing", "The network lands in endpointing"],
+]) {
+  const ok = heat.includes(needle);
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
+}
+{
+  // Four cells, four fills: a heatmap whose cells render uncoloured is the
+  // silent way this one lies.
+  const filled = (heat.match(/background:color-mix/g) || []).length;
+  const ok = filled === 4;
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${filled} filled cells for 4 cohort-steps`);
+}
+
+const nodes = ReactDOMServer.renderToStaticMarkup(React.createElement(mod.NodeScores, { rep: matrixRun }));
+for (const [name, needle] of [
+  ["node card", "Which part of the conversation gave way"],
+  ["defaults to the worst cohort", "severe · worst"],
+  ["names the collapsed node", "refund is the node that gives way"],
+  ["quotes its rate", "12.5%"],
+  ["an unvisited node is kept", "not reached"],
+  ["a node with no assertion shows visits, not a rate", "6 visits"],
+]) {
+  const ok = nodes.includes(needle);
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
+}
+
+const dup = ReactDOMServer.renderToStaticMarkup(React.createElement(mod.IntegrityCard, { integrity: {
+  dispatch: { dispatched: 16, received: 16, duplicates: 2, missing: 0, late: 1,
+    steps: [{ step: "c8", dispatched: 16, received: 16, duplicates: 2, missing: 0, late: 1 }] } } }));
+const lost = ReactDOMServer.renderToStaticMarkup(React.createElement(mod.IntegrityCard, { integrity: {
+  dispatch: { dispatched: 16, received: 13, duplicates: 0, missing: 3, late: 0,
+    steps: [{ step: "c8", dispatched: 16, received: 13, duplicates: 0, missing: 3, late: 0 }] } } }));
+for (const [name, html, needle] of [
+  ["integrity card", dup, "Did every call come back exactly once"],
+  ["duplicates are named and said to be dropped", dup, "came back twice"],
+  ["missing calls are the headline", lost, "3 of 16 calls never came back"],
+  ["and point at the fleet first", lost, "Check the workers before the agent"],
+]) {
+  const ok = html.includes(needle);
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
+}
+
+// A real matrix: graph-ref against the in-cluster reference agent under the
+// four default networks. Its answers are known. refagent's replies fix the node
+// rates in every cohort, and its injected 300ms think/speak means any network
+// cost has to land in endpointing.
+const realMatrix = JSON.parse(fs.readFileSync("testdata/run-matrix.json", "utf8"));
+seeded = 0;
+current = realMatrix;
+const matrixCard = ReactDOMServer.renderToStaticMarkup(
+  React.createElement(mod2.ReportCard, { refs: REFS, id: "run-matrix" }));
+for (const [name, needle] of [
+  ["heatmap mounts in the full report", "Load against network"],
+  ["every default cohort is a row", ">moderate<"],
+  ["the recorded command is shown", "tc qdisc replace dev eth0 root netem delay 200ms 100ms loss 5%"],
+  ["the real run breaks on the network", "The network breaks it before load does"],
+  ["and the delay lands in endpointing", "The network lands in endpointing"],
+  ["the refund node is the one that gives way", "refund is the node that gives way"],
+  ["an in-process matrix has no pipeline to check", "No pipeline to check"],
+]) {
+  const ok = matrixCard.includes(needle);
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
+}
+{
+  const cells = realMatrix.matrix.cohorts.reduce((a, c) => a + c.steps.length, 0);
+  // Heatmap cells only: the question charts' legends use the same colours, so
+  // counting every colour-mix swatch on the page would count them too.
+  const filled = (matrixCard.match(/class="hm[^"]*" style="background:color-mix/g) || []).length;
+  const ok = filled === cells;
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${filled} filled cells for ${cells} cohort-steps in the real matrix`);
+  // Every cohort in this run scored the same fixed answers, so every cohort
+  // must show refund at 0% and number over twice the visits of open.
+  const zero = realMatrix.matrix.cohorts.every(c => c.steps.every(s =>
+    s.nodes.find(n => n.node === "refund").pass_rate === 0 &&
+    s.nodes.find(n => n.node === "number").visits === 2 * s.nodes.find(n => n.node === "open").visits));
+  if (!zero) bad++;
+  console.log(`${zero ? "ok  " : "FAIL"}  the graph's known answer held in every cohort`);
+}
+
+// Agent TTFA: the observed wait with the measured round trip taken out. The
+// fixture is arithmetic -- 100ms of round trip on a 640ms turn leaves 540ms, a
+// 16% share, so exactly one verdict is right -- and a run where no pong came
+// back says so rather than showing a corrected figure it does not have.
+const agentHtml = ReactDOMServer.renderToStaticMarkup(React.createElement(mod.AgentLatency, { steps: [
+  { name: "c2", concurrency: 2, ttfa: { n: 20, p50_ms: 600, p95_ms: 650 },
+    transport_rtt: { n: 20, p50_ms: 100, p95_ms: 110 }, agent_ttfa: { n: 20, p50_ms: 500, p95_ms: 545 } },
+  { name: "c8", concurrency: 8, ttfa: { n: 40, p50_ms: 640, p95_ms: 700 },
+    transport_rtt: { n: 30, p50_ms: 100, p95_ms: 120 }, agent_ttfa: { n: 30, p50_ms: 540, p95_ms: 590 } },
+] }));
+const noPong = ReactDOMServer.renderToStaticMarkup(React.createElement(mod.AgentLatency, { steps: [
+  { name: "c2", concurrency: 2, ttfa: { n: 10, p50_ms: 600, p95_ms: 650 },
+    transport_rtt: { n: 0, p50_ms: 0, p95_ms: 0 }, agent_ttfa: { n: 0, p50_ms: 0, p95_ms: 0 } },
+] }));
+for (const [name, html, needle] of [
+  ["agent card", agentHtml, "The wait, with the network taken out"],
+  ["shows the agent's share", agentHtml, "540ms"],
+  ["shows how much of the step was corrected", agentHtml, "30 of 40 turns"],
+  ["a small network share leaves the wait with the agent", agentHtml, "The wait is the agent"],
+  ["says the correction is an estimate", agentHtml, "The correction is an estimate"],
+  ["a run whose server answered no pings says so", noPong, "no pong came back"],
+]) {
+  const ok = html.includes(needle);
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
+}
+{
+  const both = agentHtml.includes("of the wait.</b>");
+  if (both) bad++;
+  console.log(`${!both ? "ok  " : "FAIL"}  does not also call the network a large share`);
+}
+
+// The known answer for agent TTFA, from a real run in kind: the reference agent
+// injects 500ms, and netem adds 100ms of delay to the calling pod. Observed TTFA
+// has to rise by the delay, and agent TTFA has to stay where the clean cohort
+// had it -- otherwise the correction is wrong, whatever the card says.
+const rttRun = JSON.parse(fs.readFileSync("testdata/run-rtt.json", "utf8"));
+{
+  const cohort = name => rttRun.matrix.cohorts.find(c => c.impairment.name === name);
+  const clean = cohort("clean"), delay = cohort("delay-100");
+  const pairs = delay.steps.map((s, i) => [s, clean.steps[i]]);
+  const rose = pairs.every(([s, base]) => s.ttfa.p50_ms - base.ttfa.p50_ms > 90);
+  const held = pairs.every(([s, base]) => Math.abs(s.agent_ttfa.p50_ms - base.agent_ttfa.p50_ms) < 10);
+  const ok = rose && held;
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  100ms of delay raises observed TTFA and leaves agent TTFA where clean had it`);
+}
+seeded = 0;
+current = rttRun;
+const rttCard = ReactDOMServer.renderToStaticMarkup(
+  React.createElement(mod2.ReportCard, { refs: REFS, id: "run-rtt" }));
+{
+  const ok = rttCard.includes("The wait, with the network taken out") && rttCard.includes("30 of 30 turns");
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  the real run's agent card renders inside the report`);
+}
+
+// The questions section, against the fixtures already here. None of them was
+// shaped to answer every question, so these assert the answers they can give
+// and the reasons they give for the rest: an unanswerable question has to say
+// why, and no answer may fail to compute.
+for (const [name, html, needle] of [
+  ["the questions section heads the report", card, "questions answered, in plain words"],
+  ["capacity is asked in plain words", card, "How many calls at the same time can it take"],
+  ["a chart is drawn for an answered question", card, "slowest callers&#x27; wait"],
+  ["what the test can't tell you is listed", card, "What this kind of test can&#x27;t tell you"],
+  ["a run with no rush step says so", card, "no sudden-rush step"],
+  ["a rush at a level never built up to says why it can't compare", phasedCard, "never built up to that same level"],
+  ["a recovery without timestamps says what is missing", phasedCard, "predates call timestamps"],
+  ["the network question is answered from a matrix", matrixCard, "A bad connection breaks it before load does"],
+  ["a matrix run's job question uses its scenario checks", matrixCard, "failed its check at every load"],
+]) {
+  const ok = html.includes(needle);
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
+}
+// The newer figures, on a fixture shaped to answer them: the closing turn slow
+// at every load, long waits growing with load, a step that keeps its speed and
+// stops doing the job, replies repeated when busy, judged calls showing the
+// slow ones went worse, and 225ms of silence opening every reply.
+const shaped = JSON.parse(JSON.stringify(run));
+shaped.steps.forEach((s, i) => {
+  s.harness_degraded = false;
+  s.turns = [1, 2, 3].map(n => ({
+    turn: n, caller_line: n === 3 ? "Thanks for sorting it out." : `Line ${n}`,
+    ttfa: { n: 20, p50_ms: n === 3 ? 3000 : 700, p90_ms: 0, p95_ms: n === 3 ? 3100 + i * 50 : 900, p99_ms: 0, max_ms: 0 },
+    endpointing_p50_ms: 250, think_speak_p50_ms: n === 3 ? 2750 : 450,
+  }));
+  s.waits = { turns: 100, up_to_800ms: 80 - i * 10, "800_to_1200ms": 15, "1200_to_2000ms": 4 + i * 8, over_2000ms: 1 + i * 2 };
+  s.conversation.repeated_replies = [0, 1, 6][i];
+  s.conversation.calls_with_repeats = [0, 1, 4][i];
+  s.quality = i === 2
+    ? { verdict: "fail", compared: ["failed turns", "task success"], reasons: ["the judge passed 70% of 30 calls, against 97% of 30 at the baseline"] }
+    : { verdict: "pass", compared: ["failed turns", "task success"] };
+  s.leading_silence = { n: 20, p50_ms: 225, p90_ms: 230, p95_ms: 231, p99_ms: 232, max_ms: 232 };
+});
+shaped.judge = JSON.parse(JSON.stringify(judged));
+shaped.judge.waits = { line_ms: 1200, calls: 20, slow_calls: 8, slow_passed: 4, quick_calls: 12, quick_passed: 12,
+  slow_pass_rate: 0.5, quick_pass_rate: 1, conclusive: true };
+seeded = 0;
+current = shaped;
+const shapedCard = ReactDOMServer.renderToStaticMarkup(
+  React.createElement(mod2.ReportCard, { refs: REFS, id: "run-shaped" }));
+
+// The known answer from a real run: the Deepgram suite's graph-reference part,
+// refreshed from its calls log. Deepgram took about three seconds to answer the
+// closing thank-you even for a typical caller, at every load the ladder kept,
+// and the share of long waits did not move with load.
+const deepgram = JSON.parse(fs.readFileSync("testdata/run-deepgram-graph.json", "utf8"));
+seeded = 0;
+current = deepgram;
+const deepgramCard = ReactDOMServer.renderToStaticMarkup(
+  React.createElement(mod2.ReportCard, { refs: REFS, id: "run-deepgram-graph" }));
+for (const [name, html, needle] of [
+  ["the real run names its slow closing turn", deepgramCard, "Turn 4, after the caller says “Alright, that works. Thanks for sorting it out”."],
+  ["where even a typical caller waits", deepgramCard, "Even a typical caller waits"],
+  ["and its long waits do not come from load", deepgramCard, "so the long waits are not coming from load"],
+  ["a small group in the slow-call split is read loosely", deepgramCard, "the other 13."],
+  ["the slowest moment is named with what the caller said", shapedCard, "Turn 3, after the caller says “Thanks for sorting it out”."],
+  ["even a typical caller waits on it", shapedCard, "Even a typical caller waits 3000ms on that turn"],
+  ["and the wait is put down to thinking", shapedCard, "Most of it is the agent thinking up its reply: 2750ms of a typical 3000ms"],
+  ["a turn slow at every load comes from what is said", shapedCard, "so it comes from what is said on that turn, not from being busy"],
+  ["long waits are counted past 1.2 seconds", shapedCard, "25.0% of turns at 15 calls at once"],
+  ["and grow with load", shapedCard, "being busy makes the long waits more common"],
+  ["quality giving way before speed is the finding", shapedCard, "It stopped doing the job as well at 15 calls at once, and never got too slow"],
+  ["the report card grades quality beside speed", shapedCard, "<th>Quality</th>"],
+  ["and says why a step failed it", shapedCard, "c15 fails: the judge passed 70% of 30 calls"],
+  ["repeated replies are counted", shapedCard, "8.0% at 15, in 4 calls"],
+  ["against Hamming's line for repeated questions", shapedCard, "past the 3% Hamming treats as a problem"],
+  ["slow calls went worse", shapedCard, "50% of the 8 judged calls that kept someone waiting past 1.2 seconds did the job, against 100% of the other 12"],
+  ["leading silence joins the wait", shapedCard, "silence at the start of the reply, before any sound"],
+  ["a run before the newer figures says how to add them", card, "Run callstorm -refresh on its report"],
+  ["a run with no judge says the slow-call question needs one", card, "nothing says which calls went well"],
+  ["a percentile from too few turns is marked", card, "fewer turns than that percentile needs"],
+  ["and the trust answer says how many turns stand behind it", card, "baseline timed only 15 turns"],
+]) {
+  const ok = html.includes(needle);
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
+}
+{
+  const broken = [card, legacy, phasedCard, judgedCard, matrixCard, rttCard, shapedCard, deepgramCard].filter(h => h.includes("could not be computed")).length;
+  if (broken) bad++;
+  console.log(`${!broken ? "ok  " : "FAIL"}  every question computed on every fixture (${broken} reports with a broken answer)`);
 }
 
 // The readings are prose with numbers spliced into it, and both ways of
@@ -445,7 +735,70 @@ for (const [name, needle] of [
 // Every reading rendered above, scanned together: a glue bug in one card is
 // the same bug in all of them, and a check that only looks at the first is how
 // the last one ships broken.
-const ALL = [card, legacy, grade, drifted, stuck, nojudge, task, thinHtml, phasedCard, judgedCard].join(String.fromCharCode(10));
+// A load test made of several runs. Parts sharing a suite fold into one history
+// entry where the newest part sits, with the worst verdict of any part; a run
+// with no suite stays its own entry. Built with the real hooks: the suite card
+// keeps which part is open in state, and the stub above would seed it a report.
+globalThis.React = React;
+const modS = new Function(src + "\n;return { groupRuns, SuiteCard };")();
+const part = (pid, scenario, started, extra) => Object.assign({
+  id: pid, profile: "sweep-deepgram-30", scenario, target: "", started_at: started, duration_s: 600, steps: 5,
+  verdict: "pass", peak_concurrency: 40, baseline_p95_ms: 900, worst_p95_ms: 1300, wer_mean: 0,
+  harness_degraded: false, suite: "deepgram-full-test",
+}, extra);
+const history = [
+  part("p3", "refund-escalation", "2026-09-13T17:30:00Z", { profile: "impair-ref", cohorts: 4, peak_concurrency: 8, network_breaks: ["moderate at c2", "severe at c2"] }),
+  part("solo", "refund-escalation", "2026-09-13T17:20:00Z", { suite: undefined }),
+  part("p2", "refund-bargein", "2026-09-13T17:00:00Z", { verdict: "fail", breakpoint: "c40 at 40 concurrent", judged: 20, passed: 15, harness_degraded: true }),
+  part("p1", "refund-escalation", "2026-09-13T16:44:00Z", { judged: 20, passed: 18 }),
+];
+const entries = modS.groupRuns(history);
+const suite = entries[0];
+const suiteHtml = ReactDOMServer.renderToStaticMarkup(
+  React.createElement(modS.SuiteCard, { group: suite, refs: REFS, runs: history }));
+for (const [name, ok] of [
+  ["suite parts fold into one entry, a run without a suite stays its own", entries.length === 2 && suite.kind === "suite" && entries[1].id === "solo"],
+  ["suite parts in the order they ran", suite.parts.map(p => p.id).join() === "p1,p2,p3"],
+  ["suite verdict is its worst part's", suite.verdict === "fail"],
+  ["suite sums judged calls across parts", suite.judged === 40 && suite.passed === 33],
+  ["suite counts its bad-network parts and scenarios", suite.network === 1 && suite.scenarios.length === 2],
+  ["suite card names every part", ["load sweep", "bad networks · 4 conditions", "refund-bargein"].every(s => suiteHtml.includes(s))],
+  ["suite card names what broke a bad-network part", suiteHtml.includes("held; on bad networks: moderate at c2, severe at c2")],
+  ["suite reading counts broken parts", suiteHtml.includes("2 of 3 parts broke somewhere")],
+  ["suite reading flags a part the test machine could not keep up with", suiteHtml.includes("Treat refund-bargein as rough")],
+  ["suite card opens its first part below the overview", suiteHtml.includes("Part 1 of 3 · load sweep · refund-escalation")],
+]) {
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
+}
+
+// The written analysis: what the model kept, with its evidence, and a count
+// of what the number check dropped.
+const modI = new Function(src + "\n;return { InsightsView };")();
+const insightsHtml = ReactDOMServer.renderToStaticMarkup(React.createElement(modI.InsightsView, { ins: {
+  kind: "suite", subject: "deepgram-full-test", model: "gemini-3.5-flash", generated_at: "2026-09-13T20:30:00Z",
+  headline: "Only refund slows down with load, and the closing turn of graph-reference is the slowest moment.",
+  insights: [
+    { title: "The closing turn is the slowest", category: "latency", severity: "high",
+      evidence: ["graph-reference, turn 4: ttfa_p50_ms 3166"], finding: "Replies to the thank-you take 3166ms.",
+      why_it_matters: "Callers wait at the end of the call.", next_step: "Look at what the agent does after a thank-you." },
+  ],
+  rejected: [
+    { title: "Invented", reason: "cites 1830, which the data does not contain" },
+    { title: "Turn 4 again", reason: 'repeats "The closing turn is the slowest"' },
+  ],
+} }));
+for (const [name, ok] of [
+  ["analysis shows its headline", insightsHtml.includes("Only refund slows down with load")],
+  ["analysis shows each finding with its evidence", insightsHtml.includes("The closing turn is the slowest") && insightsHtml.includes("graph-reference, turn 4: ttfa_p50_ms 3166")],
+  ["analysis names the model that wrote it", insightsHtml.includes("Written analysis · gemini-3.5-flash")],
+  ["analysis counts what the number check dropped", insightsHtml.includes("Dropped: 1 claim that could not be checked, 1 repeating an earlier finding.")],
+]) {
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
+}
+
+const ALL = [card, legacy, refsHtml, drifted, stuck, nojudge, task, thinHtml, phasedCard, judgedCard, heat, nodes, dup, lost, matrixCard, agentHtml, noPong, rttCard, suiteHtml, insightsHtml, shapedCard, deepgramCard].join(String.fromCharCode(10));
 const prose = [...ALL.matchAll(/<div class="read[^"]*">([\s\S]*?)<\/div>/g)]
   // Inline tags are dropped rather than spaced out: <b> and <code> sit inside
   // sentences, so replacing them with a space would invent gaps the reader

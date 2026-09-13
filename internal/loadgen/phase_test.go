@@ -22,45 +22,6 @@ func held(step string, offset time.Duration, ttfa time.Duration, turns int) call
 	return o
 }
 
-func TestBandNamesTheExperience(t *testing.T) {
-	for _, c := range []struct {
-		ms   float64
-		want string
-	}{
-		{0, ""}, {120, "natural"}, {299.9, "natural"},
-		{300, "acceptable"}, {499, "acceptable"},
-		{500, "sluggish"}, {799, "sluggish"},
-		{800, "breakdown"}, {2400, "breakdown"},
-	} {
-		if got := Band(c.ms); got != c.want {
-			t.Errorf("Band(%v) = %q, want %q", c.ms, got, c.want)
-		}
-	}
-}
-
-func TestGradeIsAbsoluteWhereTheVerdictIsRelative(t *testing.T) {
-	// Every step is twice the baseline in absolute terms and none of them is
-	// remotely fast. The relative verdict passes the baseline; the grade must
-	// still call it a breakdown, which is the entire point of having both.
-	var outcomes []callOutcome
-	for i := 0; i < 6; i++ {
-		outcomes = append(outcomes, held("slow", time.Duration(i)*time.Second, 1500*time.Millisecond, 4))
-	}
-	r := buildStepReport(Step{Name: "slow", Concurrency: 2}, outcomes)
-	if r.Grade.Typical != "breakdown" || r.Grade.Worst != "breakdown" {
-		t.Fatalf("grade %+v, want breakdown on both: 1500ms is not a conversation", r.Grade)
-	}
-
-	rep := &Report{Baseline: "slow", Steps: []StepReport{r}}
-	rep.score()
-	if rep.Steps[0].Verdict != "pass" {
-		t.Fatalf("verdict %q, want pass: it is its own baseline", rep.Steps[0].Verdict)
-	}
-	if rep.Steps[0].Grade.Typical != "breakdown" {
-		t.Error("scoring overwrote the absolute grade with the relative one")
-	}
-}
-
 func TestPhaseFindsDriftUnderUnchangingLoad(t *testing.T) {
 	// Twelve calls at a fixed concurrency: the first six answer in 400ms, the
 	// last six in 900ms. Nothing about the load changed, so a single p95 for

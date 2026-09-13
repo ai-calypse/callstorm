@@ -1,0 +1,87 @@
+{
+  "kind": "run",
+  "subject": "20260913-172146-sweep-deepgram-30",
+  "runs": [
+    "20260913-172146-sweep-deepgram-30"
+  ],
+  "generated_at": "2026-09-13T22:08:08.2855437Z",
+  "model": "gemini-3.5-flash",
+  "prompt_hash": "9c9d8c617b73",
+  "data_hash": "9705de432687",
+  "headline": "The agent handles up to 40 concurrent calls with high transcription accuracy and low median latency, but experiences a severe tail latency spike on the final turn of conversations.",
+  "insights": [
+    {
+      "title": "Final Turn Tail Latency Spike",
+      "category": "latency",
+      "severity": "high",
+      "evidence": [
+        "20260913-172146-sweep-deepgram-30, turn 5: ttfa_p95_ms 3168.6",
+        "20260913-172146-sweep-deepgram-30, turn 1: ttfa_p95_ms 1103.4",
+        "20260913-172146-sweep-deepgram-30, turn 4: ttfa_p95_ms 1223.6"
+      ],
+      "finding": "The final turn of the conversation, where the caller says goodbye, experiences a severe tail latency spike. The p95 time to first audio (ttfa), which measures the wait before the agent starts speaking, rises to 3168.6 ms, while other turns remain under 1223.6 ms.",
+      "why_it_matters": "A delay of over three seconds at the end of a conversation creates awkward dead air right before the call ends, leaving callers uncertain if the agent has disconnected or failed.",
+      "next_step": "Analyze Turn 5 logs to see if post-refund API calls or final closing state transitions are stalling the agent response."
+    },
+    {
+      "title": "Slow Final Turn Hidden by Aggregated Step Latency",
+      "category": "latency",
+      "severity": "high",
+      "evidence": [
+        "20260913-172146-sweep-deepgram-30, step c40: ttfa p95_ms 1228.1",
+        "20260913-172146-sweep-deepgram-30, step c40: turn 5 ttfa p95_ms 3157.7"
+      ],
+      "finding": "Overall step latencies mask individual turn issues. In step c40, the step's overall p95 TTFA is 1228.1 ms, but the Turn 5 p95 TTFA within that same step spikes to 3157.7 ms.",
+      "why_it_matters": "Relying on aggregated performance metrics can hide critical design flaws, giving a false impression that the entire load test successfully met target guidelines.",
+      "next_step": "Add turn-level alerts to the CI pipeline to flag when any individual turn breaches the target limit, even if the overall step passes."
+    },
+    {
+      "title": "Latency Decreases as Call Concurrency Rises",
+      "category": "capacity",
+      "severity": "medium",
+      "evidence": [
+        "20260913-172146-sweep-deepgram-30, step baseline: ttfa p95_ms 2348.8",
+        "20260913-172146-sweep-deepgram-30, step c40: ttfa p95_ms 1228.1"
+      ],
+      "finding": "Latency does not follow load as expected. The system's p95 TTFA actually drops from 2348.8 ms at the baseline step (concurrency 1) down to 1228.1 ms at step c40 (concurrency 40).",
+      "why_it_matters": "This pattern shows the system is not bottlenecked by high concurrency. The high latency at low load points to potential system warm-up or container cold-start delays.",
+      "next_step": "Run a pre-warming script before executing the baseline step to see if it eliminates the tail latency."
+    },
+    {
+      "title": "Median Latency Comfortably Beats Industry Standard",
+      "category": "latency",
+      "severity": "info",
+      "evidence": [
+        "20260913-172146-sweep-deepgram-30, step baseline: ttfa p50_ms 877.1",
+        "20260913-172146-sweep-deepgram-30, step c40: ttfa p50_ms 870.5"
+      ],
+      "finding": "The median TTFA across both baseline and high concurrency steps stays between 870.5 ms and 877.1 ms, remaining significantly faster than the Hamming observed production median of 1400 ms.",
+      "why_it_matters": "For the typical user, the agent is highly responsive, providing a natural conversational flow that beats standard production averages.",
+      "next_step": "Maintain current infrastructure settings since the median performance is highly competitive."
+    },
+    {
+      "title": "Low Word Error Rate Maintained Under Load",
+      "category": "quality",
+      "severity": "info",
+      "evidence": [
+        "20260913-172146-sweep-deepgram-30, step baseline: wer mean 0.02910798122065728",
+        "20260913-172146-sweep-deepgram-30, step c40: wer mean 0.029753521126760562"
+      ],
+      "finding": "The agent's Word Error Rate (WER), measuring words misheard, remains steady at 2.9% during baseline and 3.0% at concurrency 40.",
+      "why_it_matters": "Speech recognition accuracy does not degrade as concurrent call volume increases, ensuring that user requests are understood reliably under heavy traffic.",
+      "next_step": "Retain Deepgram as the speech-to-text provider for this voice agent configuration."
+    },
+    {
+      "title": "Small Judge Sample Size Affects Quality Confidence",
+      "category": "test",
+      "severity": "low",
+      "evidence": [
+        "20260913-172146-sweep-deepgram-30, judge: judged 20",
+        "20260913-172146-sweep-deepgram-30, calls: calls 210"
+      ],
+      "finding": "Only 20 calls out of 210 total load test calls were graded by the LLM judge, making the 100.0% pass rate positive but statistically fragile.",
+      "why_it_matters": "Grading a small fraction of the total call volume increases the risk of missing rare logic errors or task failures that might only surface under higher stress.",
+      "next_step": "Increase the portion of calls that are judged to obtain statistically robust quality metrics across larger runs."
+    }
+  ]
+}

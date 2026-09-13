@@ -1,0 +1,114 @@
+credentials environment  key unused... (len 28)
+callstorm  scenario=graph-reference
+target     ws://refagent.callstorm.svc.cluster.local:8080/v1/agent/converse
+profile    impair-ref  2 steps, 22 calls, peak concurrency 8
+impair     4 cohorts on eth0: clean, delay-100, jitter-50, loss-3
+
+cohort clean      tc qdisc del dev eth0 root
+c2           ramp      concurrency 2    calls 6    ...... p95 507ms  setup 100%  turns 30
+c8           ramp      concurrency 8    calls 16   ................ p95 510ms  setup 100%  turns 80
+
+cohort delay-100  tc qdisc replace dev eth0 root netem delay 100ms
+c2           ramp      concurrency 2    calls 6    ...... p95 606ms  setup 100%  turns 30
+c8           ramp      concurrency 8    calls 16   ................ p95 605ms  setup 100%  turns 80
+
+cohort jitter-50  tc qdisc replace dev eth0 root netem delay 100ms 50ms
+c2           ramp      concurrency 2    calls 6    ...... p95 2774ms  setup 100%  turns 30
+c8           ramp      concurrency 8    calls 16   ................ p95 2616ms  setup 100%  turns 80
+
+cohort loss-3     tc qdisc replace dev eth0 root netem loss 3%
+c2           ramp      concurrency 2    calls 6    ...... p95 504ms  setup 100%  turns 30
+c8           ramp      concurrency 8    calls 16   ................ p95 522ms  setup 100%  turns 80
+
+--------------------------------------------------------------------------------------------
+LOAD REPORT  impair-ref   scenario=graph-reference
+--------------------------------------------------------------------------------------------
+
+step         conc   setup   ttfa p50    ttfa p95    ttfa p99    vs base   verdict
+c2           2      100%    503ms       507ms       508ms       1.00x     pass   <- baseline
+c8           8      100%    503ms       510ms       512ms       1.01x     pass
+
+
+network      observed TTFA, the round trip measured on each call's connection, and the agent's share
+step         observed p50  observed p95  rtt p50    agent p50   agent p95   corrected
+c2           503ms         507ms         1ms        502ms       506ms       30 of 30 turns
+c8           503ms         510ms         1ms        502ms       509ms       80 of 80 turns
+
+two clocks   from the caller's true end of speech (TTFA), and from the agent's transcript of the caller (think/speak)
+step         speech p50   speech p95   detect p50   detect p95
+c2           503ms        507ms        301ms        305ms
+c8           503ms        510ms        302ms        309ms
+
+reference    published lines, each read on its own clock; none of them is the verdict
+observed     Hamming observed production median 1400-1700ms on speech  (Hamming, 2026-01)
+             c2 p50 503ms under · c8 p50 503ms under
+target       Coval p95 target under load 2000ms on speech  (Coval, 2026-03-07)
+             c2 p95 507ms under · c8 p95 510ms under
+target       Hamming TTFW breakdown line 800ms on detect  (Hamming, 2026-02-10)
+             c2 p50 301ms under · c2 p95 305ms under · c8 p50 302ms under · c8 p95 309ms under
+perceptual   Human turn-taking marker 300ms on speech  (Cekura, 2026-09-03)
+             c2 p50 503ms over · c8 p50 503ms over
+
+phase shape   each step split in half by when its calls started, medians compared
+step         phase      held     first half  second half drift     reading
+c2           ramp       119s     503ms       503ms       +0%       steady
+c8           ramp       79s      504ms       502ms       -0%       steady
+
+step         talk      agent wpm  caller wpm  interrupts   score   dead air
+c2           29%       150        169         0/30         5.00    -
+c8           29%       150        169         0/80         5.00    -
+
+step         ttfa p95    endpointing   think/speak   which half
+c2           507ms       333ms         305ms         48% think/speak
+c8           510ms       202ms         309ms         60% think/speak  (+13 pts vs baseline)
+
+cost         13.6 agent-minutes across the run; pass -rate-per-minute to price it
+
+nodes        share of visits whose reply met the node's expect, visits in brackets
+clean            c2             c8            
+  open           100% (6)       100% (16)     
+  number         100% (12)      100% (32)     
+  refund         0% (6)         0% (16)       
+  close          (6)            (16)          
+delay-100        c2             c8            
+  open           100% (6)       100% (16)     
+  number         100% (12)      100% (32)     
+  refund         0% (6)         0% (16)       
+  close          (6)            (16)          
+jitter-50        c2             c8            
+  open           100% (6)       100% (16)     
+  number         100% (12)      100% (32)     
+  refund         0% (6)         0% (16)       
+  close          (6)            (16)          
+loss-3           c2             c8            
+  open           100% (6)       100% (16)     
+  number         100% (12)      100% (32)     
+  refund         0% (6)         0% (16)       
+  close          (6)            (16)          
+
+impairment   p95 TTFA per cohort, and its ratio to the same step on the clean network
+cohort     network                  c2              c8              breaks at
+clean      none                     507ms 1.00x     510ms 1.00x     -
+             agent p95, rtt removed 506ms           509ms          
+delay-100  +100ms                   606ms 1.19x     605ms 1.19x     -
+             agent p95, rtt removed 504ms           504ms          
+jitter-50  +100ms ±50ms             2774ms 5.47x    2616ms 5.13x    c2
+             agent p95, rtt removed 1235ms          1343ms         
+loss-3     3% loss                  504ms 1.00x     522ms 1.02x     -
+             agent p95, rtt removed 504ms           522ms          
+
+tc         applied to eth0, egress only; verdicts scored against the clean baseline
+clean      tc qdisc del dev eth0 root
+delay-100  tc qdisc replace dev eth0 root netem delay 100ms
+jitter-50  tc qdisc replace dev eth0 root netem delay 100ms 50ms
+loss-3     tc qdisc replace dev eth0 root netem loss 3%
+
+BREAKPOINT   none reached; every step stayed inside 2x baseline
+harness      21ms worst-case pacing drift across the run
+duration     880s
+
+report       /runs/20260913-105223-impair-ref.json
+csv          /runs/20260913-105223-impair-ref.csv
+chart        /runs/20260913-105223-impair-ref.svg
+calls        /runs/20260913-105223-impair-ref-calls.jsonl
+callstorm exited 0; artifacts stay in /runs for 10 minutes

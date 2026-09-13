@@ -1,0 +1,109 @@
+{
+  "kind": "run",
+  "subject": "20260913-164409-sweep-deepgram-30",
+  "runs": [
+    "20260913-164409-sweep-deepgram-30"
+  ],
+  "generated_at": "2026-09-13T22:07:21.0836906Z",
+  "model": "gemini-3.5-flash",
+  "prompt_hash": "9c9d8c617b73",
+  "data_hash": "c1c7d4b8de6e",
+  "headline": "The voice agent fails load targets starting at 5 concurrent calls due to severe thinking-time latency spikes on the closing turn, despite maintaining high response quality.",
+  "insights": [
+    {
+      "title": "Tail Latency Fails Coval Target Under Load",
+      "category": "latency",
+      "severity": "high",
+      "evidence": [
+        "refund-escalation, step c5: ttfa p95_ms 2543.9",
+        "refund-escalation, step c10: ttfa p95_ms 3108.9",
+        "refund-escalation, step c20: ttfa p95_ms 3151.6"
+      ],
+      "finding": "The time it takes for the agent to start speaking (known as Time to First Audio, or TTFA) at the 95th percentile degrades rapidly once load is introduced, jumping from 1149.5 ms at baseline to 2543.9 ms at 5 concurrent calls. This fails the Coval load target of 2000 ms.",
+      "why_it_matters": "High tail latency means that even if typical calls feel fast, one out of twenty turns will suffer from conversational gaps of over 2.5 seconds, which causes callers to repeat themselves or believe the call has dropped.",
+      "next_step": "Investigate why the system queue times or resource contentions spike immediately when moving from 1 to 5 concurrent sessions."
+    },
+    {
+      "title": "Median Latency Remains Stable While Tail Breaks",
+      "category": "latency",
+      "severity": "medium",
+      "evidence": [
+        "refund-escalation, step baseline: ttfa p50_ms 847.1",
+        "refund-escalation, step c5: ttfa p50_ms 860",
+        "refund-escalation, step c10: ttfa p50_ms 877.4",
+        "refund-escalation, step c20: ttfa p50_ms 868.4"
+      ],
+      "finding": "While the 95th percentile latency degrades severely under load, the median (p50) latency remains extremely stable, staying between 847.1 ms and 877.4 ms across all valid steps up to 20 concurrent calls.",
+      "why_it_matters": "This divergence suggests that the system's core processing is capable under load, but a subset of calls are being throttled or hit by resource blocks, causing the tail to break while the typical experience holds.",
+      "next_step": "Analyze trace logs for the slow outliers at step c5 and higher to see if specific worker nodes or database transactions are stalling."
+    },
+    {
+      "title": "Thinking Time Is the Core Latency Bottleneck",
+      "category": "latency",
+      "severity": "high",
+      "evidence": [
+        "refund-escalation, step c20: think_speak p95_ms 2893.8",
+        "refund-escalation, step c20: endpointing p95_ms 375.4",
+        "refund-escalation, step baseline: think_speak p95_ms 738.5",
+        "refund-escalation, step baseline: endpointing p95_ms 408.5"
+      ],
+      "finding": "The latency bottleneck is driven almost entirely by the agent's thinking time (think_speak)—the time to generate a reply—rather than endpointing (the time it takes for the agent to notice the caller has stopped speaking). Under 20 concurrent calls, the think_speak p95 reaches 2893.8 ms, while endpointing p95 is only 375.4 ms.",
+      "why_it_matters": "Optimization efforts should be focused entirely on response generation speeds, such as LLM inference or API integrations, rather than tweaking the Voice Activity Detection sensitivity.",
+      "next_step": "Implement LLM prompt caching or optimize backend database queries to reduce response generation times."
+    },
+    {
+      "title": "Extreme Latency Spike on the Final Turn",
+      "category": "latency",
+      "severity": "high",
+      "evidence": [
+        "refund-escalation, step baseline: turns turn 5 ttfa p95_ms 3150.9",
+        "refund-escalation, step baseline: turns turn 1 ttfa p95_ms 960.9",
+        "refund-escalation, turn 5: ttfa_p95_ms 3236.8",
+        "refund-escalation, turn 1: ttfa_p95_ms 1100.9"
+      ],
+      "finding": "The final turn of the conversation (Turn 5, where the caller says, 'Alright, that works. Thanks for sorting it out.') exhibits a massive latency spike even during the baseline single-call step, with a p95 of 3150.9 ms. Across all combined turns in the run, Turn 5 has a p95 of 3236.8 ms compared to only 1100.9 ms for Turn 1.",
+      "why_it_matters": "Callers are left waiting more than 3 seconds for a final confirmation, which represents a poor ending experience. It is possible that the agent is performing heavy post-call processing, final database updates, or clean-up tasks before replying.",
+      "next_step": "Review the application logic executed during Turn 5 to see if state-saving or transaction-closing operations can be deferred until after the final vocal response is sent."
+    },
+    {
+      "title": "Conversation Quality Stays High Under Load",
+      "category": "quality",
+      "severity": "info",
+      "evidence": [
+        "refund-escalation, step baseline: wer mean 3.0%",
+        "refund-escalation, step c5: wer mean 3.0%",
+        "refund-escalation, step c10: wer mean 2.8%",
+        "refund-escalation, step c20: wer mean 3.6%",
+        "refund-escalation, step baseline: setup_success 100.0%"
+      ],
+      "finding": "Despite the severe latency issues under load, conversational quality metrics remain strong. The word error rate (mean WER) stays very low, ranging from 2.8% to 3.6% up to 20 concurrency, and all calls successfully connect.",
+      "why_it_matters": "The system is robust and does not experience transcription failure, word dropouts, or setup failures under load. The degradation is purely a speed issue rather than a quality or comprehension issue.",
+      "next_step": "Maintain current transcription settings and models while focusing resources strictly on latency optimizations."
+    },
+    {
+      "title": "Cumulative Dead Air Increases with Load",
+      "category": "quality",
+      "severity": "medium",
+      "evidence": [
+        "refund-escalation, step baseline: conversation dead_air_seconds 11.6",
+        "refund-escalation, step c5: conversation dead_air_seconds 30",
+        "refund-escalation, step c10: conversation dead_air_seconds 32",
+        "refund-escalation, step c20: conversation dead_air_seconds 42.5"
+      ],
+      "finding": "The total amount of dead air (silence during agent response turns) grows significantly as load increases. It rises from 11.6 seconds at baseline to 42.5 seconds at 20 concurrent calls.",
+      "why_it_matters": "More dead air means a less interactive and more frustrating experience for the caller, which can cause them to abandon calls prematurely.",
+      "next_step": "Address the underlying thinking latency bottlenecks to directly reduce the accumulating silent gaps."
+    },
+    {
+      "title": "Step c40 Suffered from Test Harness Degradation",
+      "category": "test",
+      "severity": "low",
+      "evidence": [
+        "refund-escalation, step c40: harness_degraded true"
+      ],
+      "finding": "The test step at 40 concurrent calls was flagged with a degraded test harness.",
+      "why_it_matters": "This flag indicates that the load testing machine itself ran out of resources or experienced scheduling delays. As a result, any performance measurements taken during this step represent harness bottlenecks rather than the actual agent's limits, and must be ignored.",
+      "next_step": "Re-run the 40-concurrency test step on a larger or dedicated client load machine to collect reliable performance metrics at this scale."
+    }
+  ]
+}

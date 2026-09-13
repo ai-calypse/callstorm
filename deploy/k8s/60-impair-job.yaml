@@ -1,0 +1,65 @@
+# One impairment matrix: the load profile once per network condition, clean first.
+#
+# A single pod places every call itself and reshapes its own interface between
+# cohorts with tc netem. The impairment is on the caller's side, egress only --
+# a bad connection at the customer's end -- and each cohort runs after the one
+# before it finishes, so the target never carries two cohorts' calls at once.
+#
+# The pod needs NET_ADMIN to change its own queue discipline, and root to use it,
+# which is why this runs from its own image rather than the worker's:
+#
+#   docker build --target impair -t callstorm-impair:dev .
+#   kind load docker-image callstorm-impair:dev --name callstorm
+#   kubectl apply -f deploy/k8s/60-impair-job.yaml
+#   kubectl -n callstorm logs -f job/callstorm-impair
+#
+# The pod stays up ten minutes after the run so its artifacts can be copied out;
+# kubectl cp needs a running container, and a Job's pod that has exited is not
+# one:
+#
+#   kubectl -n callstorm cp $(kubectl -n callstorm get pod -l job-name=callstorm-impair \
+#     -o jsonpath='{.items[0].metadata.name}'):/runs runs/impair
+#
+# Copy when the log says "callstorm exited", not when a `logs -f` returns: the
+# stream stays open through the ten minutes and only ends with the pod, by which
+# point the files are gone. The terminal report survives in `kubectl logs`.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: callstorm-impair
+  namespace: callstorm
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: impair
+          image: callstorm-impair:dev
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c"]
+          args:
+            - |
+              /callstorm \
+                -profile=/profiles/impair-ref.json \
+                -impairments=/profiles/impairments.json \
+                -scenario=/scenarios/graph-ref.json \
+                -target=ws://refagent.callstorm.svc.cluster.local:8080/v1/agent/converse \
+                -out=/runs -cache=/cache -env=
+              status=$?
+              echo "callstorm exited $status; artifacts stay in /runs for 10 minutes"
+              sleep 600
+              exit $status
+          securityContext:
+            capabilities:
+              add: ["NET_ADMIN"]
+          env:
+            # Every caller line is a cache hit against the reference agent, so
+            # no request is made with this. The CLI refuses to start without it.
+            - name: DEEPGRAM_API_KEY
+              valueFrom:
+                secretKeyRef: { name: callstorm-credentials, key: deepgram-api-key }
+          resources:
+            requests: { cpu: 200m, memory: 128Mi }
+            limits:   { memory: 512Mi }
