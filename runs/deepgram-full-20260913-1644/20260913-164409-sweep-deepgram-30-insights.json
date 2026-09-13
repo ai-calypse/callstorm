@@ -1,0 +1,79 @@
+{
+  "kind": "run",
+  "subject": "20260913-164409-sweep-deepgram-30",
+  "runs": [
+    "20260913-164409-sweep-deepgram-30"
+  ],
+  "generated_at": "2026-09-13T21:16:48.2096725Z",
+  "model": "gemini-3.5-flash",
+  "prompt_hash": "ee975de27155",
+  "data_hash": "3c466af56a5e",
+  "headline": "While the voice agent achieves a 100.0% task success rate, tail latency degrades to 2543.9 ms at just 5 concurrent calls, driven by thinking time bottlenecks.",
+  "insights": [
+    {
+      "title": "Tail Latency Spikes Under Minimal Load",
+      "category": "latency",
+      "severity": "high",
+      "evidence": [
+        "refund-escalation, step baseline: ttfa p95_ms 1149.5",
+        "refund-escalation, step c5: ttfa p95_ms 2543.9",
+        "refund-escalation, step c10: ttfa p95_ms 3108.9"
+      ],
+      "finding": "While the baseline step has a p95 response wait of 1149.5 ms, introducing even a light load of 5 concurrent calls causes the p95 response wait to rise to 2543.9 ms, and further to 3108.9 ms at 10 concurrent calls.",
+      "why_it_matters": "At concurrent call counts of 5 and higher, the system violates the Coval target of 2000 ms, meaning the slowest 5% of callers will experience jarring delays of over two seconds.",
+      "next_step": "Optimize resource allocation for the agent at concurrency levels above baseline to ensure consistent response times."
+    },
+    {
+      "title": "Final Turn Bottleneck",
+      "category": "latency",
+      "severity": "high",
+      "evidence": [
+        "refund-escalation, turn 5: ttfa_p95_ms 3236.8",
+        "refund-escalation, turn 1: ttfa_p95_ms 1100.9",
+        "refund-escalation, turn 4: ttfa_p95_ms 1210.1"
+      ],
+      "finding": "On the final turn of the conversation (turn 5), the p95 response wait climbs to 3236.8 ms, whereas earlier turns like turn 1 and turn 4 remain at 1100.9 ms and 1210.1 ms respectively.",
+      "why_it_matters": "The slowest callers face a long pause of 3236.8 ms on the final turn when the agent is only saying goodbye or concluding, which can feel unnatural and awkward.",
+      "next_step": "Analyze the model execution pipeline for turn 5 to determine why concluding the conversation causes this latency spike."
+    },
+    {
+      "title": "Untrustworthy Metrics at Step c40 Due to Degraded Test Harness",
+      "category": "test",
+      "severity": "medium",
+      "evidence": [
+        "refund-escalation, step c40: harness_degraded true",
+        "refund-escalation, step c40: worst_harness_drift_ms 147.3"
+      ],
+      "finding": "The step representing 40 concurrent calls was executed under degraded harness conditions, recording a worst harness drift of 147.3 ms.",
+      "why_it_matters": "We cannot draw reliable conclusions from step c40 because the measurements are impacted by the test machine's own capacity limitations rather than the agent's performance.",
+      "next_step": "Re-run the high-concurrency steps with upgraded test infrastructure to prevent harness degradation."
+    },
+    {
+      "title": "Think-Speak Process is the Main Latency Bottleneck",
+      "category": "latency",
+      "severity": "medium",
+      "evidence": [
+        "refund-escalation, step c20: think_speak p95_ms 2893.8",
+        "refund-escalation, step c20: endpointing p95_ms 375.4",
+        "refund-escalation, step c20: transport_rtt p95_ms 90.0"
+      ],
+      "finding": "At 20 concurrent calls, the think-speak p95 latency is 2893.8 ms, which vastly exceeds the endpointing p95 of 375.4 ms and the network round trip p95 of 90.0 ms.",
+      "why_it_matters": "The delay is almost entirely caused by the agent's thinking and speech response synthesis rather than network round-trip time or silence detection.",
+      "next_step": "Investigate using smaller, faster LLMs or streaming audio chunks earlier to reduce the think-speak latency."
+    },
+    {
+      "title": "Highly Accurate Task Completion and Transcription Under Load",
+      "category": "quality",
+      "severity": "info",
+      "evidence": [
+        "refund-escalation, judge: passed 20",
+        "refund-escalation, judge: judged 20",
+        "refund-escalation, step baseline: wer mean 0.029577464788732393",
+        "refund-escalation, step c20: wer mean 0.03556338028169014"
+      ],
+      "finding": "The judge passed 100.0% of the 20 evaluated calls, and the mean word error rate only shifted slightly from 3.0% at baseline to 3.6% at 20 concurrent calls.",
+      "why_it_matters": "While load degrades response times, it does not impact the agent's accuracy, compliance with criteria, or transcription quality.",
+      "next_step": "Maintain the existing Deepgram-based transcription pipeline and model prompting rules."
+    }
+  ]
+}

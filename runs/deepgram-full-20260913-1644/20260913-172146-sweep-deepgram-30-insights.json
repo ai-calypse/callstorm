@@ -1,0 +1,90 @@
+{
+  "kind": "run",
+  "subject": "20260913-172146-sweep-deepgram-30",
+  "runs": [
+    "20260913-172146-sweep-deepgram-30"
+  ],
+  "generated_at": "2026-09-13T21:17:37.9641848Z",
+  "model": "gemini-3.5-flash",
+  "prompt_hash": "ee975de27155",
+  "data_hash": "245e1d142af2",
+  "headline": "The voice agent exhibits outstanding quality and latency stability under scaling load, though a severe latency tail spike on the final turn of the conversation warrants investigation.",
+  "insights": [
+    {
+      "title": "Severe Tail Latency Spike on the Final Turn",
+      "category": "latency",
+      "severity": "high",
+      "evidence": [
+        "refund-bargein, turn 5: ttfa_p50_ms 833.3",
+        "refund-bargein, turn 5: ttfa_p95_ms 3168.6"
+      ],
+      "finding": "The final turn of the conversation (turn 5) experiences a severe tail latency spike. While the median wait is an acceptable 833.3 ms, the p95 wait balloons to 3168.6 ms.",
+      "why_it_matters": "This wide gap means that although typical callers experience a prompt wrap-up, a portion of callers encounter an uncomfortable and jarring delay of over 3168.6 ms right before the call ends.",
+      "next_step": "Audit the prompt execution and state-closing logic specifically for the final turn of the conversation."
+    },
+    {
+      "title": "Tail Latency Surprisingly Improves Under Load",
+      "category": "capacity",
+      "severity": "medium",
+      "evidence": [
+        "refund-bargein, step baseline: ttfa p95_ms 2348.8",
+        "refund-bargein, step c40: ttfa p95_ms 1228.1"
+      ],
+      "finding": "Tail latency is at its worst during the single-concurrency baseline step (p95 of 2348.8 ms) and steadily improves as load scales up to 40 concurrent calls, dropping to a p95 of 1228.1 ms.",
+      "why_it_matters": "This inverse trend demonstrates that load is not the driver of latency degradation. It strongly points to early startup inefficiencies, such as connection or model cold-starts, which resolve themselves once the system is warmed up.",
+      "next_step": "Introduce a warm-up phase of synthetic traffic before initiating actual load measurements."
+    },
+    {
+      "title": "Baseline Fails Coval Latency Target While Load Steps Succeed",
+      "category": "latency",
+      "severity": "medium",
+      "evidence": [
+        "refund-bargein, step baseline: ttfa p95_ms 2348.8",
+        "refund-bargein, step c40: ttfa p95_ms 1228.1"
+      ],
+      "finding": "The baseline step fails to meet the Coval load-testing target of 2000 ms, registering a p95 response time of 2348.8 ms. Under a peak load of 40 concurrent calls, the agent's p95 response of 1228.1 ms successfully complies.",
+      "why_it_matters": "Callers in low-traffic periods are exposed to sluggish response tails that violate industry targets, even though the system proves highly capable of meeting these performance standards under load.",
+      "next_step": "Analyze trace logs from the baseline step to determine if cold database queries or API handshakes caused the early tail slowdown."
+    },
+    {
+      "title": "Insufficient Judge Sample Size Limits Test Trust",
+      "category": "test",
+      "severity": "medium",
+      "evidence": [
+        "refund-bargein, judge: judged 20",
+        "refund-bargein, integrity: dispatch received 210"
+      ],
+      "finding": "Out of 210 total completed calls across the entire test run, the LLM judge evaluated only 20 calls.",
+      "why_it_matters": "Relying on a tiny subset of 20 calls to assert quality is highly fragile. It is impossible to confidently verify conversational quality or detect edge-case failures across all load levels with such a small sample.",
+      "next_step": "Configure the evaluation harness to run the judge on a larger, statistically significant portion of all calls in future sweeps."
+    },
+    {
+      "title": "Excellent Quality and Transcription Resilience Under Load",
+      "category": "quality",
+      "severity": "info",
+      "evidence": [
+        "refund-bargein, step baseline: wer mean 0.02910798122065728",
+        "refund-bargein, step c40: wer mean 0.029753521126760562",
+        "refund-bargein, step baseline: conversation interruption_rate 0",
+        "refund-bargein, step c40: conversation interruption_rate 0"
+      ],
+      "finding": "Transcription accuracy and conversational flow remain highly stable across all steps, with the mean Word Error Rate staying virtually flat between 2.9% in baseline and 3.0% at 40 concurrent calls, alongside zero interruptions.",
+      "why_it_matters": "The system does not sacrifice quality or experience conversational degradation (such as misheard words or accidental talk-overs) as user concurrency increases.",
+      "next_step": "Maintain the current transcription provider configuration since its quality characteristics are highly resilient under load."
+    },
+    {
+      "title": "Response Latency is Dominated by LLM Thinking",
+      "category": "latency",
+      "severity": "info",
+      "evidence": [
+        "refund-bargein, step c40: endpointing p50_ms 304.4",
+        "refund-bargein, step c40: think_speak p50_ms 557",
+        "refund-bargein, step c40: transport_rtt p50_ms 85",
+        "refund-bargein, step c40: ttfa p50_ms 870.5"
+      ],
+      "finding": "At peak concurrency (40 calls), the agent's typical wait time (p50 ttfa) of 870.5 ms is heavily dominated by the thinking phase (p50 think_speak of 557 ms), whereas network round trips (85 ms) and endpointing silence detection (304.4 ms) are highly optimized.",
+      "why_it_matters": "Because transport and endpointing are already fast, efforts to shave milliseconds off the response time must focus squarely on the reply generation phase.",
+      "next_step": "Investigate model quantization or caching strategies to accelerate the thinking and reply generation stage."
+    }
+  ]
+}

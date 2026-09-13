@@ -1,0 +1,80 @@
+{
+  "kind": "run",
+  "subject": "20260913-175934-sweep-deepgram-30",
+  "runs": [
+    "20260913-175934-sweep-deepgram-30"
+  ],
+  "generated_at": "2026-09-13T21:18:32.1567457Z",
+  "model": "gemini-3.5-flash",
+  "prompt_hash": "ee975de27155",
+  "data_hash": "d15be40e682b",
+  "headline": "The voice agent maintains highly stable median response times under 841.5 ms and 100.0% task success up to 20 concurrent calls, but suffers a 3182.2 ms tail latency spike on the final turn.",
+  "insights": [
+    {
+      "title": "Severe Tail Latency Spike on the Final Turn",
+      "category": "latency",
+      "severity": "high",
+      "evidence": [
+        "refund-branching, turn 5: ttfa_p95_ms 3182.2",
+        "refund-branching, turn 5: endpointing_p50_ms 249.2",
+        "refund-branching, turn 5: think_speak_p50_ms 485.2"
+      ],
+      "finding": "The final turn of the conversation, turn 5, experiences a massive tail latency spike where the p95 TTFA reaches 3182.2 ms. This occurs despite a low median endpointing time of 249.2 ms and a low median thinking time of 485.2 ms, suggesting that a small portion of the final replies stall.",
+      "why_it_matters": "A delay of 3182.2 ms at the end of the call causes callers to experience sudden silence right as they expect confirmation, which might lead them to hang up prematurely.",
+      "next_step": "Inspect database connection cleanup or state save routines triggered during turn 5 caller line 'Alright, that works. Thanks for sorting it out.'"
+    },
+    {
+      "title": "Test Harness Degradation and Drift at High Load",
+      "category": "test",
+      "severity": "medium",
+      "evidence": [
+        "refund-branching, step c40: harness_degraded true",
+        "refund-branching, step c40: worst_harness_drift_ms 554.7"
+      ],
+      "finding": "The step c40 load test reported harness_degraded as true, accompanied by a worst_harness_drift_ms of 554.7. This indicates that the testing infrastructure itself was overloaded, meaning these measurements reflect test machine bottlenecks rather than the agent's actual capabilities under load.",
+      "why_it_matters": "Drawing capacity or quality conclusions from a degraded test harness leads to false alarms about agent limits and wastes development resources on non-existent bottlenecks.",
+      "next_step": "Rerun high-concurrency steps using a dedicated, high-performance test instance to accurately measure the agent at 40 concurrent calls."
+    },
+    {
+      "title": "Slight Speech-to-Text Accuracy Loss Under Concurrency",
+      "category": "quality",
+      "severity": "low",
+      "evidence": [
+        "refund-branching, step baseline: wer mean 0.025894538606403013",
+        "refund-branching, step c5: wer mean 0.027306967984934087",
+        "refund-branching, step c10: wer mean 0.03154425612052731",
+        "refund-branching, step c20: wer mean 0.038461538461538464"
+      ],
+      "finding": "The mean word error rate rises slightly from 2.6% in the single-call baseline to 2.7% at step c5, 3.2% at step c10, and reaches 3.8% at step c20. This indicates a minor but consistent decline in transcription quality as simultaneous traffic increases.",
+      "why_it_matters": "Increasing word error rates mean the agent is more likely to misunderstand caller inputs, which directly threatens task success rates under heavy load.",
+      "next_step": "Monitor whether the speech-to-text service experiences increased audio packet loss or compression artifacts when handling multiple concurrent streams."
+    },
+    {
+      "title": "Low Evaluation Coverage from the LLM Judge",
+      "category": "test",
+      "severity": "low",
+      "evidence": [
+        "refund-branching, run 20260913-175934-sweep-deepgram-30: judge judged 20",
+        "refund-branching, run 20260913-175934-sweep-deepgram-30: judge passed 20",
+        "refund-branching, run 20260913-175934-sweep-deepgram-30: integrity dispatched 210"
+      ],
+      "finding": "The LLM judge passed 20 out of 20 evaluated sessions, yielding a 100.0% pass rate. However, because only 20 calls were judged out of the 210 total dispatched calls across all phases, the evaluation sample size is too small to reliably detect infrequent errors under load.",
+      "why_it_matters": "Relying on a tiny evaluation subset can mask failures that only occur under high concurrency, leaving the team with a false sense of security regarding conversation quality.",
+      "next_step": "Configure the test harness to run LLM evaluations on a larger subset of the completed calls in future test sweeps."
+    },
+    {
+      "title": "Exceptional Latency Stability up to 20 Concurrent Sessions",
+      "category": "capacity",
+      "severity": "low",
+      "evidence": [
+        "refund-branching, step baseline: ttfa p50_ms 841.5",
+        "refund-branching, step c5: ttfa p50_ms 792.2",
+        "refund-branching, step c10: ttfa p50_ms 789.3",
+        "refund-branching, step c20: ttfa p50_ms 792.9"
+      ],
+      "finding": "The median response wait time remains highly stable as load scales, measuring 841.5 ms at baseline, 792.2 ms at step c5, 789.3 ms at step c10, and 792.9 ms at step c20. Latency does not follow load across these valid steps, proving that typical users experience no performance degradation up to 20 concurrent calls.",
+      "why_it_matters": "This confirms the system handles moderate concurrent demand perfectly well, providing consistent real-time responses to the majority of users.",
+      "next_step": "Conduct a new load sweep focusing on the concurrency range up to 30 calls to pinpoint the exact threshold where the median response time begins to climb."
+    }
+  ]
+}

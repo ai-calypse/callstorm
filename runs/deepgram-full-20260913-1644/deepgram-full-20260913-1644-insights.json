@@ -1,0 +1,103 @@
+{
+  "kind": "suite",
+  "subject": "deepgram-full-20260913-1644",
+  "runs": [
+    "20260913-164409-sweep-deepgram-30",
+    "20260913-172146-sweep-deepgram-30",
+    "20260913-175934-sweep-deepgram-30",
+    "20260913-183723-sweep-deepgram-30",
+    "20260913-191409-sweep-deepgram-30"
+  ],
+  "generated_at": "2026-09-13T21:20:27.3241472Z",
+  "model": "gemini-3.5-flash",
+  "prompt_hash": "ee975de27155",
+  "data_hash": "d0668e6d32ad",
+  "headline": "While transcription remains highly accurate under load, the voice agent experiences severe tail latency spikes exceeding 3000 ms on final turns and during specific conversational branches.",
+  "insights": [
+    {
+      "title": "Severe Wrap-up Latency Spike on Final Turn",
+      "category": "latency",
+      "severity": "high",
+      "evidence": [
+        "refund-escalation, turn 5: ttfa_p95_ms 3236.8",
+        "refund-bargein, turn 5: ttfa_p95_ms 3168.6",
+        "refund-branching, turn 5: ttfa_p95_ms 3182.2",
+        "refund-hesitant, turn 5: ttfa_p95_ms 3181.8"
+      ],
+      "finding": "Across all tested scenarios, Turn 5—the final wrap-up of the call where the caller says goodbye—exhibits an extreme tail latency spike at the 95th percentile, consistently exceeding 3100 ms of TTFA (Time to First Audio, which is the total wait before the agent starts speaking). For example, in refund-escalation, this reaches 3236.8 ms.",
+      "why_it_matters": "A delay of over 3 seconds during the final pleasantries leaves callers with awkward dead air right before they hang up, degrading the overall conversational experience.",
+      "next_step": "Investigate database commits, session teardown routines, or CRM integration scripts that may be executing synchronously when generating the final pleasantry reply."
+    },
+    {
+      "title": "Severe Turn 4 Delay in Graph Reference Flow",
+      "category": "latency",
+      "severity": "high",
+      "evidence": [
+        "graph-reference, turn 4: ttfa_p50_ms 3164",
+        "graph-reference, turn 4: ttfa_p95_ms 5450.9",
+        "graph-reference, turn 4: think_speak_p50_ms 2926.2"
+      ],
+      "finding": "In the graph-reference scenario, Turn 4 experiences extreme latency. The median TTFA is 3164 ms and the 95th percentile is 5450.9 ms, driven entirely by the agent's think_speak time (the processing time spent thinking up the reply) which has a median of 2926.2 ms, while endpointing (the time taken to notice the caller stopped) remains fast at a median of 238.6 ms.",
+      "why_it_matters": "This represents a severe conversational breakdown on this specific path, where even a typical caller must wait more than 3 seconds for a response.",
+      "next_step": "Analyze the prompt size, context window, or tool execution times specifically associated with Turn 4 in the graph-reference state machine."
+    },
+    {
+      "title": "Latency Tail Breaks Under Load in Refund Escalation",
+      "category": "capacity",
+      "severity": "high",
+      "evidence": [
+        "refund-escalation, step baseline: ttfa p50_ms 847.1",
+        "refund-escalation, step baseline: ttfa p95_ms 1149.5",
+        "refund-escalation, step c5: ttfa p50_ms 860",
+        "refund-escalation, step c5: ttfa p95_ms 2543.9",
+        "refund-escalation, step c10: ttfa p50_ms 877.4",
+        "refund-escalation, step c10: ttfa p95_ms 3108.9"
+      ],
+      "finding": "In the refund-escalation scenario, while the median (p50) TTFA holds flat under 880 ms as concurrency scales, the 95th percentile (p95) tail balloons dramatically from 1149.5 ms at baseline (1 concurrent call) to 3108.9 ms at c10 (10 concurrent calls).",
+      "why_it_matters": "This tail breakdown indicates that the system is hitting a resource bottleneck, causing at least 5% of concurrent callers to experience unacceptable response delays over 3 seconds while typical callers see no performance drop.",
+      "next_step": "Profile CPU usage, lock contention, or API rate limits on the speech generation server during concurrent sweeps."
+    },
+    {
+      "title": "Transient Slowdown Unrelated to Load in Hesitant Scenario",
+      "category": "latency",
+      "severity": "medium",
+      "evidence": [
+        "refund-hesitant, step baseline: ttfa p95_ms 949.6",
+        "refund-hesitant, step c5: ttfa p95_ms 1939.9",
+        "refund-hesitant, step c10: ttfa p95_ms 1252.6",
+        "refund-hesitant, step c20: ttfa p95_ms 985.5",
+        "refund-hesitant, step c40: ttfa p95_ms 1029.2"
+      ],
+      "finding": "In the refund-hesitant scenario, TTFA p95 latency spikes at 5 concurrent calls to 1939.9 ms, but immediately drops back down to 1252.6 ms at 10 concurrent calls, and remains under 1100 ms for steps c20 and c40.",
+      "why_it_matters": "Because the slowdown does not sustain or worsen as load scales up to 40 concurrent calls, this latency spike was likely caused by a transient network blip or downstream API fluctuation rather than system capacity exhaustion.",
+      "next_step": "Correlate the timestamp of the step c5 run of the hesitant scenario with external service status pages to confirm downstream provider variance."
+    },
+    {
+      "title": "Excellent Transcription Quality and Robustness Under Concurrency",
+      "category": "quality",
+      "severity": "info",
+      "evidence": [
+        "refund-branching, step baseline: wer mean 0.025894538606403013",
+        "refund-branching, step c5: wer mean 0.027306967984934087",
+        "refund-branching, step c10: wer mean 0.03154425612052731",
+        "refund-branching, step c20: wer mean 0.038461538461538464"
+      ],
+      "finding": "Transcription quality remains highly robust across load steps. In the refund-branching scenario, the mean Word Error Rate (WER, the percentage of words misheard or altered) barely shifts, starting at 2.6% at baseline and remaining at 3.8% at 20 concurrent calls.",
+      "why_it_matters": "The speech recognition engine scales reliably under load without dropping audio packets or degrading accuracy, ensuring callers are always heard clearly.",
+      "next_step": "Maintain the current Deepgram configuration as it demonstrates excellent scalability up to 20 concurrent sessions."
+    },
+    {
+      "title": "Invalid Performance Metrics on Degraded Test Machine Steps",
+      "category": "test",
+      "severity": "medium",
+      "evidence": [
+        "refund-escalation, step c40: harness_degraded true",
+        "refund-branching, step c40: harness_degraded true",
+        "graph-reference, step baseline: harness_degraded true"
+      ],
+      "finding": "The test engine flagged the c40 step in both the refund-escalation and refund-branching scenarios, and the baseline step in the graph-reference scenario, with harness_degraded set to true.",
+      "why_it_matters": "A degraded harness means the testing infrastructure itself was overloaded and bottlenecked, meaning we cannot trust these steps' latency measurements to represent the actual capacity or performance of the AI agent.",
+      "next_step": "Provision a larger cluster or separate testing node to host the Callstorm test harness for high-concurrency testing runs."
+    }
+  ]
+}
