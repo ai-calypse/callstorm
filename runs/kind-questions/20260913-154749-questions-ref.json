@@ -1,0 +1,1812 @@
+{
+  "profile": "questions-ref",
+  "scenario": "graph-reference",
+  "target": "ws://refagent-knee.callstorm.svc.cluster.local:8080/v1/agent/converse",
+  "baseline": "ramp-c4",
+  "started_at": "2026-09-13T15:47:49.916713115Z",
+  "duration_s": 657.816679256,
+  "ended_at": "2026-09-13T15:58:47.633101795Z",
+  "steps": [
+    {
+      "name": "smoke",
+      "concurrency": 1,
+      "calls": 2,
+      "kind": "smoke",
+      "calls_attempted": 2,
+      "calls_connected": 2,
+      "turns_total": 10,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 10,
+        "p50_ms": 501.3,
+        "p90_ms": 502.4,
+        "p95_ms": 502.7,
+        "p99_ms": 502.7,
+        "max_ms": 502.7
+      },
+      "endpointing": {
+        "n": 10,
+        "p50_ms": 201.4,
+        "p90_ms": 201.8,
+        "p95_ms": 201.9,
+        "p99_ms": 201.9,
+        "max_ms": 201.9
+      },
+      "think_speak": {
+        "n": 10,
+        "p50_ms": 300.3,
+        "p90_ms": 300.9,
+        "p95_ms": 301,
+        "p99_ms": 301,
+        "max_ms": 301
+      },
+      "turn_latency": {
+        "n": 10,
+        "p50_ms": 1501.3,
+        "p90_ms": 1502.4,
+        "p95_ms": 1502.7,
+        "p99_ms": 1502.7,
+        "max_ms": 1502.7
+      },
+      "transport_rtt": {
+        "n": 10,
+        "p50_ms": 0.6,
+        "p90_ms": 0.8,
+        "p95_ms": 1,
+        "p99_ms": 1,
+        "max_ms": 1
+      },
+      "agent_ttfa": {
+        "n": 10,
+        "p50_ms": 500.7,
+        "p90_ms": 501.9,
+        "p95_ms": 501.9,
+        "p99_ms": 501.9,
+        "max_ms": 501.9
+      },
+      "agent_endpointing": {
+        "n": 10,
+        "p50_ms": 200.8,
+        "p90_ms": 201.1,
+        "p95_ms": 201.4,
+        "p99_ms": 201.4,
+        "max_ms": 201.4
+      },
+      "worst_harness_drift_ms": 19.4,
+      "started_at": "2026-09-13T15:47:49.943340699Z",
+      "ended_at": "2026-09-13T15:48:57.041030549Z",
+      "timeline": [
+        {
+          "at": "2026-09-13T15:47:49.943340699Z",
+          "ttfa_ms": 501.3
+        },
+        {
+          "at": "2026-09-13T15:48:23.495688601Z",
+          "ttfa_ms": 502.3
+        }
+      ],
+      "conversation": {
+        "talk_ratio": 0.17,
+        "agent_wpm": 300,
+        "caller_wpm": 169.4,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 0,
+        "dead_air_seconds": 0,
+        "agent_speech_seconds": 10,
+        "caller_speech_seconds": 48.9,
+        "turns": 10
+      },
+      "cost": {
+        "agent_minutes": 1.065
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 0,
+        "mean": 0,
+        "worst": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "ref_words": 0
+      },
+      "phase": {
+        "kind": "smoke",
+        "held_s": 67.1,
+        "first_half": {
+          "n": 5,
+          "p50_ms": 501.3,
+          "p90_ms": 501.7,
+          "p95_ms": 501.7,
+          "p99_ms": 501.7,
+          "max_ms": 501.7
+        },
+        "second_half": {
+          "n": 5,
+          "p50_ms": 502.3,
+          "p90_ms": 502.7,
+          "p95_ms": 502.7,
+          "p99_ms": 502.7,
+          "max_ms": 502.7
+        },
+        "drift_pct": 0,
+        "drift": "unknown"
+      },
+      "p95_ratio": 1,
+      "verdict": "pass",
+      "nodes": [
+        {
+          "node": "open",
+          "visits": 2,
+          "checked": 2,
+          "passed": 2,
+          "pass_rate": 1
+        },
+        {
+          "node": "number",
+          "visits": 4,
+          "checked": 4,
+          "passed": 4,
+          "pass_rate": 1
+        },
+        {
+          "node": "refund",
+          "visits": 2,
+          "checked": 2,
+          "passed": 0,
+          "pass_rate": 0,
+          "miss": "said none of [\"refund\"]"
+        },
+        {
+          "node": "close",
+          "visits": 2,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        }
+      ]
+    },
+    {
+      "name": "ramp-c4",
+      "concurrency": 4,
+      "calls": 8,
+      "kind": "ramp",
+      "calls_attempted": 8,
+      "calls_connected": 8,
+      "turns_total": 40,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 40,
+        "p50_ms": 501.7,
+        "p90_ms": 502.6,
+        "p95_ms": 503.5,
+        "p99_ms": 506,
+        "max_ms": 506
+      },
+      "endpointing": {
+        "n": 40,
+        "p50_ms": 201.1,
+        "p90_ms": 201.7,
+        "p95_ms": 201.7,
+        "p99_ms": 201.9,
+        "max_ms": 201.9
+      },
+      "think_speak": {
+        "n": 40,
+        "p50_ms": 300.6,
+        "p90_ms": 301.3,
+        "p95_ms": 302.7,
+        "p99_ms": 304.6,
+        "max_ms": 304.6
+      },
+      "turn_latency": {
+        "n": 40,
+        "p50_ms": 1501.7,
+        "p90_ms": 1502.6,
+        "p95_ms": 1503.5,
+        "p99_ms": 1506,
+        "max_ms": 1506
+      },
+      "transport_rtt": {
+        "n": 40,
+        "p50_ms": 0.6,
+        "p90_ms": 0.8,
+        "p95_ms": 0.9,
+        "p99_ms": 1.2,
+        "max_ms": 1.2
+      },
+      "agent_ttfa": {
+        "n": 40,
+        "p50_ms": 501.1,
+        "p90_ms": 502,
+        "p95_ms": 503.1,
+        "p99_ms": 505.4,
+        "max_ms": 505.4
+      },
+      "agent_endpointing": {
+        "n": 40,
+        "p50_ms": 200.5,
+        "p90_ms": 201.1,
+        "p95_ms": 201.2,
+        "p99_ms": 201.5,
+        "max_ms": 201.5
+      },
+      "worst_harness_drift_ms": 19.7,
+      "started_at": "2026-09-13T15:48:57.045016202Z",
+      "ended_at": "2026-09-13T15:50:04.142022799Z",
+      "timeline": [
+        {
+          "at": "2026-09-13T15:48:57.045016202Z",
+          "ttfa_ms": 502
+        },
+        {
+          "at": "2026-09-13T15:48:57.045016241Z",
+          "ttfa_ms": 501.8
+        },
+        {
+          "at": "2026-09-13T15:48:57.045071428Z",
+          "ttfa_ms": 501.9
+        },
+        {
+          "at": "2026-09-13T15:48:57.045743644Z",
+          "ttfa_ms": 502
+        },
+        {
+          "at": "2026-09-13T15:49:30.598203473Z",
+          "ttfa_ms": 501.6
+        },
+        {
+          "at": "2026-09-13T15:49:30.598431876Z",
+          "ttfa_ms": 501.6
+        },
+        {
+          "at": "2026-09-13T15:49:30.599042297Z",
+          "ttfa_ms": 501.4
+        },
+        {
+          "at": "2026-09-13T15:49:30.599315618Z",
+          "ttfa_ms": 501.3
+        }
+      ],
+      "conversation": {
+        "talk_ratio": 0.17,
+        "agent_wpm": 300,
+        "caller_wpm": 169.4,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 0,
+        "dead_air_seconds": 0,
+        "agent_speech_seconds": 40,
+        "caller_speech_seconds": 195.5,
+        "turns": 40
+      },
+      "cost": {
+        "agent_minutes": 4.26
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 0,
+        "mean": 0,
+        "worst": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "ref_words": 0
+      },
+      "phase": {
+        "kind": "ramp",
+        "held_s": 67.1,
+        "first_half": {
+          "n": 20,
+          "p50_ms": 501.9,
+          "p90_ms": 502.7,
+          "p95_ms": 503.5,
+          "p99_ms": 506,
+          "max_ms": 506
+        },
+        "second_half": {
+          "n": 20,
+          "p50_ms": 501.6,
+          "p90_ms": 502,
+          "p95_ms": 502,
+          "p99_ms": 505.9,
+          "max_ms": 505.9
+        },
+        "drift_pct": -0.001,
+        "drift": "steady"
+      },
+      "p95_ratio": 1,
+      "verdict": "pass",
+      "nodes": [
+        {
+          "node": "open",
+          "visits": 8,
+          "checked": 8,
+          "passed": 8,
+          "pass_rate": 1
+        },
+        {
+          "node": "number",
+          "visits": 16,
+          "checked": 16,
+          "passed": 16,
+          "pass_rate": 1
+        },
+        {
+          "node": "refund",
+          "visits": 8,
+          "checked": 8,
+          "passed": 0,
+          "pass_rate": 0,
+          "miss": "said none of [\"refund\"]"
+        },
+        {
+          "node": "close",
+          "visits": 8,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        }
+      ]
+    },
+    {
+      "name": "spike-c16",
+      "concurrency": 16,
+      "calls": 32,
+      "kind": "spike",
+      "calls_attempted": 32,
+      "calls_connected": 32,
+      "turns_total": 160,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 160,
+        "p50_ms": 1101.6,
+        "p90_ms": 1102.8,
+        "p95_ms": 1103.7,
+        "p99_ms": 1106.1,
+        "max_ms": 1108.3
+      },
+      "endpointing": {
+        "n": 160,
+        "p50_ms": 201.1,
+        "p90_ms": 201.7,
+        "p95_ms": 202,
+        "p99_ms": 205.1,
+        "max_ms": 205.1
+      },
+      "think_speak": {
+        "n": 160,
+        "p50_ms": 900.6,
+        "p90_ms": 901.8,
+        "p95_ms": 902.6,
+        "p99_ms": 904,
+        "max_ms": 907
+      },
+      "turn_latency": {
+        "n": 160,
+        "p50_ms": 2101.6,
+        "p90_ms": 2102.8,
+        "p95_ms": 2103.7,
+        "p99_ms": 2106.1,
+        "max_ms": 2108.3
+      },
+      "transport_rtt": {
+        "n": 160,
+        "p50_ms": 0.5,
+        "p90_ms": 0.7,
+        "p95_ms": 0.8,
+        "p99_ms": 0.9,
+        "max_ms": 0.9
+      },
+      "agent_ttfa": {
+        "n": 160,
+        "p50_ms": 1101.1,
+        "p90_ms": 1102.3,
+        "p95_ms": 1103.2,
+        "p99_ms": 1105.6,
+        "max_ms": 1107.4
+      },
+      "agent_endpointing": {
+        "n": 160,
+        "p50_ms": 200.5,
+        "p90_ms": 201.3,
+        "p95_ms": 201.4,
+        "p99_ms": 204.6,
+        "max_ms": 204.7
+      },
+      "worst_harness_drift_ms": 20.3,
+      "started_at": "2026-09-13T15:50:04.15586414Z",
+      "ended_at": "2026-09-13T15:51:18.482144655Z",
+      "timeline": [
+        {
+          "at": "2026-09-13T15:50:04.15586414Z",
+          "ttfa_ms": 1101.7
+        },
+        {
+          "at": "2026-09-13T15:50:04.156191142Z",
+          "ttfa_ms": 1102.3
+        },
+        {
+          "at": "2026-09-13T15:50:04.178852847Z",
+          "ttfa_ms": 1101.6
+        },
+        {
+          "at": "2026-09-13T15:50:04.17893768Z",
+          "ttfa_ms": 1101.4
+        },
+        {
+          "at": "2026-09-13T15:50:04.178938249Z",
+          "ttfa_ms": 1101.7
+        },
+        {
+          "at": "2026-09-13T15:50:04.179028786Z",
+          "ttfa_ms": 1101.6
+        },
+        {
+          "at": "2026-09-13T15:50:04.179132491Z",
+          "ttfa_ms": 1101.9
+        },
+        {
+          "at": "2026-09-13T15:50:04.179152164Z",
+          "ttfa_ms": 1102
+        },
+        {
+          "at": "2026-09-13T15:50:04.179185833Z",
+          "ttfa_ms": 1102.1
+        },
+        {
+          "at": "2026-09-13T15:50:04.179191402Z",
+          "ttfa_ms": 1103.3
+        },
+        {
+          "at": "2026-09-13T15:50:04.179246071Z",
+          "ttfa_ms": 1102.6
+        },
+        {
+          "at": "2026-09-13T15:50:04.179278454Z",
+          "ttfa_ms": 1102.3
+        },
+        {
+          "at": "2026-09-13T15:50:04.179292857Z",
+          "ttfa_ms": 1101.4
+        },
+        {
+          "at": "2026-09-13T15:50:04.192699642Z",
+          "ttfa_ms": 1101.1
+        },
+        {
+          "at": "2026-09-13T15:50:04.192779053Z",
+          "ttfa_ms": 1102.3
+        },
+        {
+          "at": "2026-09-13T15:50:04.19501738Z",
+          "ttfa_ms": 1102
+        },
+        {
+          "at": "2026-09-13T15:50:40.701880887Z",
+          "ttfa_ms": 1101.2
+        },
+        {
+          "at": "2026-09-13T15:50:41.140578026Z",
+          "ttfa_ms": 1101.7
+        },
+        {
+          "at": "2026-09-13T15:50:41.140589176Z",
+          "ttfa_ms": 1101.9
+        },
+        {
+          "at": "2026-09-13T15:50:41.14085086Z",
+          "ttfa_ms": 1102
+        },
+        {
+          "at": "2026-09-13T15:50:41.141731524Z",
+          "ttfa_ms": 1101.5
+        },
+        {
+          "at": "2026-09-13T15:50:41.156726949Z",
+          "ttfa_ms": 1101.4
+        },
+        {
+          "at": "2026-09-13T15:50:41.195993436Z",
+          "ttfa_ms": 1101.1
+        },
+        {
+          "at": "2026-09-13T15:50:41.19612047Z",
+          "ttfa_ms": 1101.4
+        },
+        {
+          "at": "2026-09-13T15:50:41.212470612Z",
+          "ttfa_ms": 1101.4
+        },
+        {
+          "at": "2026-09-13T15:50:41.212567055Z",
+          "ttfa_ms": 1101.4
+        },
+        {
+          "at": "2026-09-13T15:50:41.215021284Z",
+          "ttfa_ms": 1101.3
+        },
+        {
+          "at": "2026-09-13T15:50:41.215234337Z",
+          "ttfa_ms": 1101.1
+        },
+        {
+          "at": "2026-09-13T15:50:41.222939124Z",
+          "ttfa_ms": 1101.3
+        },
+        {
+          "at": "2026-09-13T15:50:41.277084378Z",
+          "ttfa_ms": 1101.6
+        },
+        {
+          "at": "2026-09-13T15:50:41.277184502Z",
+          "ttfa_ms": 1101
+        },
+        {
+          "at": "2026-09-13T15:50:41.338765209Z",
+          "ttfa_ms": 1101.6
+        }
+      ],
+      "conversation": {
+        "talk_ratio": 0.17,
+        "agent_wpm": 300,
+        "caller_wpm": 169.4,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 0,
+        "dead_air_seconds": 0,
+        "agent_speech_seconds": 160,
+        "caller_speech_seconds": 782.1,
+        "turns": 160
+      },
+      "cost": {
+        "agent_minutes": 18.64
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 0,
+        "mean": 0,
+        "worst": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "ref_words": 0
+      },
+      "phase": {
+        "kind": "spike",
+        "held_s": 74.4,
+        "first_half": {
+          "n": 80,
+          "p50_ms": 1101.8,
+          "p90_ms": 1103.7,
+          "p95_ms": 1105,
+          "p99_ms": 1108.3,
+          "max_ms": 1108.3
+        },
+        "second_half": {
+          "n": 80,
+          "p50_ms": 1101.4,
+          "p90_ms": 1102,
+          "p95_ms": 1102.1,
+          "p99_ms": 1103.3,
+          "max_ms": 1103.3
+        },
+        "drift_pct": -0,
+        "drift": "steady"
+      },
+      "p95_ratio": 2.19,
+      "verdict": "fail",
+      "nodes": [
+        {
+          "node": "open",
+          "visits": 32,
+          "checked": 32,
+          "passed": 32,
+          "pass_rate": 1
+        },
+        {
+          "node": "number",
+          "visits": 64,
+          "checked": 64,
+          "passed": 64,
+          "pass_rate": 1
+        },
+        {
+          "node": "refund",
+          "visits": 32,
+          "checked": 32,
+          "passed": 0,
+          "pass_rate": 0,
+          "miss": "said none of [\"refund\"]"
+        },
+        {
+          "node": "close",
+          "visits": 32,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        }
+      ]
+    },
+    {
+      "name": "recover-c4",
+      "concurrency": 4,
+      "calls": 12,
+      "kind": "recovery",
+      "calls_attempted": 12,
+      "calls_connected": 12,
+      "turns_total": 60,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 60,
+        "p50_ms": 502,
+        "p90_ms": 503,
+        "p95_ms": 503.2,
+        "p99_ms": 506.2,
+        "max_ms": 506.2
+      },
+      "endpointing": {
+        "n": 60,
+        "p50_ms": 201.3,
+        "p90_ms": 202.2,
+        "p95_ms": 202.5,
+        "p99_ms": 203.2,
+        "max_ms": 203.2
+      },
+      "think_speak": {
+        "n": 60,
+        "p50_ms": 300.7,
+        "p90_ms": 301.7,
+        "p95_ms": 302.1,
+        "p99_ms": 305.2,
+        "max_ms": 305.2
+      },
+      "turn_latency": {
+        "n": 60,
+        "p50_ms": 1502,
+        "p90_ms": 1503,
+        "p95_ms": 1503.2,
+        "p99_ms": 1506.2,
+        "max_ms": 1506.2
+      },
+      "transport_rtt": {
+        "n": 60,
+        "p50_ms": 0.6,
+        "p90_ms": 0.8,
+        "p95_ms": 0.8,
+        "p99_ms": 0.9,
+        "max_ms": 0.9
+      },
+      "agent_ttfa": {
+        "n": 60,
+        "p50_ms": 501.4,
+        "p90_ms": 502.4,
+        "p95_ms": 502.6,
+        "p99_ms": 505.4,
+        "max_ms": 505.4
+      },
+      "agent_endpointing": {
+        "n": 60,
+        "p50_ms": 200.7,
+        "p90_ms": 201.6,
+        "p95_ms": 201.8,
+        "p99_ms": 202.6,
+        "max_ms": 202.6
+      },
+      "worst_harness_drift_ms": 20.2,
+      "started_at": "2026-09-13T15:51:18.48406245Z",
+      "ended_at": "2026-09-13T15:52:59.123915363Z",
+      "timeline": [
+        {
+          "at": "2026-09-13T15:51:18.48406245Z",
+          "ttfa_ms": 502.2
+        },
+        {
+          "at": "2026-09-13T15:51:18.484075249Z",
+          "ttfa_ms": 501.7
+        },
+        {
+          "at": "2026-09-13T15:51:18.484088969Z",
+          "ttfa_ms": 501.8
+        },
+        {
+          "at": "2026-09-13T15:51:18.484178945Z",
+          "ttfa_ms": 501.7
+        },
+        {
+          "at": "2026-09-13T15:51:52.01118698Z",
+          "ttfa_ms": 502
+        },
+        {
+          "at": "2026-09-13T15:51:52.029687693Z",
+          "ttfa_ms": 501.7
+        },
+        {
+          "at": "2026-09-13T15:51:52.031274989Z",
+          "ttfa_ms": 501.9
+        },
+        {
+          "at": "2026-09-13T15:51:52.031430671Z",
+          "ttfa_ms": 502.1
+        },
+        {
+          "at": "2026-09-13T15:52:25.561150209Z",
+          "ttfa_ms": 502.5
+        },
+        {
+          "at": "2026-09-13T15:52:25.561296852Z",
+          "ttfa_ms": 502.1
+        },
+        {
+          "at": "2026-09-13T15:52:25.57942428Z",
+          "ttfa_ms": 503
+        },
+        {
+          "at": "2026-09-13T15:52:25.579498853Z",
+          "ttfa_ms": 502.5
+        }
+      ],
+      "conversation": {
+        "talk_ratio": 0.17,
+        "agent_wpm": 300,
+        "caller_wpm": 169.4,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 0,
+        "dead_air_seconds": 0,
+        "agent_speech_seconds": 60,
+        "caller_speech_seconds": 293.3,
+        "turns": 60
+      },
+      "cost": {
+        "agent_minutes": 6.39
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 0,
+        "mean": 0,
+        "worst": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "ref_words": 0
+      },
+      "phase": {
+        "kind": "recovery",
+        "held_s": 100.7,
+        "first_half": {
+          "n": 30,
+          "p50_ms": 501.8,
+          "p90_ms": 502.5,
+          "p95_ms": 502.8,
+          "p99_ms": 503,
+          "max_ms": 503
+        },
+        "second_half": {
+          "n": 30,
+          "p50_ms": 502.1,
+          "p90_ms": 503.2,
+          "p95_ms": 504.7,
+          "p99_ms": 506.2,
+          "max_ms": 506.2
+        },
+        "drift_pct": 0.001,
+        "drift": "steady",
+        "recovered": true,
+        "back_to_normal": true
+      },
+      "p95_ratio": 1,
+      "verdict": "pass",
+      "nodes": [
+        {
+          "node": "open",
+          "visits": 12,
+          "checked": 12,
+          "passed": 12,
+          "pass_rate": 1
+        },
+        {
+          "node": "number",
+          "visits": 24,
+          "checked": 24,
+          "passed": 24,
+          "pass_rate": 1
+        },
+        {
+          "node": "refund",
+          "visits": 12,
+          "checked": 12,
+          "passed": 0,
+          "pass_rate": 0,
+          "miss": "said none of [\"refund\"]"
+        },
+        {
+          "node": "close",
+          "visits": 12,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        }
+      ]
+    },
+    {
+      "name": "ramp-c8",
+      "concurrency": 8,
+      "calls": 16,
+      "kind": "ramp",
+      "calls_attempted": 16,
+      "calls_connected": 16,
+      "turns_total": 80,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 80,
+        "p50_ms": 622,
+        "p90_ms": 623.2,
+        "p95_ms": 624,
+        "p99_ms": 629.5,
+        "max_ms": 629.5
+      },
+      "endpointing": {
+        "n": 80,
+        "p50_ms": 201.3,
+        "p90_ms": 201.9,
+        "p95_ms": 202.2,
+        "p99_ms": 202.8,
+        "max_ms": 202.8
+      },
+      "think_speak": {
+        "n": 80,
+        "p50_ms": 420.7,
+        "p90_ms": 422.1,
+        "p95_ms": 422.9,
+        "p99_ms": 427.9,
+        "max_ms": 427.9
+      },
+      "turn_latency": {
+        "n": 80,
+        "p50_ms": 1622,
+        "p90_ms": 1623.2,
+        "p95_ms": 1624,
+        "p99_ms": 1629.5,
+        "max_ms": 1629.5
+      },
+      "transport_rtt": {
+        "n": 80,
+        "p50_ms": 0.6,
+        "p90_ms": 0.8,
+        "p95_ms": 0.8,
+        "p99_ms": 0.9,
+        "max_ms": 0.9
+      },
+      "agent_ttfa": {
+        "n": 80,
+        "p50_ms": 621.4,
+        "p90_ms": 622.6,
+        "p95_ms": 623.5,
+        "p99_ms": 628.8,
+        "max_ms": 628.8
+      },
+      "agent_endpointing": {
+        "n": 80,
+        "p50_ms": 200.6,
+        "p90_ms": 201.3,
+        "p95_ms": 201.6,
+        "p99_ms": 202.3,
+        "max_ms": 202.3
+      },
+      "worst_harness_drift_ms": 20.6,
+      "started_at": "2026-09-13T15:52:59.126403621Z",
+      "ended_at": "2026-09-13T15:54:07.661179103Z",
+      "timeline": [
+        {
+          "at": "2026-09-13T15:52:59.126403621Z",
+          "ttfa_ms": 622.3
+        },
+        {
+          "at": "2026-09-13T15:52:59.126404244Z",
+          "ttfa_ms": 622.1
+        },
+        {
+          "at": "2026-09-13T15:52:59.126454003Z",
+          "ttfa_ms": 621.6
+        },
+        {
+          "at": "2026-09-13T15:52:59.126502816Z",
+          "ttfa_ms": 622.4
+        },
+        {
+          "at": "2026-09-13T15:52:59.126561538Z",
+          "ttfa_ms": 621.8
+        },
+        {
+          "at": "2026-09-13T15:52:59.129143528Z",
+          "ttfa_ms": 622.3
+        },
+        {
+          "at": "2026-09-13T15:52:59.129147921Z",
+          "ttfa_ms": 622
+        },
+        {
+          "at": "2026-09-13T15:52:59.12990281Z",
+          "ttfa_ms": 622.1
+        },
+        {
+          "at": "2026-09-13T15:53:33.275583039Z",
+          "ttfa_ms": 621.7
+        },
+        {
+          "at": "2026-09-13T15:53:33.276020621Z",
+          "ttfa_ms": 622
+        },
+        {
+          "at": "2026-09-13T15:53:33.276354963Z",
+          "ttfa_ms": 621.4
+        },
+        {
+          "at": "2026-09-13T15:53:33.277821672Z",
+          "ttfa_ms": 621.9
+        },
+        {
+          "at": "2026-09-13T15:53:33.278555858Z",
+          "ttfa_ms": 621.4
+        },
+        {
+          "at": "2026-09-13T15:53:33.379275737Z",
+          "ttfa_ms": 621.6
+        },
+        {
+          "at": "2026-09-13T15:53:33.396780445Z",
+          "ttfa_ms": 622.2
+        },
+        {
+          "at": "2026-09-13T15:53:33.396989551Z",
+          "ttfa_ms": 622.8
+        }
+      ],
+      "conversation": {
+        "talk_ratio": 0.17,
+        "agent_wpm": 300,
+        "caller_wpm": 169.4,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 0,
+        "dead_air_seconds": 0,
+        "agent_speech_seconds": 80,
+        "caller_speech_seconds": 391,
+        "turns": 80
+      },
+      "cost": {
+        "agent_minutes": 8.68
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 0,
+        "mean": 0,
+        "worst": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "ref_words": 0
+      },
+      "phase": {
+        "kind": "ramp",
+        "held_s": 68.5,
+        "first_half": {
+          "n": 40,
+          "p50_ms": 622.1,
+          "p90_ms": 623.2,
+          "p95_ms": 627.1,
+          "p99_ms": 629.5,
+          "max_ms": 629.5
+        },
+        "second_half": {
+          "n": 40,
+          "p50_ms": 621.7,
+          "p90_ms": 623.1,
+          "p95_ms": 623.7,
+          "p99_ms": 624,
+          "max_ms": 624
+        },
+        "drift_pct": -0.001,
+        "drift": "steady"
+      },
+      "p95_ratio": 1.24,
+      "verdict": "pass",
+      "nodes": [
+        {
+          "node": "open",
+          "visits": 16,
+          "checked": 16,
+          "passed": 16,
+          "pass_rate": 1
+        },
+        {
+          "node": "number",
+          "visits": 32,
+          "checked": 32,
+          "passed": 32,
+          "pass_rate": 1
+        },
+        {
+          "node": "refund",
+          "visits": 16,
+          "checked": 16,
+          "passed": 0,
+          "pass_rate": 0,
+          "miss": "said none of [\"refund\"]"
+        },
+        {
+          "node": "close",
+          "visits": 16,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        }
+      ]
+    },
+    {
+      "name": "stress-c16",
+      "concurrency": 16,
+      "calls": 32,
+      "kind": "stress",
+      "calls_attempted": 32,
+      "calls_connected": 32,
+      "turns_total": 160,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 160,
+        "p50_ms": 1102.2,
+        "p90_ms": 1104.1,
+        "p95_ms": 1106.1,
+        "p99_ms": 1122.8,
+        "max_ms": 1124.1
+      },
+      "endpointing": {
+        "n": 160,
+        "p50_ms": 201.4,
+        "p90_ms": 202,
+        "p95_ms": 202.1,
+        "p99_ms": 202.7,
+        "max_ms": 206.2
+      },
+      "think_speak": {
+        "n": 160,
+        "p50_ms": 900.9,
+        "p90_ms": 902.7,
+        "p95_ms": 904.5,
+        "p99_ms": 921.5,
+        "max_ms": 922.4
+      },
+      "turn_latency": {
+        "n": 160,
+        "p50_ms": 2102.2,
+        "p90_ms": 2104.1,
+        "p95_ms": 2106.1,
+        "p99_ms": 2122.8,
+        "max_ms": 2124.1
+      },
+      "transport_rtt": {
+        "n": 160,
+        "p50_ms": 0.6,
+        "p90_ms": 0.9,
+        "p95_ms": 0.9,
+        "p99_ms": 1.2,
+        "max_ms": 1.6
+      },
+      "agent_ttfa": {
+        "n": 160,
+        "p50_ms": 1101.5,
+        "p90_ms": 1103.6,
+        "p95_ms": 1105.4,
+        "p99_ms": 1122.3,
+        "max_ms": 1123.5
+      },
+      "agent_endpointing": {
+        "n": 160,
+        "p50_ms": 200.8,
+        "p90_ms": 201.4,
+        "p95_ms": 201.5,
+        "p99_ms": 201.8,
+        "max_ms": 205.9
+      },
+      "worst_harness_drift_ms": 20.3,
+      "started_at": "2026-09-13T15:54:07.673331818Z",
+      "ended_at": "2026-09-13T15:55:21.972026429Z",
+      "timeline": [
+        {
+          "at": "2026-09-13T15:54:07.673331818Z",
+          "ttfa_ms": 1101.5
+        },
+        {
+          "at": "2026-09-13T15:54:07.673331943Z",
+          "ttfa_ms": 1102.3
+        },
+        {
+          "at": "2026-09-13T15:54:07.673344899Z",
+          "ttfa_ms": 1102
+        },
+        {
+          "at": "2026-09-13T15:54:07.673385383Z",
+          "ttfa_ms": 1102.2
+        },
+        {
+          "at": "2026-09-13T15:54:07.673458455Z",
+          "ttfa_ms": 1102.6
+        },
+        {
+          "at": "2026-09-13T15:54:07.673619755Z",
+          "ttfa_ms": 1102.1
+        },
+        {
+          "at": "2026-09-13T15:54:07.673666968Z",
+          "ttfa_ms": 1102.5
+        },
+        {
+          "at": "2026-09-13T15:54:07.673706342Z",
+          "ttfa_ms": 1102
+        },
+        {
+          "at": "2026-09-13T15:54:07.673723282Z",
+          "ttfa_ms": 1102.3
+        },
+        {
+          "at": "2026-09-13T15:54:07.673752138Z",
+          "ttfa_ms": 1102.1
+        },
+        {
+          "at": "2026-09-13T15:54:07.67377548Z",
+          "ttfa_ms": 1102.5
+        },
+        {
+          "at": "2026-09-13T15:54:07.67418985Z",
+          "ttfa_ms": 1102.3
+        },
+        {
+          "at": "2026-09-13T15:54:07.674384489Z",
+          "ttfa_ms": 1101.6
+        },
+        {
+          "at": "2026-09-13T15:54:07.6746384Z",
+          "ttfa_ms": 1102.3
+        },
+        {
+          "at": "2026-09-13T15:54:07.674685307Z",
+          "ttfa_ms": 1102.6
+        },
+        {
+          "at": "2026-09-13T15:54:07.674764277Z",
+          "ttfa_ms": 1101.7
+        },
+        {
+          "at": "2026-09-13T15:54:44.45566544Z",
+          "ttfa_ms": 1103.7
+        },
+        {
+          "at": "2026-09-13T15:54:44.455676862Z",
+          "ttfa_ms": 1102.6
+        },
+        {
+          "at": "2026-09-13T15:54:44.455706822Z",
+          "ttfa_ms": 1102.9
+        },
+        {
+          "at": "2026-09-13T15:54:44.45573964Z",
+          "ttfa_ms": 1102.9
+        },
+        {
+          "at": "2026-09-13T15:54:44.455849678Z",
+          "ttfa_ms": 1102.7
+        },
+        {
+          "at": "2026-09-13T15:54:44.45585253Z",
+          "ttfa_ms": 1102.6
+        },
+        {
+          "at": "2026-09-13T15:54:44.455867229Z",
+          "ttfa_ms": 1102.4
+        },
+        {
+          "at": "2026-09-13T15:54:44.455899696Z",
+          "ttfa_ms": 1102.9
+        },
+        {
+          "at": "2026-09-13T15:54:44.580340691Z",
+          "ttfa_ms": 1101.4
+        },
+        {
+          "at": "2026-09-13T15:54:44.758806337Z",
+          "ttfa_ms": 1101.6
+        },
+        {
+          "at": "2026-09-13T15:54:44.75945817Z",
+          "ttfa_ms": 1102.2
+        },
+        {
+          "at": "2026-09-13T15:54:44.759702936Z",
+          "ttfa_ms": 1101.6
+        },
+        {
+          "at": "2026-09-13T15:54:44.760194987Z",
+          "ttfa_ms": 1103.1
+        },
+        {
+          "at": "2026-09-13T15:54:44.760968941Z",
+          "ttfa_ms": 1101.3
+        },
+        {
+          "at": "2026-09-13T15:54:44.821171818Z",
+          "ttfa_ms": 1101.5
+        },
+        {
+          "at": "2026-09-13T15:54:44.82120278Z",
+          "ttfa_ms": 1101.7
+        }
+      ],
+      "conversation": {
+        "talk_ratio": 0.17,
+        "agent_wpm": 300,
+        "caller_wpm": 169.4,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 0,
+        "dead_air_seconds": 0,
+        "agent_speech_seconds": 160,
+        "caller_speech_seconds": 782.1,
+        "turns": 160
+      },
+      "cost": {
+        "agent_minutes": 18.643
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 0,
+        "mean": 0,
+        "worst": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "ref_words": 0
+      },
+      "phase": {
+        "kind": "stress",
+        "held_s": 74.3,
+        "first_half": {
+          "n": 80,
+          "p50_ms": 1102.1,
+          "p90_ms": 1104,
+          "p95_ms": 1104.5,
+          "p99_ms": 1106.1,
+          "max_ms": 1106.1
+        },
+        "second_half": {
+          "n": 80,
+          "p50_ms": 1102.3,
+          "p90_ms": 1104.7,
+          "p95_ms": 1122.5,
+          "p99_ms": 1124.1,
+          "max_ms": 1124.1
+        },
+        "drift_pct": 0,
+        "drift": "steady"
+      },
+      "p95_ratio": 2.2,
+      "verdict": "fail",
+      "nodes": [
+        {
+          "node": "open",
+          "visits": 32,
+          "checked": 32,
+          "passed": 32,
+          "pass_rate": 1
+        },
+        {
+          "node": "number",
+          "visits": 64,
+          "checked": 64,
+          "passed": 64,
+          "pass_rate": 1
+        },
+        {
+          "node": "refund",
+          "visits": 32,
+          "checked": 32,
+          "passed": 0,
+          "pass_rate": 0,
+          "miss": "said none of [\"refund\"]"
+        },
+        {
+          "node": "close",
+          "visits": 32,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        }
+      ]
+    },
+    {
+      "name": "soak-c8",
+      "concurrency": 8,
+      "calls": 48,
+      "kind": "soak",
+      "hold_s": 180,
+      "calls_attempted": 48,
+      "calls_connected": 48,
+      "turns_total": 240,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 240,
+        "p50_ms": 621.9,
+        "p90_ms": 623.7,
+        "p95_ms": 625.1,
+        "p99_ms": 633.1,
+        "max_ms": 633.2
+      },
+      "endpointing": {
+        "n": 240,
+        "p50_ms": 201.3,
+        "p90_ms": 202.6,
+        "p95_ms": 203.3,
+        "p99_ms": 212.4,
+        "max_ms": 212.7
+      },
+      "think_speak": {
+        "n": 240,
+        "p50_ms": 420.5,
+        "p90_ms": 421.9,
+        "p95_ms": 423.3,
+        "p99_ms": 432.2,
+        "max_ms": 432.6
+      },
+      "turn_latency": {
+        "n": 240,
+        "p50_ms": 1621.9,
+        "p90_ms": 1623.7,
+        "p95_ms": 1625.1,
+        "p99_ms": 1633.1,
+        "max_ms": 1633.2
+      },
+      "transport_rtt": {
+        "n": 240,
+        "p50_ms": 0.5,
+        "p90_ms": 0.7,
+        "p95_ms": 0.8,
+        "p99_ms": 0.9,
+        "max_ms": 1
+      },
+      "agent_ttfa": {
+        "n": 240,
+        "p50_ms": 621.3,
+        "p90_ms": 623.1,
+        "p95_ms": 624.6,
+        "p99_ms": 632.4,
+        "max_ms": 632.8
+      },
+      "agent_endpointing": {
+        "n": 240,
+        "p50_ms": 200.8,
+        "p90_ms": 202.1,
+        "p95_ms": 202.6,
+        "p99_ms": 211.7,
+        "max_ms": 212.3
+      },
+      "worst_harness_drift_ms": 47.8,
+      "started_at": "2026-09-13T15:55:21.977009664Z",
+      "ended_at": "2026-09-13T15:58:47.63247635Z",
+      "timeline": [
+        {
+          "at": "2026-09-13T15:55:21.977009664Z",
+          "ttfa_ms": 622.9
+        },
+        {
+          "at": "2026-09-13T15:55:21.977305499Z",
+          "ttfa_ms": 622
+        },
+        {
+          "at": "2026-09-13T15:55:21.977418089Z",
+          "ttfa_ms": 623
+        },
+        {
+          "at": "2026-09-13T15:55:21.977593729Z",
+          "ttfa_ms": 623.7
+        },
+        {
+          "at": "2026-09-13T15:55:21.977605405Z",
+          "ttfa_ms": 623.8
+        },
+        {
+          "at": "2026-09-13T15:55:21.977625246Z",
+          "ttfa_ms": 623.8
+        },
+        {
+          "at": "2026-09-13T15:55:21.97763789Z",
+          "ttfa_ms": 623.4
+        },
+        {
+          "at": "2026-09-13T15:55:21.977699572Z",
+          "ttfa_ms": 623.5
+        },
+        {
+          "at": "2026-09-13T15:55:56.122669749Z",
+          "ttfa_ms": 621.2
+        },
+        {
+          "at": "2026-09-13T15:55:56.182682782Z",
+          "ttfa_ms": 622.3
+        },
+        {
+          "at": "2026-09-13T15:55:56.250065134Z",
+          "ttfa_ms": 621.8
+        },
+        {
+          "at": "2026-09-13T15:55:56.250086991Z",
+          "ttfa_ms": 621.4
+        },
+        {
+          "at": "2026-09-13T15:55:56.250240663Z",
+          "ttfa_ms": 622.1
+        },
+        {
+          "at": "2026-09-13T15:55:56.250257683Z",
+          "ttfa_ms": 622.2
+        },
+        {
+          "at": "2026-09-13T15:55:56.250325049Z",
+          "ttfa_ms": 622.1
+        },
+        {
+          "at": "2026-09-13T15:55:56.25035091Z",
+          "ttfa_ms": 622
+        },
+        {
+          "at": "2026-09-13T15:56:30.389748846Z",
+          "ttfa_ms": 621.7
+        },
+        {
+          "at": "2026-09-13T15:56:30.452693708Z",
+          "ttfa_ms": 621.9
+        },
+        {
+          "at": "2026-09-13T15:56:30.453077777Z",
+          "ttfa_ms": 621.7
+        },
+        {
+          "at": "2026-09-13T15:56:30.517921353Z",
+          "ttfa_ms": 621.6
+        },
+        {
+          "at": "2026-09-13T15:56:30.518520265Z",
+          "ttfa_ms": 621.5
+        },
+        {
+          "at": "2026-09-13T15:56:30.51923779Z",
+          "ttfa_ms": 621.5
+        },
+        {
+          "at": "2026-09-13T15:56:30.51982502Z",
+          "ttfa_ms": 621.4
+        },
+        {
+          "at": "2026-09-13T15:56:30.51988878Z",
+          "ttfa_ms": 621.3
+        },
+        {
+          "at": "2026-09-13T15:57:04.688299523Z",
+          "ttfa_ms": 622
+        },
+        {
+          "at": "2026-09-13T15:57:04.688322539Z",
+          "ttfa_ms": 621.9
+        },
+        {
+          "at": "2026-09-13T15:57:04.688322683Z",
+          "ttfa_ms": 621.3
+        },
+        {
+          "at": "2026-09-13T15:57:04.688354686Z",
+          "ttfa_ms": 622
+        },
+        {
+          "at": "2026-09-13T15:57:04.73152699Z",
+          "ttfa_ms": 621.6
+        },
+        {
+          "at": "2026-09-13T15:57:04.732545319Z",
+          "ttfa_ms": 622.1
+        },
+        {
+          "at": "2026-09-13T15:57:04.787809351Z",
+          "ttfa_ms": 622.6
+        },
+        {
+          "at": "2026-09-13T15:57:04.788140725Z",
+          "ttfa_ms": 622.5
+        },
+        {
+          "at": "2026-09-13T15:57:38.9844468Z",
+          "ttfa_ms": 621.7
+        },
+        {
+          "at": "2026-09-13T15:57:38.984708498Z",
+          "ttfa_ms": 621.5
+        },
+        {
+          "at": "2026-09-13T15:57:38.984736963Z",
+          "ttfa_ms": 621.7
+        },
+        {
+          "at": "2026-09-13T15:57:38.985530876Z",
+          "ttfa_ms": 621.8
+        },
+        {
+          "at": "2026-09-13T15:57:38.986155064Z",
+          "ttfa_ms": 621.4
+        },
+        {
+          "at": "2026-09-13T15:57:39.005680434Z",
+          "ttfa_ms": 621.7
+        },
+        {
+          "at": "2026-09-13T15:57:39.105251026Z",
+          "ttfa_ms": 621.4
+        },
+        {
+          "at": "2026-09-13T15:57:39.105518237Z",
+          "ttfa_ms": 621.4
+        },
+        {
+          "at": "2026-09-13T15:58:13.132416522Z",
+          "ttfa_ms": 621.9
+        },
+        {
+          "at": "2026-09-13T15:58:13.132957912Z",
+          "ttfa_ms": 621.7
+        },
+        {
+          "at": "2026-09-13T15:58:13.1331629Z",
+          "ttfa_ms": 621.5
+        },
+        {
+          "at": "2026-09-13T15:58:13.206682331Z",
+          "ttfa_ms": 622.1
+        },
+        {
+          "at": "2026-09-13T15:58:13.247538236Z",
+          "ttfa_ms": 621.8
+        },
+        {
+          "at": "2026-09-13T15:58:13.267681198Z",
+          "ttfa_ms": 621.8
+        },
+        {
+          "at": "2026-09-13T15:58:13.355913368Z",
+          "ttfa_ms": 621.6
+        },
+        {
+          "at": "2026-09-13T15:58:13.369017629Z",
+          "ttfa_ms": 622
+        }
+      ],
+      "conversation": {
+        "talk_ratio": 0.17,
+        "agent_wpm": 300,
+        "caller_wpm": 169.4,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 0,
+        "dead_air_seconds": 0,
+        "agent_speech_seconds": 240,
+        "caller_speech_seconds": 1173.1,
+        "turns": 240
+      },
+      "cost": {
+        "agent_minutes": 26.041
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 0,
+        "mean": 0,
+        "worst": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "ref_words": 0
+      },
+      "phase": {
+        "kind": "soak",
+        "held_s": 205.7,
+        "first_half": {
+          "n": 120,
+          "p50_ms": 621.9,
+          "p90_ms": 623.8,
+          "p95_ms": 625.4,
+          "p99_ms": 625.8,
+          "max_ms": 633.1
+        },
+        "second_half": {
+          "n": 120,
+          "p50_ms": 621.8,
+          "p90_ms": 622.8,
+          "p95_ms": 624.2,
+          "p99_ms": 633.1,
+          "max_ms": 633.2
+        },
+        "drift_pct": -0,
+        "drift": "steady"
+      },
+      "p95_ratio": 1.24,
+      "verdict": "pass",
+      "nodes": [
+        {
+          "node": "open",
+          "visits": 48,
+          "checked": 48,
+          "passed": 48,
+          "pass_rate": 1
+        },
+        {
+          "node": "number",
+          "visits": 96,
+          "checked": 96,
+          "passed": 96,
+          "pass_rate": 1
+        },
+        {
+          "node": "refund",
+          "visits": 48,
+          "checked": 48,
+          "passed": 0,
+          "pass_rate": 0,
+          "miss": "said none of [\"refund\"]"
+        },
+        {
+          "node": "close",
+          "visits": 48,
+          "checked": 0,
+          "passed": 0,
+          "pass_rate": 0
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "id": "hamming-observed-production-p50",
+      "label": "Hamming observed production median",
+      "kind": "observed",
+      "ms": 1400,
+      "to_ms": 1700,
+      "percentile": 50,
+      "axis": "end_of_speech",
+      "boundary": "Median latency observed across more than 10 million minutes of production calls. The start and end instants are not restated beside the figure.",
+      "placement": "No boundary is stated with it, so it is read on the widest Callstorm clock: an agent under this range from true end of speech is under it on any narrower clock too.",
+      "cites": [
+        {
+          "source": "Hamming",
+          "title": "voice agent latency guide",
+          "published": "2026-01"
+        }
+      ]
+    },
+    {
+      "id": "coval-load-p95",
+      "label": "Coval p95 target under load",
+      "kind": "target",
+      "ms": 2000,
+      "percentile": 95,
+      "axis": "end_of_speech",
+      "boundary": "Response latency under load, p95 under 2s. The start and end instants are not defined beside the threshold.",
+      "placement": "No boundary is stated with it, so it is read on the widest Callstorm clock, where holding it means holding it on any narrower one.",
+      "cites": [
+        {
+          "source": "Coval",
+          "title": "load testing methodology",
+          "published": "2026-03-07"
+        }
+      ]
+    },
+    {
+      "id": "hamming-ttfw-breakdown",
+      "label": "Hamming TTFW breakdown line",
+      "kind": "target",
+      "ms": 800,
+      "percentile": 0,
+      "axis": "detection",
+      "boundary": "TTFW, from VAD silence detection to the first agent audio byte. Past 800ms is conversation breakdown. No percentile is stated.",
+      "placement": "Its clock starts at detection, so it is read on think/speak. Callstorm's detection instant is the agent's transcript arriving, later than VAD detection by transcript finalization, so this reading leans in the agent's favour.",
+      "cites": [
+        {
+          "source": "Hamming",
+          "title": "voice agent analytics guide",
+          "published": "2026-02-10"
+        }
+      ]
+    },
+    {
+      "id": "human-turn-offset",
+      "label": "Human turn-taking marker",
+      "kind": "perceptual",
+      "ms": 300,
+      "percentile": 50,
+      "axis": "end_of_speech",
+      "boundary": "People answer about 208ms after the other speaker stops, across languages. 300ms is the edge Hamming labels natural.",
+      "placement": "A human gap runs from the moment the other speaker actually stops, so it is read on the end-of-speech clock at the median. It marks what a person does; it is not a pass line.",
+      "cites": [
+        {
+          "source": "Cekura",
+          "title": "voice agent latency guide",
+          "published": "2026-09-03"
+        },
+        {
+          "source": "Hamming",
+          "title": "voice agent analytics guide",
+          "published": "2026-02-10"
+        }
+      ]
+    }
+  ],
+  "scenario_hash": "7aebee11cb0be709f04c0651504b6dc3bfe092fd4677a6983dfd4acc0628d01c",
+  "profile_hash": "8dae78bed3d5b3d42ac8ce0bfc69a9ffb5b0af695a5ba9e875fa3edc9a771f04"
+}

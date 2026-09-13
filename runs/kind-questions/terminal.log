@@ -1,0 +1,205 @@
+credentials environment  key unused... (len 28)
+callstorm  scenario=graph-reference
+target     ws://refagent-knee.callstorm.svc.cluster.local:8080/v1/agent/converse
+profile    questions-ref  7 steps, 102 calls plus 180s held, peak concurrency 16
+
+smoke        smoke     concurrency 1    calls 2    .. p95 506ms  setup 100%  turns 10
+ramp-c4      ramp      concurrency 4    calls 8    ........ p95 503ms  setup 100%  turns 40
+spike-c16    spike     concurrency 16   calls 32   ................................ p95 1103ms  setup 100%  turns 160
+recover-c4   recovery  concurrency 4    calls 12   ............ p95 503ms  setup 100%  turns 60
+ramp-c8      ramp      concurrency 8    calls 16   ................ p95 623ms  setup 100%  turns 80
+stress-c16   stress    concurrency 16   calls 32   ................................ p95 1109ms  setup 100%  turns 160
+soak-c8      soak      concurrency 8    hold 180s  ................................................ p95 623ms  setup 100%  turns 240
+
+--------------------------------------------------------------------------------------------
+LOAD REPORT  questions-ref   scenario=graph-reference
+--------------------------------------------------------------------------------------------
+
+step         conc   setup   ttfa p50    ttfa p95    ttfa p99    vs base   verdict
+smoke        1      100%    502ms       506ms       506ms       1.00x     pass
+ramp-c4      4      100%    502ms       503ms       505ms       1.00x     pass   <- baseline
+spike-c16    16     100%    1102ms      1103ms      1108ms      2.19x     fail
+recover-c4   4      100%    502ms       503ms       505ms       1.00x     pass
+ramp-c8      8      100%    622ms       623ms       624ms       1.24x     pass
+stress-c16   16     100%    1102ms      1109ms      1109ms      2.20x     fail
+soak-c8      8      100%    622ms       623ms       630ms       1.24x     pass
+
+
+network      observed TTFA, the round trip measured on each call's connection, and the agent's share
+step         observed p50  observed p95  rtt p50    agent p50   agent p95   corrected
+smoke        502ms         506ms         0ms        502ms       505ms       10 of 10 turns
+ramp-c4      502ms         503ms         0ms        501ms       503ms       40 of 40 turns
+spike-c16    1102ms        1103ms        0ms        1101ms      1102ms      160 of 160 turns
+recover-c4   502ms         503ms         0ms        502ms       503ms       60 of 60 turns
+ramp-c8      622ms         623ms         0ms        621ms       623ms       80 of 80 turns
+stress-c16   1102ms        1109ms        0ms        1102ms      1108ms      160 of 160 turns
+soak-c8      622ms         623ms         0ms        621ms       623ms       240 of 240 turns
+
+two clocks   from the caller's true end of speech (TTFA), and from the agent's transcript of the caller (think/speak)
+step         speech p50   speech p95   detect p50   detect p95
+smoke        502ms        506ms        301ms        305ms
+ramp-c4      502ms        503ms        301ms        303ms
+spike-c16    1102ms       1103ms       901ms        902ms
+recover-c4   502ms        503ms        301ms        302ms
+ramp-c8      622ms        623ms        421ms        422ms
+stress-c16   1102ms       1109ms       901ms        908ms
+soak-c8      622ms        623ms        421ms        422ms
+
+reference    published lines, each read on its own clock; none of them is the verdict
+observed     Hamming observed production median 1400-1700ms on speech  (Hamming, 2026-01)
+             smoke p50 502ms under · ramp-c4 p50 502ms under · spike-c16 p50 1102ms under · recover-c4 p50 502ms under · ramp-c8 p50 622ms under · stress-c16 p50 1102ms under · soak-c8 p50 622ms under
+target       Coval p95 target under load 2000ms on speech  (Coval, 2026-03-07)
+             smoke p95 506ms under · ramp-c4 p95 503ms under · spike-c16 p95 1103ms under · recover-c4 p95 503ms under · ramp-c8 p95 623ms under · stress-c16 p95 1109ms under · soak-c8 p95 623ms under
+target       Hamming TTFW breakdown line 800ms on detect  (Hamming, 2026-02-10)
+             smoke p50 301ms under · smoke p95 305ms under · ramp-c4 p50 301ms under · ramp-c4 p95 303ms under · spike-c16 p50 901ms over · spike-c16 p95 902ms over · recover-c4 p50 301ms under · recover-c4 p95 302ms under · ramp-c8 p50 421ms under · ramp-c8 p95 422ms under · stress-c16 p50 901ms over · stress-c16 p95 908ms over · soak-c8 p50 421ms under · soak-c8 p95 422ms under
+perceptual   Human turn-taking marker 300ms on speech  (Cekura, 2026-09-03)
+             smoke p50 502ms over · ramp-c4 p50 502ms over · spike-c16 p50 1102ms over · recover-c4 p50 502ms over · ramp-c8 p50 622ms over · stress-c16 p50 1102ms over · soak-c8 p50 622ms over
+
+phase shape   each step split in half by when its calls started, medians compared
+step         phase      held     first half  second half drift     reading
+smoke        smoke      67s      502ms       502ms       -         too few turns to compare halves
+ramp-c4      ramp       67s      502ms       502ms       -0%       steady
+spike-c16    spike      74s      1102ms      1102ms      +0%       steady
+recover-c4   recovery   101s     502ms       502ms       -0%       steady   <- back to baseline
+ramp-c8      ramp       69s      622ms       622ms       -0%       steady
+stress-c16   stress     74s      1103ms      1102ms      -0%       steady
+soak-c8      soak       206s     622ms       622ms       -0%       steady
+
+step         talk      agent wpm  caller wpm  interrupts   score   dead air
+smoke        17%       300        169         0/10         5.00    -   <- above comfortable listening pace
+ramp-c4      17%       300        169         0/40         5.00    -   <- above comfortable listening pace
+spike-c16    17%       300        169         0/160        5.00    -   <- above comfortable listening pace
+recover-c4   17%       300        169         0/60         5.00    -   <- above comfortable listening pace
+ramp-c8      17%       300        169         0/80         5.00    -   <- above comfortable listening pace
+stress-c16   17%       300        169         0/160        5.00    -   <- above comfortable listening pace
+soak-c8      17%       300        169         0/240        5.00    -   <- above comfortable listening pace
+
+step         ttfa p95    endpointing   think/speak   which half
+smoke        506ms       202ms         305ms         60% think/speak
+ramp-c4      503ms       202ms         303ms         60% think/speak
+spike-c16    1103ms      202ms         902ms         82% think/speak  (+22 pts vs baseline)
+recover-c4   503ms       206ms         302ms         59% think/speak
+ramp-c8      623ms       202ms         422ms         68% think/speak  (+7 pts vs baseline)
+stress-c16   1109ms      202ms         908ms         82% think/speak  (+22 pts vs baseline)
+soak-c8      623ms       202ms         422ms         68% think/speak  (+7 pts vs baseline)
+
+cost         83.7 agent-minutes across the run; pass -rate-per-minute to price it
+
+nodes        share of visits whose reply met the node's expect, visits in brackets
+node             smoke          ramp-c4        spike-c16      recover-c4     ramp-c8        stress-c16     soak-c8       
+  open           100% (2)       100% (8)       100% (32)      100% (12)      100% (16)      100% (32)      100% (48)     
+  number         100% (4)       100% (16)      100% (64)      100% (24)      100% (32)      100% (64)      100% (96)     
+  refund         0% (2)         0% (8)         0% (32)        0% (12)        0% (16)        0% (32)        0% (48)       
+  close          (2)            (8)            (32)           (12)           (16)           (32)           (48)          
+
+BREAKPOINT   spike-c16 at 16 concurrent: p95 TTFA 1103ms is 2.19x baseline
+harness      61ms worst-case pacing drift across the run
+duration     658s
+
+report       /runs/20260913-153651-questions-ref.json
+csv          /runs/20260913-153651-questions-ref.csv
+chart        /runs/20260913-153651-questions-ref.svg
+calls        /runs/20260913-153651-questions-ref-calls.jsonl
+credentials environment  key unused... (len 28)
+callstorm  scenario=graph-reference
+target     ws://refagent-knee.callstorm.svc.cluster.local:8080/v1/agent/converse
+profile    questions-ref  7 steps, 102 calls plus 180s held, peak concurrency 16
+
+smoke        smoke     concurrency 1    calls 2    .. p95 503ms  setup 100%  turns 10
+ramp-c4      ramp      concurrency 4    calls 8    ........ p95 504ms  setup 100%  turns 40
+spike-c16    spike     concurrency 16   calls 32   ................................ p95 1104ms  setup 100%  turns 160
+recover-c4   recovery  concurrency 4    calls 12   ............ p95 503ms  setup 100%  turns 60
+ramp-c8      ramp      concurrency 8    calls 16   ................ p95 624ms  setup 100%  turns 80
+stress-c16   stress    concurrency 16   calls 32   ................................ p95 1106ms  setup 100%  turns 160
+soak-c8      soak      concurrency 8    hold 180s  ................................................ p95 625ms  setup 100%  turns 240
+
+--------------------------------------------------------------------------------------------
+LOAD REPORT  questions-ref   scenario=graph-reference
+--------------------------------------------------------------------------------------------
+
+step         conc   setup   ttfa p50    ttfa p95    ttfa p99    vs base   verdict
+smoke        1      100%    501ms       503ms       503ms       1.00x     pass
+ramp-c4      4      100%    502ms       504ms       506ms       1.00x     pass   <- baseline
+spike-c16    16     100%    1102ms      1104ms      1106ms      2.19x     fail
+recover-c4   4      100%    502ms       503ms       506ms       1.00x     pass
+ramp-c8      8      100%    622ms       624ms       630ms       1.24x     pass
+stress-c16   16     100%    1102ms      1106ms      1123ms      2.20x     fail
+soak-c8      8      100%    622ms       625ms       633ms       1.24x     pass
+
+
+network      observed TTFA, the round trip measured on each call's connection, and the agent's share
+step         observed p50  observed p95  rtt p50    agent p50   agent p95   corrected
+smoke        501ms         503ms         1ms        501ms       502ms       10 of 10 turns
+ramp-c4      502ms         504ms         1ms        501ms       503ms       40 of 40 turns
+spike-c16    1102ms        1104ms        0ms        1101ms      1103ms      160 of 160 turns
+recover-c4   502ms         503ms         1ms        501ms       503ms       60 of 60 turns
+ramp-c8      622ms         624ms         1ms        621ms       624ms       80 of 80 turns
+stress-c16   1102ms        1106ms        1ms        1102ms      1105ms      160 of 160 turns
+soak-c8      622ms         625ms         0ms        621ms       625ms       240 of 240 turns
+
+two clocks   from the caller's true end of speech (TTFA), and from the agent's transcript of the caller (think/speak)
+step         speech p50   speech p95   detect p50   detect p95
+smoke        501ms        503ms        300ms        301ms
+ramp-c4      502ms        504ms        301ms        303ms
+spike-c16    1102ms       1104ms       901ms        903ms
+recover-c4   502ms        503ms        301ms        302ms
+ramp-c8      622ms        624ms        421ms        423ms
+stress-c16   1102ms       1106ms       901ms        904ms
+soak-c8      622ms        625ms        420ms        423ms
+
+reference    published lines, each read on its own clock; none of them is the verdict
+observed     Hamming observed production median 1400-1700ms on speech  (Hamming, 2026-01)
+             smoke p50 501ms under · ramp-c4 p50 502ms under · spike-c16 p50 1102ms under · recover-c4 p50 502ms under · ramp-c8 p50 622ms under · stress-c16 p50 1102ms under · soak-c8 p50 622ms under
+target       Coval p95 target under load 2000ms on speech  (Coval, 2026-03-07)
+             smoke p95 503ms under · ramp-c4 p95 504ms under · spike-c16 p95 1104ms under · recover-c4 p95 503ms under · ramp-c8 p95 624ms under · stress-c16 p95 1106ms under · soak-c8 p95 625ms under
+target       Hamming TTFW breakdown line 800ms on detect  (Hamming, 2026-02-10)
+             smoke p50 300ms under · smoke p95 301ms under · ramp-c4 p50 301ms under · ramp-c4 p95 303ms under · spike-c16 p50 901ms over · spike-c16 p95 903ms over · recover-c4 p50 301ms under · recover-c4 p95 302ms under · ramp-c8 p50 421ms under · ramp-c8 p95 423ms under · stress-c16 p50 901ms over · stress-c16 p95 904ms over · soak-c8 p50 420ms under · soak-c8 p95 423ms under
+perceptual   Human turn-taking marker 300ms on speech  (Cekura, 2026-09-03)
+             smoke p50 501ms over · ramp-c4 p50 502ms over · spike-c16 p50 1102ms over · recover-c4 p50 502ms over · ramp-c8 p50 622ms over · stress-c16 p50 1102ms over · soak-c8 p50 622ms over
+
+phase shape   each step split in half by when its calls started, medians compared
+step         phase      held     first half  second half drift     reading
+smoke        smoke      67s      501ms       502ms       -         too few turns to compare halves
+ramp-c4      ramp       67s      502ms       502ms       -0%       steady
+spike-c16    spike      74s      1102ms      1101ms      -0%       steady
+recover-c4   recovery   101s     502ms       502ms       +0%       steady   <- back to baseline
+ramp-c8      ramp       68s      622ms       622ms       -0%       steady
+stress-c16   stress     74s      1102ms      1102ms      +0%       steady
+soak-c8      soak       206s     622ms       622ms       -0%       steady
+
+step         talk      agent wpm  caller wpm  interrupts   score   dead air
+smoke        17%       300        169         0/10         5.00    -   <- above comfortable listening pace
+ramp-c4      17%       300        169         0/40         5.00    -   <- above comfortable listening pace
+spike-c16    17%       300        169         0/160        5.00    -   <- above comfortable listening pace
+recover-c4   17%       300        169         0/60         5.00    -   <- above comfortable listening pace
+ramp-c8      17%       300        169         0/80         5.00    -   <- above comfortable listening pace
+stress-c16   17%       300        169         0/160        5.00    -   <- above comfortable listening pace
+soak-c8      17%       300        169         0/240        5.00    -   <- above comfortable listening pace
+
+step         ttfa p95    endpointing   think/speak   which half
+smoke        503ms       202ms         301ms         60% think/speak
+ramp-c4      504ms       202ms         303ms         60% think/speak
+spike-c16    1104ms      202ms         903ms         82% think/speak  (+22 pts vs baseline)
+recover-c4   503ms       202ms         302ms         60% think/speak
+ramp-c8      624ms       202ms         423ms         68% think/speak  (+8 pts vs baseline)
+stress-c16   1106ms      202ms         904ms         82% think/speak  (+22 pts vs baseline)
+soak-c8      625ms       203ms         423ms         68% think/speak  (+8 pts vs baseline)
+
+cost         83.7 agent-minutes across the run; pass -rate-per-minute to price it
+
+nodes        share of visits whose reply met the node's expect, visits in brackets
+node             smoke          ramp-c4        spike-c16      recover-c4     ramp-c8        stress-c16     soak-c8       
+  open           100% (2)       100% (8)       100% (32)      100% (12)      100% (16)      100% (32)      100% (48)     
+  number         100% (4)       100% (16)      100% (64)      100% (24)      100% (32)      100% (64)      100% (96)     
+  refund         0% (2)         0% (8)         0% (32)        0% (12)        0% (16)        0% (32)        0% (48)       
+  close          (2)            (8)            (32)           (12)           (16)           (32)           (48)          
+
+BREAKPOINT   spike-c16 at 16 concurrent: p95 TTFA 1104ms is 2.19x baseline
+harness      48ms worst-case pacing drift across the run
+duration     658s
+
+report       /runs/20260913-154749-questions-ref.json
+csv          /runs/20260913-154749-questions-ref.csv
+chart        /runs/20260913-154749-questions-ref.svg
+calls        /runs/20260913-154749-questions-ref-calls.jsonl
+callstorm exited; artifacts stay in /runs for 15 minutes
