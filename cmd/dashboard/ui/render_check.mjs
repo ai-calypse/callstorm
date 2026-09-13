@@ -656,8 +656,72 @@ for (const [name, html, needle] of [
   if (!ok) bad++;
   console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
 }
+// The newer figures, on a fixture shaped to answer them: the closing turn slow
+// at every load, long waits growing with load, a step that keeps its speed and
+// stops doing the job, replies repeated when busy, judged calls showing the
+// slow ones went worse, and 225ms of silence opening every reply.
+const shaped = JSON.parse(JSON.stringify(run));
+shaped.steps.forEach((s, i) => {
+  s.harness_degraded = false;
+  s.turns = [1, 2, 3].map(n => ({
+    turn: n, caller_line: n === 3 ? "Thanks for sorting it out." : `Line ${n}`,
+    ttfa: { n: 20, p50_ms: n === 3 ? 3000 : 700, p90_ms: 0, p95_ms: n === 3 ? 3100 + i * 50 : 900, p99_ms: 0, max_ms: 0 },
+    endpointing_p50_ms: 250, think_speak_p50_ms: n === 3 ? 2750 : 450,
+  }));
+  s.waits = { turns: 100, up_to_800ms: 80 - i * 10, "800_to_1200ms": 15, "1200_to_2000ms": 4 + i * 8, over_2000ms: 1 + i * 2 };
+  s.conversation.repeated_replies = [0, 1, 6][i];
+  s.conversation.calls_with_repeats = [0, 1, 4][i];
+  s.quality = i === 2
+    ? { verdict: "fail", compared: ["failed turns", "task success"], reasons: ["the judge passed 70% of 30 calls, against 97% of 30 at the baseline"] }
+    : { verdict: "pass", compared: ["failed turns", "task success"] };
+  s.leading_silence = { n: 20, p50_ms: 225, p90_ms: 230, p95_ms: 231, p99_ms: 232, max_ms: 232 };
+});
+shaped.judge = JSON.parse(JSON.stringify(judged));
+shaped.judge.waits = { line_ms: 1200, calls: 20, slow_calls: 8, slow_passed: 4, quick_calls: 12, quick_passed: 12,
+  slow_pass_rate: 0.5, quick_pass_rate: 1, conclusive: true };
+seeded = 0;
+current = shaped;
+const shapedCard = ReactDOMServer.renderToStaticMarkup(
+  React.createElement(mod2.ReportCard, { refs: REFS, id: "run-shaped" }));
+
+// The known answer from a real run: the Deepgram suite's graph-reference part,
+// refreshed from its calls log. Deepgram took about three seconds to answer the
+// closing thank-you even for a typical caller, at every load the ladder kept,
+// and the share of long waits did not move with load.
+const deepgram = JSON.parse(fs.readFileSync("testdata/run-deepgram-graph.json", "utf8"));
+seeded = 0;
+current = deepgram;
+const deepgramCard = ReactDOMServer.renderToStaticMarkup(
+  React.createElement(mod2.ReportCard, { refs: REFS, id: "run-deepgram-graph" }));
+for (const [name, html, needle] of [
+  ["the real run names its slow closing turn", deepgramCard, "Turn 4, after the caller says “Alright, that works. Thanks for sorting it out”."],
+  ["where even a typical caller waits", deepgramCard, "Even a typical caller waits"],
+  ["and its long waits do not come from load", deepgramCard, "so the long waits are not coming from load"],
+  ["a small group in the slow-call split is read loosely", deepgramCard, "the other 13."],
+  ["the slowest moment is named with what the caller said", shapedCard, "Turn 3, after the caller says “Thanks for sorting it out”."],
+  ["even a typical caller waits on it", shapedCard, "Even a typical caller waits 3000ms on that turn"],
+  ["and the wait is put down to thinking", shapedCard, "Most of it is the agent thinking up its reply: 2750ms of a typical 3000ms"],
+  ["a turn slow at every load comes from what is said", shapedCard, "so it comes from what is said on that turn, not from being busy"],
+  ["long waits are counted past 1.2 seconds", shapedCard, "25.0% of turns at 15 calls at once"],
+  ["and grow with load", shapedCard, "being busy makes the long waits more common"],
+  ["quality giving way before speed is the finding", shapedCard, "It stopped doing the job as well at 15 calls at once, and never got too slow"],
+  ["the report card grades quality beside speed", shapedCard, "<th>Quality</th>"],
+  ["and says why a step failed it", shapedCard, "c15 fails: the judge passed 70% of 30 calls"],
+  ["repeated replies are counted", shapedCard, "8.0% at 15, in 4 calls"],
+  ["against Hamming's line for repeated questions", shapedCard, "past the 3% Hamming treats as a problem"],
+  ["slow calls went worse", shapedCard, "50% of the 8 judged calls that kept someone waiting past 1.2 seconds did the job, against 100% of the other 12"],
+  ["leading silence joins the wait", shapedCard, "silence at the start of the reply, before any sound"],
+  ["a run before the newer figures says how to add them", card, "Run callstorm -refresh on its report"],
+  ["a run with no judge says the slow-call question needs one", card, "nothing says which calls went well"],
+  ["a percentile from too few turns is marked", card, "fewer turns than that percentile needs"],
+  ["and the trust answer says how many turns stand behind it", card, "baseline timed only 15 turns"],
+]) {
+  const ok = html.includes(needle);
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
+}
 {
-  const broken = [card, legacy, phasedCard, judgedCard, matrixCard, rttCard].filter(h => h.includes("could not be computed")).length;
+  const broken = [card, legacy, phasedCard, judgedCard, matrixCard, rttCard, shapedCard, deepgramCard].filter(h => h.includes("could not be computed")).length;
   if (broken) bad++;
   console.log(`${!broken ? "ok  " : "FAIL"}  every question computed on every fixture (${broken} reports with a broken answer)`);
 }
@@ -719,19 +783,22 @@ const insightsHtml = ReactDOMServer.renderToStaticMarkup(React.createElement(mod
       evidence: ["graph-reference, turn 4: ttfa_p50_ms 3166"], finding: "Replies to the thank-you take 3166ms.",
       why_it_matters: "Callers wait at the end of the call.", next_step: "Look at what the agent does after a thank-you." },
   ],
-  rejected: [{ title: "Invented", reason: "cites 1830, which the data does not contain" }],
+  rejected: [
+    { title: "Invented", reason: "cites 1830, which the data does not contain" },
+    { title: "Turn 4 again", reason: 'repeats "The closing turn is the slowest"' },
+  ],
 } }));
 for (const [name, ok] of [
   ["analysis shows its headline", insightsHtml.includes("Only refund slows down with load")],
   ["analysis shows each finding with its evidence", insightsHtml.includes("The closing turn is the slowest") && insightsHtml.includes("graph-reference, turn 4: ttfa_p50_ms 3166")],
   ["analysis names the model that wrote it", insightsHtml.includes("Written analysis · gemini-3.5-flash")],
-  ["analysis counts what the number check dropped", insightsHtml.includes("1 claim that could not be checked was dropped")],
+  ["analysis counts what the number check dropped", insightsHtml.includes("Dropped: 1 claim that could not be checked, 1 repeating an earlier finding.")],
 ]) {
   if (!ok) bad++;
   console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
 }
 
-const ALL = [card, legacy, refsHtml, drifted, stuck, nojudge, task, thinHtml, phasedCard, judgedCard, heat, nodes, dup, lost, matrixCard, agentHtml, noPong, rttCard, suiteHtml, insightsHtml].join(String.fromCharCode(10));
+const ALL = [card, legacy, refsHtml, drifted, stuck, nojudge, task, thinHtml, phasedCard, judgedCard, heat, nodes, dup, lost, matrixCard, agentHtml, noPong, rttCard, suiteHtml, insightsHtml, shapedCard, deepgramCard].join(String.fromCharCode(10));
 const prose = [...ALL.matchAll(/<div class="read[^"]*">([\s\S]*?)<\/div>/g)]
   // Inline tags are dropped rather than spaced out: <b> and <code> sit inside
   // sentences, so replacing them with a space would invent gaps the reader

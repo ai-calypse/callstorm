@@ -342,6 +342,21 @@ const GLOSSARY = [
   ["Dead air",
    "Turns where the line stayed silent more than two seconds after the caller finished.",
    "A percentile says how slow the slow turns were. This says how often the call sounded broken, which is the thing a caller actually notices."],
+  ["Waits past 1.2s",
+   "Turns where the caller waited more than 1.2 seconds after finishing before the agent made a sound.",
+   "Coval puts the point where callers start repeating themselves, talking over the agent or hanging up at 1.2 seconds. A p95 says how long the slow waits were; this says how often a caller hit one."],
+  ["Wait per turn",
+   "The wait at one turn of the conversation, across every call at that load: the greeting, the order number, the goodbye.",
+   "A step's figures mix every turn together. A turn slow in every call hides in that mix and stands out here."],
+  ["Leading silence",
+   "How long the agent's reply stays silent after its audio starts arriving, until the first sound loud enough to hear.",
+   "TTFA stops at the first byte. A voice that opens its reply with a pause keeps the caller waiting past it, and only this shows it."],
+  ["Quality verdict",
+   "Whether a step still did the job as well as at normal load: scenario checks, the judge's task success, words misheard, talking over callers and failed turns.",
+   "The latency verdict grades speed only. An agent that stays fast while it stops finishing the task passes that one and fails this."],
+  ["Repeated replies",
+   "Replies that said again what the agent had already said earlier in the same call.",
+   "A conversation stuck in a loop sounds broken long before any timing moves."],
   ["Word error rate",
    "How much of what the caller said the agent misheard, against the exact script the caller was given.",
    "The one failure no timing can show: an agent can answer in 300ms, fluently, to a question nobody asked."],
@@ -1685,6 +1700,13 @@ const APPENDIX = [
   ["Words per minute", "words spoken ÷ that speaker's own speech minutes", "Not wall clock, so pauses do not flatter anyone."],
   ["Interruption score", "clamp(5 × (1 − interruptions ÷ turns), 0, 5)", "An interruption is a turn where the agent began speaking before the caller finished."],
   ["Dead air", "turns with TTFA over 2s", "A turn the agent talked over has no silence to count."],
+  ["Wait bands", "timed turns counted by TTFA: ≤ 800ms, ≤ 1200ms, ≤ 2s, over 2s", "Per step. 800ms is Hamming's target, 1.2s is where Coval says callers repeat themselves, over 2s is dead air. Turns the agent talked over are left out."],
+  ["Wait per turn", "TTFA percentiles over one turn position across a step's calls, with that turn's endpointing and think/speak p50", "The caller's line shown is the one said most often on that turn."],
+  ["Leading silence", "t(the first 10ms window with RMS above 0.01 of full scale, stepped 1ms, starts playing) − t(the reply's first audio byte)", "Coval's onset definition. Audible TTFA = TTFA + leading silence. Only turns where sound was found; a silence-free reply reads 0."],
+  ["Repeated reply", "a reply whose words, ignoring case and punctuation, equal an earlier reply's in the same call, or share at least 80% of their distinct words when both have 4 or more", "Counted per step, with the calls they were in."],
+  ["Quality verdict", "fail: a scenario check or the judge's pass rate drops more than 10 points, words misheard rise more than 2 points to above 15%, talked-over turns rise more than 5 points to above 10%, or more than 1% of turns fail. warn: a drop of 5 to 10 points, those rises below the poor mark, or more than 0.5% of turns failing", "Against the baseline step, or the clean cohort's in a matrix. Each rate needs 30 checks on both sides to be compared."],
+  ["Quality breakpoint", "first step, in profile order, whose quality verdict is fail", "Reported beside the latency breakpoint."],
+  ["Slow calls against done", "pass rate of judged calls with any turn's TTFA over 1200ms, against judged calls with none", "Read only with 8 or more judged calls and both groups non-empty."],
   ["Barge-in yield", "t(interrupted reply's audio stops) − t(interrupting caller line starts)", "Zero means the agent was never seen to stop."],
   ["Cost", "Σ(caller speech + turn latency) ÷ 60 × rate per minute", "Per step; per call and per turn by division. Unpriced without a rate."],
   ["Node pass rate", "visits whose reply met the node's expect ÷ visits to nodes with an expect", "Met: the reply contains a said_any phrase and no not_said phrase, ignoring case. A visit with no reply fails."],
@@ -1702,7 +1724,7 @@ const BOUNDARIES = [
   ["LLM TTFT", "Model request sent", "First output token", "Inside think/speak. Not separable from outside the agent."],
   ["Tool latency", "Tool request sent", "Tool result available", "Inside think/speak. Not separable today."],
   ["TTS first-byte", "Speakable text sent to TTS", "First audio bytes received", "Inside think/speak. Not separable from outside the agent."],
-  ["TTFA", "A defined turn boundary", "First playable/audible audio", "Callstorm's TTFA, with the boundary set at the true end of speech. It ends when the first audio byte arrives, not when it plays. Agent TTFA subtracts the measured round trip to the agent's edge."],
+  ["TTFA", "A defined turn boundary", "First playable/audible audio", "Callstorm's TTFA, with the boundary set at the true end of speech. It ends when the first audio byte arrives, not when it plays. Audible TTFA adds the reply's leading silence, which ends it at the first audible sound. Agent TTFA subtracts the measured round trip to the agent's edge."],
   ["End-to-end response", "User finishes speaking", "Agent begins speaking", "Callstorm's TTFA is this row, ended at arrival rather than at audible start."],
   ["Interruption stop time", "Caller begins barge-in", "Agent audio stops", "Callstorm's barge-in yield, ended when the agent's audio stops arriving."],
 ];
@@ -2064,30 +2086,38 @@ function qWhereWait(rep, L) {
   const q = { id: "wait", group: "What causes the wait", ask: "Where does the waiting time go?" };
   const rows = L.filter(s => s.think_speak && s.think_speak.n > 0);
   if (rows.length === 0) return { ...q, missing: "The agent under test never reported what it heard, so the wait can't be split into its parts." };
+  // Silence at the start of the reply is part of the wait a caller hears, once
+  // a run measures it; runs before that are split three ways as they were.
+  const silent = rows.some(s => s.leading_silence && s.leading_silence.n > 0);
   const parts = s => {
     const net = s.transport_rtt && s.transport_rtt.n > 0 ? s.transport_rtt.p50_ms : 0;
     const notice = s.agent_endpointing && s.agent_endpointing.n > 0 ? s.agent_endpointing.p50_ms : (s.endpointing && s.endpointing.p50_ms) || 0;
-    return [Math.max(net, 0), Math.max(notice, 0), Math.max(s.think_speak.p50_ms, 0)];
+    const p = [Math.max(net, 0), Math.max(notice, 0), Math.max(s.think_speak.p50_ms, 0)];
+    return silent ? p.concat([Math.max((s.leading_silence && s.leading_silence.p50_ms) || 0, 0)]) : p;
   };
-  const NAMES = ["the network", "the agent noticing you stopped", "the agent thinking up its reply"];
+  const NAMES = ["the network", "the agent noticing you stopped", "the agent thinking up its reply", "silence at the start of its reply"];
   const SEG = [
     { name: "the network, out to the agent and back", color: "color-mix(in srgb, var(--signal) 25%, var(--surface))" },
     { name: "the agent noticing you stopped talking", color: "color-mix(in srgb, var(--signal) 55%, var(--surface))" },
     { name: "the agent thinking up and starting its reply", color: "var(--signal)" },
-  ];
+    { name: "silence at the start of the reply, before any sound", color: "var(--ink-2)" },
+  ].slice(0, silent ? 4 : 3);
   const chart = html`<${StackBars} rows=${rows.map(s => ({ label: `${s.concurrency} at once`, values: parts(s) }))}
       segments=${SEG} valueFmt=${ms} totalFmt=${ms}/>`;
-  const how = "Each bar is a typical turn at that load, split three ways. The network part comes from pinging the agent during every call; a run with no pings counts it inside noticing you stopped.";
+  const how = "Each bar is a typical turn at that load, split into its parts. The network part comes from pinging the agent during every call; a run with no pings counts it inside noticing you stopped." +
+    (silent ? " Silence at the start of the reply is audio that arrived but held no sound a caller could hear." : "");
   const a = parts(rows[0]), b = parts(rows[rows.length - 1]);
   const grew = b.map((v, i) => v - a[i]);
   const k = grew.indexOf(Math.max(...grew));
   const biggest = a.indexOf(Math.max(...a));
-  if (rows.length < 2 || grew[k] < 0.15 * (a[0] + a[1] + a[2])) {
+  const total = a.reduce((x, v) => x + v, 0);
+  const silence = silent ? `, then ${ms(a[3])} of silence at the start of its reply` : "";
+  if (rows.length < 2 || grew[k] < 0.15 * total) {
     return { ...q, how, chart, short: `Mostly ${NAMES[biggest]}, and that held as it got busier.`,
-      answer: html`<b>Mostly ${NAMES[biggest]}.</b> A typical turn spent ${ms(a[0])} on the network, ${ms(a[1])} on the agent noticing you stopped, and ${ms(a[2])} on it thinking up its reply, and that split held as it got busier.` };
+      answer: html`<b>Mostly ${NAMES[biggest]}.</b> A typical turn spent ${ms(a[0])} on the network, ${ms(a[1])} on the agent noticing you stopped, and ${ms(a[2])} on it thinking up its reply${silence}, and that split held as it got busier.` };
   }
   return { ...q, how, chart, short: `The extra wait under load is ${NAMES[k]}.`,
-    answer: html`<b>The extra wait under load is ${NAMES[k]}.</b> From ${rows[0].concurrency} to ${atOnce(rows[rows.length - 1].concurrency)}, that part grew by ${ms(grew[k])}, more than either of the other two.` };
+    answer: html`<b>The extra wait under load is ${NAMES[k]}.</b> From ${rows[0].concurrency} to ${atOnce(rows[rows.length - 1].concurrency)}, that part grew by ${ms(grew[k])}, more than ${silent ? "any of the other three" : "either of the other two"}.` };
 }
 
 function qRush(rep) {
@@ -2281,6 +2311,178 @@ function qWordier(rep, L) {
         answer: html`<b>Yes.</b> It spoke for ${fixed(perTurn(a), 1)} seconds a turn at ${atOnce(a.concurrency)} and ${fixed(perTurn(b), 1)} at ${b.concurrency}, and its pace went from ${Math.round(a.conversation.agent_wpm || 0)} to ${Math.round(b.conversation.agent_wpm || 0)} words a minute.` };
 }
 
+// The middle of a list of numbers, by nearest rank as every percentile here is.
+const middle = vs => vs.slice().sort((a, b) => a - b)[Math.ceil(vs.length / 2) - 1];
+
+function qTurnWait(rep, L) {
+  const q = { id: "turns", group: "What causes the wait", ask: "Which moment in a call keeps callers waiting longest?" };
+  const rows = L.filter(s => (s.turns || []).length > 0);
+  if (rows.length === 0) return { ...q, missing: "This run predates waits per turn of the conversation. Run callstorm -refresh on its report to add them from its calls log." };
+  const base = rows.find(s => s.name === rep.baseline) || rows[0], top = rows[rows.length - 1];
+  if (top.turns.length < 2) return { ...q, missing: "Every call had a single turn, so there is no moment in it to compare." };
+  const numbers = [...new Set(rows.flatMap(s => s.turns.map(t => t.turn)))].sort((a, b) => a - b);
+  const p95At = (s, n) => { const t = s.turns.find(x => x.turn === n); return t ? t.ttfa.p95_ms : null; };
+  const shown = base === top ? [top] : [base, top];
+  const chart = html`<${LineChart} labels=${numbers.map(String)} xTitle="turn of the conversation" yFmt=${ms}
+      series=${shown.map((s, i) => ({ name: `slowest callers at ${atOnce(s.concurrency)}`, color: i === shown.length - 1 ? SERIES.main : SERIES.soft, values: numbers.map(n => p95At(s, n)) }))}/>`;
+  const how = "Each point is the wait 95 turns in 100 beat at that turn of the conversation, across every call at that load. A step's own figures mix every turn together, which hides a turn that is slow in every call. A turn stands out when it is at least one and a half times the middle of the others.";
+  const slowest = s => s.turns.reduce((a, t) => (t.ttfa.p95_ms > a.ttfa.p95_ms ? t : a), s.turns[0]);
+  const rest = (s, t, key) => middle(s.turns.filter(x => x !== t).map(x => (key === "p50" ? x.ttfa.p50_ms : x.ttfa.p95_ms)));
+  const t = slowest(top), others = rest(top, t, "p95");
+  if (t.ttfa.p95_ms < 1.5 * others) {
+    const lo = Math.min(...top.turns.map(x => x.ttfa.p95_ms));
+    return { ...q, how, chart, short: "No single moment: every turn waits about as long.",
+      answer: html`<b>No single moment stands out.</b> At ${atOnce(top.concurrency)}, the slowest callers waited between ${ms(lo)} and ${ms(t.ttfa.p95_ms)} on every turn of the conversation.` };
+  }
+  const typicalSlow = t.ttfa.p50_ms >= 1.5 * rest(top, t, "p50");
+  const typical = typicalSlow
+    ? ` Even a typical caller waits ${ms(t.ttfa.p50_ms)} on that turn.`
+    : ` A typical caller barely notices (${ms(t.ttfa.p50_ms)}); it is the slowest 1 turn in 20 that waits.`;
+  const where = !typicalSlow ? ""
+    : t.think_speak_p50_ms >= 0.6 * t.ttfa.p50_ms ? ` Most of it is the agent thinking up its reply: ${ms(t.think_speak_p50_ms)} of a typical ${ms(t.ttfa.p50_ms)}.`
+    : t.endpointing_p50_ms >= 0.6 * t.ttfa.p50_ms ? ` Most of it is the agent noticing the caller stopped: ${ms(t.endpointing_p50_ms)} of a typical ${ms(t.ttfa.p50_ms)}.`
+    : "";
+  const baseSlow = base !== top ? slowest(base) : null;
+  const load = !baseSlow ? ""
+    : baseSlow.turn === t.turn && baseSlow.ttfa.p95_ms >= 1.5 * rest(base, baseSlow, "p95")
+      ? ` It was the slowest turn at ${atOnce(base.concurrency)} too (${ms(baseSlow.ttfa.p95_ms)}), so it comes from what is said on that turn, not from being busy.`
+      : ` At ${atOnce(base.concurrency)} it did not stand out, so being busy is what made it slow.`;
+  // The caller's own full stop is dropped, so the sentence can end on its own.
+  const said = (t.caller_line || "").replace(/[.!?]+$/, "");
+  return { ...q, how, chart, short: `Turn ${t.turn}: ${ms(t.ttfa.p95_ms)} for the slowest callers, against ${ms(others)} on the others.`,
+    answer: html`<b>Turn ${t.turn}${said ? `, after the caller says “${said}”` : ""}.</b> At ${atOnce(top.concurrency)}, the slowest callers waited ${ms(t.ttfa.p95_ms)} on that turn, against ${ms(others)} on the others.${typical}${where}${load}` };
+}
+
+function qLongWaits(rep, L) {
+  const q = { id: "longwaits", group: "What causes the wait", ask: "How often does a caller wait long enough to notice?" };
+  const rows = L.filter(s => s.waits && s.waits.turns > 0);
+  if (rows.length === 0) return { ...q, missing: "This run predates counts of long waits. Run callstorm -refresh on its report to add them from its calls log." };
+  const band = (s, k) => s.waits[k] || 0;
+  const SEG = [
+    { name: "up to 800ms, Hamming's target", color: "var(--pass)" },
+    { name: "800ms to 1.2s", color: "color-mix(in srgb, var(--warn) 45%, var(--surface))" },
+    { name: "1.2s to 2s, where callers start repeating themselves", color: "var(--warn)" },
+    { name: "over 2s of dead air", color: "var(--fail)" },
+  ];
+  const chart = html`<${StackBars} rows=${rows.map(s => ({ label: atOnce(s.concurrency), values: [band(s, "up_to_800ms"), band(s, "800_to_1200ms"), band(s, "1200_to_2000ms"), band(s, "over_2000ms")] }))}
+      segments=${SEG} share=${true} valueFmt=${v => `${v} turns`} totalFmt=${sum => `${sum} turns`}/>`;
+  const how = "Every answered turn is sorted by how long the caller waited after they finished: up to 800ms, Hamming's published target; up to 1.2 seconds, past which Coval says callers start repeating themselves, talking over the agent or hanging up; up to 2 seconds; and dead air beyond that.";
+  const past = s => (band(s, "1200_to_2000ms") + band(s, "over_2000ms")) / s.waits.turns;
+  const dead = s => band(s, "over_2000ms") / s.waits.turns;
+  const one = v => `${fixed(v * 100, 1)}%`;
+  const a = rows[0], b = rows[rows.length - 1];
+  if (rows.every(s => past(s) < 0.01)) {
+    return { ...q, how, chart, short: "Rarely: under 1 turn in 100 past 1.2s at any load.",
+      answer: html`<b>Rarely.</b> At every load, fewer than 1 turn in 100 kept a caller waiting past 1.2 seconds.` };
+  }
+  const trend = rows.length < 2 ? ""
+    : past(b) - past(a) >= 0.02 ? ` That is up from ${one(past(a))} at ${atOnce(a.concurrency)}, so being busy makes the long waits more common.`
+    : ` It was ${one(past(a))} at ${atOnce(a.concurrency)}, so the long waits are not coming from load.`;
+  const deadNote = dead(b) > 0 ? ` ${one(dead(b))} went past 2 seconds, long enough for a caller to ask whether anyone is there.` : "";
+  return { ...q, how, chart, short: `${one(past(b))} of turns past 1.2s at ${atOnce(b.concurrency)}.`,
+    answer: html`<b>${one(past(b))} of turns at ${atOnce(b.concurrency)}.</b> That many kept the caller waiting past 1.2 seconds, where callers start repeating themselves.${trend}${deadNote}` };
+}
+
+function qQualityLimit(rep, L) {
+  const q = { id: "quality", group: "How much it can take", ask: "Does it get worse at the job before it gets too slow?" };
+  const rows = L.filter(s => s.quality && s.quality.verdict && s.quality.verdict !== "n/a");
+  if (rows.length < 2) return { ...q, missing: rows.length === 0
+    ? "This run predates the quality verdict. Run callstorm -refresh on its report to add it from its calls log."
+    : "This needs at least two levels of calls at the same time to compare." };
+  const compared = [...new Set(rows.flatMap(s => s.quality.compared || []))];
+  // A speed failure with every busier level passing was not the load, as the
+  // capacity answer reads it too.
+  const firstSlow = rows.find(s => s.verdict === "fail");
+  const busier = firstSlow ? rows.filter(s => s.concurrency > firstSlow.concurrency) : [];
+  const speed = firstSlow && !(busier.length > 0 && busier.every(s => s.verdict !== "fail")) ? firstSlow : null;
+  const job = rows.find(s => s.quality.verdict === "fail");
+  const close = rows.find(s => s.quality.verdict === "warn");
+  const chart = html`
+    <div className="tablewrap">
+      <table>
+        <thead><tr><th>Calls at once</th><th>Speed</th><th>Doing the job</th><th>Why</th></tr></thead>
+        <tbody>
+          ${rows.map(s => html`
+            <tr key=${s.name}>
+              <td>${s.concurrency}</td>
+              <td><${Pill} v=${s.verdict}/></td>
+              <td><${Pill} v=${s.quality.verdict}/></td>
+              <td className="wrap">${(s.quality.reasons || []).join("; ") || "-"}</td>
+            </tr>`)}
+        </tbody>
+      </table>
+    </div>`;
+  const how = `Speed is judged on the slowest callers' wait against normal load. Doing the job is judged apart from speed, also against normal load: a scenario check or the judge's pass rate dropping more than 10 points fails, as Hamming's load-testing guide sets it, and so do words misheard rising past 15%, talking over callers in more than 1 turn in 10, or more than 1 turn in 100 failing. A rate needs 30 checks on each side to count. This run compared: ${compared.join(", ")}.`;
+  const thin = compared.length === 1 ? " Only failed turns could be compared, so this says little about whether it did the job: judge more calls, or give the scenario checks." : "";
+  const warned = !job && close ? ` It came close at ${atOnce(close.concurrency)}: ${close.quality.reasons[0]}.` : "";
+  const notLoad = firstSlow && !speed ? ` Speed failed only at ${atOnce(firstSlow.concurrency)}, and every busier level passed, so that was not the load.` : "";
+  if (job && speed && job.concurrency === speed.concurrency) {
+    return { ...q, how, chart, short: `Both at once, at ${atOnce(job.concurrency)}.`,
+      answer: html`<b>Both gave way at once.</b> At ${atOnce(job.concurrency)} it got too slow and stopped doing the job as well: ${job.quality.reasons[0]}.` };
+  }
+  if (job && (!speed || job.concurrency < speed.concurrency)) {
+    return { ...q, how, chart, short: `Yes: it stopped doing the job as well at ${atOnce(job.concurrency)}.`,
+      answer: html`<b>Yes.</b> It stopped doing the job as well at ${atOnce(job.concurrency)}${speed ? `, before it got too slow at ${speed.concurrency}` : ", and never got too slow"}: ${job.quality.reasons[0]}. A test that watched only speed would have passed that level.${notLoad}` };
+  }
+  if (speed) {
+    const later = job ? ` Doing the job slipped later, at ${job.concurrency}: ${job.quality.reasons[0]}.` : " It did the job as well as at normal load at every level, on what was compared.";
+    return { ...q, how, chart, short: `No: speed gave way first, at ${atOnce(speed.concurrency)}.`,
+      answer: html`<b>No, speed gave way first.</b> It got too slow at ${atOnce(speed.concurrency)}.${later}${warned}${thin}` };
+  }
+  return { ...q, how, chart, short: "Neither gave way.",
+    answer: html`<b>Neither gave way.</b> Up to ${atOnce(rows[rows.length - 1].concurrency)}, it did the job as well as at normal load, on what was compared, without a lasting slowdown.${notLoad}${warned}${thin}` };
+}
+
+function qRepeats(rep, L) {
+  const q = { id: "repeats", group: "Quality when busy", ask: "Does it repeat itself more when it's busy?" };
+  const rows = L.filter(s => s.conversation && s.conversation.turns > 0 && has(s.conversation.repeated_replies));
+  if (rows.length === 0) return { ...q, missing: "This run predates counts of repeated replies. Run callstorm -refresh on its report to add them from its calls log." };
+  const one = v => `${fixed(v * 100, 1)}%`;
+  const rate = s => s.conversation.repeated_replies / s.conversation.turns;
+  const chart = html`<${LineChart} labels=${rows.map(s => String(s.concurrency))} xTitle="calls at the same time" yFmt=${one}
+      series=${[{ name: "replies that repeated an earlier one in the call", color: SERIES.main, values: rows.map(rate) }]}
+      refs=${[{ value: 0.03, label: "3%: Hamming's line for repeated questions" }]}/>`;
+  const how = "A reply counts as repeated when its words match a reply the agent already gave in the same call, ignoring case and punctuation, or when it shares at least 80% of its distinct words with one. A conversation stuck in a loop shows here before any timing moves.";
+  if (rows.every(s => s.conversation.repeated_replies === 0)) {
+    return { ...q, how, chart, short: "No: it never repeated itself.",
+      answer: html`<b>No.</b> At every load, no reply repeated one the agent had already given in the same call.` };
+  }
+  const a = rows[0], b = rows[rows.length - 1];
+  const over = rate(b) > 0.03 ? " That is past the 3% Hamming treats as a problem for repeated questions." : "";
+  return rate(b) - rate(a) >= 0.02
+    ? { ...q, how, chart, short: `Yes: from ${one(rate(a))} of replies to ${one(rate(b))}.`,
+        answer: html`<b>Yes.</b> ${one(rate(a))} of replies repeated an earlier one at ${atOnce(a.concurrency)}, and ${one(rate(b))} at ${b.concurrency}, in ${b.conversation.calls_with_repeats} calls.${over}` }
+    : { ...q, how, chart, short: `No more than usual: ${one(rate(b))} of replies.`,
+        answer: html`<b>No more than usual.</b> ${one(rate(a))} of replies repeated an earlier one at ${atOnce(a.concurrency)}, and ${one(rate(b))} at ${b.concurrency}.${over}` };
+}
+
+function qSlowFail(rep) {
+  const q = { id: "slowfail", group: "Quality when busy", ask: "Do the calls that kept people waiting go worse?" };
+  if (!rep.judge) return { ...q, missing: "This run was not judged, so nothing says which calls went well. Run it with -judge and written success criteria." };
+  const w = rep.judge.waits;
+  if (!w || !w.line_ms) return { ...q, missing: "This run predates the split of judged calls by how long they waited. Run callstorm -refresh on its report to add it." };
+  const line = `${fixed(w.line_ms / 1000, 1)} seconds`;
+  if (!w.conclusive) {
+    return { ...q, missing: `Not enough to tell yet: of ${w.calls} judged calls, ${w.slow_calls} kept someone waiting past ${line}, and ${w.note}. Judge more calls per step with -judge-calls to answer this.` };
+  }
+  const chart = html`<${StackBars} rows=${[
+      { label: "waited past the line", values: [w.slow_passed, w.slow_calls - w.slow_passed] },
+      { label: "never that long", values: [w.quick_passed, w.quick_calls - w.quick_passed] },
+    ]} segments=${[{ name: "did the job", color: "var(--pass)" }, { name: "did not", color: "var(--fail)" }]}
+      share=${true} valueFmt=${v => `${v} calls`} totalFmt=${sum => `${sum} calls`}/>`;
+  const how = `Judged calls are split by whether any turn kept the caller waiting past ${line}, where Coval says callers start repeating themselves, and the two groups' pass rates are compared. Hamming reports that each 100ms past 800ms costs 4 to 6% of task completion on the agents it watches; this checks that on this one. Nothing chose which calls would be slow, so it shows an association, not a cause.`;
+  const counts = html`${pctOf(w.slow_pass_rate)} of the ${w.slow_calls} judged calls that kept someone waiting past ${line} did the job, against ${pctOf(w.quick_pass_rate)} of the other ${w.quick_calls}.`;
+  // Eight judged calls make the split readable, but a group of two is one call
+  // away from a different answer.
+  const small = Math.min(w.slow_calls, w.quick_calls);
+  const loose = small < 5 ? ` The smaller group has only ${small} ${small === 1 ? "call" : "calls"}, so read this loosely.` : "";
+  return w.quick_pass_rate - w.slow_pass_rate >= 0.1
+    ? { ...q, how, chart, short: `Yes: ${pctOf(w.slow_pass_rate)} of slow calls did the job, ${pctOf(w.quick_pass_rate)} of the rest.`,
+        answer: html`<b>Yes.</b> ${counts} Waiting is costing it the task, or both come from the same cause.${loose}` }
+    : { ...q, how, chart, short: "No: slow calls did the job about as often.",
+        answer: html`<b>No.</b> ${counts}${loose}` };
+}
+
 function qBadLine(rep) {
   const q = { id: "network", group: "Bad connections", ask: "How much worse is it for callers on a bad network connection?" };
   const m = rep.matrix;
@@ -2334,15 +2536,23 @@ function qTrust(rep) {
   const counted = !d ? ""
     : d.missing > 0 ? ` ${d.missing} of the ${d.dispatched} calls sent to the test machines never came back.`
     : ` Every one of the ${d.dispatched} calls sent to the test machines came back${d.duplicates ? `, and ${d.duplicates} duplicates were dropped` : ""}.`;
+  // A percentile from too few turns is just the slowest turn: p95 needs 20
+  // turns to be anything else, and p99 needs 100.
+  const timed = steps.filter(s => s.ttfa && s.ttfa.n > 0);
+  const fewest = timed.reduce((a, s) => (!a || s.ttfa.n < a.ttfa.n ? s : a), null);
+  const sample = !fewest ? ""
+    : fewest.ttfa.n < 20 ? ` ${fewest.name} timed only ${fewest.ttfa.n} turns, too few for its slowest callers' wait to be anything but its single slowest turn.`
+    : fewest.ttfa.n < 100 ? ` Every step timed at least ${fewest.ttfa.n} turns: enough for the slowest callers' wait, though a p99 needs 100.`
+    : ` Every step timed at least ${fewest.ttfa.n} turns, enough for every percentile shown.`;
   const chart = html`<${StackBars} rows=${steps.map(s => ({ label: s.name, values: [drift(s)] }))}
       segments=${[{ name: "how far the test caller fell behind real time (past 100ms a step is doubtful)", color: SERIES.soft }]}
       valueFmt=${ms} totalFmt=${ms}/>`;
   const how = "The test caller has to speak in real time, or the agent is being tested on something no real caller does. Each bar shows the furthest it fell behind in that step.";
   return doubtful.length
     ? { ...q, how, chart, short: `Not everywhere: ${doubtful.map(s => s.name).join(", ")} doubtful.`,
-        answer: html`<b>Not everywhere.</b> In ${doubtful.map(s => s.name).join(", ")}, the test machine fell more than 100ms behind real time, so those steps show its limits as much as the agent's.${counted}` }
+        answer: html`<b>Not everywhere.</b> In ${doubtful.map(s => s.name).join(", ")}, the test machine fell more than 100ms behind real time, so those steps show its limits as much as the agent's.${counted}${sample}` }
     : { ...q, how, chart, short: "Yes: it kept up throughout.",
-        answer: html`<b>Yes.</b> The test caller never fell more than ${ms(drift(worst))} behind real time, well inside the 100ms that would make a step doubtful.${counted}` };
+        answer: html`<b>Yes.</b> The test caller never fell more than ${ms(drift(worst))} behind real time, well inside the 100ms that would make a step doubtful.${counted}${sample}` };
 }
 
 function qRepeat(rep, runs, id) {
@@ -2420,9 +2630,10 @@ function OutOfReach() {
 function buildQuestions(rep, runs, id) {
   const L = ladderOf(rep.steps || []);
   const builders = [
-    () => qCapacity(rep, L), () => qShape(rep, L), () => qWho(rep, L), () => qProblems(rep),
-    () => qWhereWait(rep, L), () => qRush(rep), () => qRecovery(rep), () => qOverTime(rep),
-    () => qHearing(rep, L), () => qJob(rep, L), () => qInterrupt(rep, L), () => qWordier(rep, L),
+    () => qCapacity(rep, L), () => qQualityLimit(rep, L), () => qShape(rep, L), () => qWho(rep, L), () => qProblems(rep),
+    () => qWhereWait(rep, L), () => qTurnWait(rep, L), () => qLongWaits(rep, L),
+    () => qRush(rep), () => qRecovery(rep), () => qOverTime(rep),
+    () => qHearing(rep, L), () => qJob(rep, L), () => qSlowFail(rep), () => qInterrupt(rep, L), () => qWordier(rep, L), () => qRepeats(rep, L),
     () => qBadLine(rep), () => qCost(rep, L), () => qTrust(rep), () => qRepeat(rep, runs, id),
   ];
   // One broken answer must not take the whole report with it; it says it
@@ -2494,6 +2705,9 @@ function ReportCard({ id, refs, runs }) {
 
   const steps = rep.steps || [];
   const degraded = steps.filter(s => s.harness_degraded);
+  const qualityIssues = steps.filter(s => s.quality && ["warn", "fail"].includes(s.quality.verdict) && (s.quality.reasons || []).length);
+  // A percentile from fewer turns than it needs is only the step's slowest turn.
+  const thinFor = (s, need) => (s.ttfa && s.ttfa.n > 0 && s.ttfa.n < need ? "†" : "");
   const anyWER = steps.some(s => s.wer && s.wer.turns > 0);
   const anyBarge = steps.some(s => s.barge_in && s.barge_in.turns > 0);
   const conv = steps.filter(s => s.conversation && s.conversation.turns > 0);
@@ -2517,7 +2731,7 @@ function ReportCard({ id, refs, runs }) {
         <table>
           <thead><tr>
             <th>Step</th><th>Conc</th><th>Setup</th><th>p50</th><th>p95</th><th>p99</th>
-            <th>Turns</th><th>Drift</th><th>vs base</th><th>Verdict</th>
+            <th>Turns</th><th>Drift</th><th>vs base</th><th>Verdict</th><th>Quality</th>
           </tr></thead>
           <tbody>
             ${steps.map(s => html`
@@ -2526,16 +2740,25 @@ function ReportCard({ id, refs, runs }) {
                 <td>${s.concurrency}</td>
                 <td>${pct(s.setup_success)}</td>
                 <td>${ms(s.ttfa.p50_ms)}</td>
-                <td>${ms(s.ttfa.p95_ms)}</td>
-                <td>${ms(s.ttfa.p99_ms)}</td>
+                <td>${ms(s.ttfa.p95_ms)}${thinFor(s, 20)}</td>
+                <td>${ms(s.ttfa.p99_ms)}${thinFor(s, 100)}</td>
                 <td>${s.turns_total}</td>
                 <td>${ms(s.worst_harness_drift_ms)}</td>
                 <td>${s.p95_ratio ? s.p95_ratio.toFixed(2) + "×" : "-"}</td>
                 <td><${Pill} v=${s.verdict}/></td>
+                <td>${s.quality && s.quality.verdict ? html`<${Pill} v=${s.quality.verdict}/>` : "-"}</td>
               </tr>`)}
           </tbody>
         </table>
       </div>
+
+      ${steps.some(s => thinFor(s, 20) || thinFor(s, 100)) && html`
+        <div className="note">† fewer turns than that percentile needs to be more than the step's slowest turn: p95 needs 20 turns, p99 needs 100.</div>`}
+
+      ${qualityIssues.length > 0 && html`
+        <div className="note">
+          <strong>Quality.</strong> ${qualityIssues.map(s => `${s.name} ${s.quality.verdict}s: ${s.quality.reasons.join("; ")}`).join(". ")}. The verdict column grades speed; quality grades whether the step still did the job as well as the baseline.
+        </div>`}
 
       ${degraded.length > 0 && html`
         <div className="note">
@@ -2668,9 +2891,15 @@ function ReportCard({ id, refs, runs }) {
 function InsightsView({ ins }) {
   const kept = ins.insights || [], dropped = ins.rejected || [];
   const whose = ins.kind === "suite" ? "test's" : "run's";
-  const droppedNote = dropped.length
-    ? `, and ${dropped.length} ${dropped.length === 1 ? "claim that could not be checked was" : "claims that could not be checked were"} dropped`
-    : "";
+  // A claim is dropped for a number the data does not hold, or for saying
+  // again what an earlier finding said.
+  const repeated = dropped.filter(r => /^repeats /.test(r.reason || "")).length;
+  const unchecked = dropped.length - repeated;
+  const parts = [
+    unchecked ? `${unchecked} ${unchecked === 1 ? "claim" : "claims"} that could not be checked` : "",
+    repeated ? `${repeated} repeating an earlier finding` : "",
+  ].filter(Boolean);
+  const droppedNote = parts.length ? ` Dropped: ${parts.join(", ")}.` : "";
   return html`
     <div className="card insights">
       <div className="eyebrow">Written analysis · ${ins.model}</div>
@@ -2684,7 +2913,7 @@ function InsightsView({ ins }) {
           <p className="iwhy"><b>Why it matters.</b> ${i.why_it_matters}</p>
           <p className="inext"><b>Next.</b> ${i.next_step}</p>
         </div>`)}
-      <div className="note">Written by ${ins.model} on ${when(ins.generated_at)}. Every number in it was checked against this ${whose} data${droppedNote}. The plain-language answers are worked out separately, by fixed rules.</div>
+      <div className="note">Written by ${ins.model} on ${when(ins.generated_at)}. Every number in it was checked against this ${whose} data.${droppedNote} The plain-language answers are worked out separately, by fixed rules.</div>
     </div>`;
 }
 
