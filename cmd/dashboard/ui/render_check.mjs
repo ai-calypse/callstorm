@@ -565,7 +565,9 @@ for (const [name, needle] of [
 }
 {
   const cells = realMatrix.matrix.cohorts.reduce((a, c) => a + c.steps.length, 0);
-  const filled = (matrixCard.match(/background:color-mix/g) || []).length;
+  // Heatmap cells only: the question charts' legends use the same colours, so
+  // counting every colour-mix swatch on the page would count them too.
+  const filled = (matrixCard.match(/class="hm[^"]*" style="background:color-mix/g) || []).length;
   const ok = filled === cells;
   if (!ok) bad++;
   console.log(`${ok ? "ok  " : "FAIL"}  ${filled} filled cells for ${cells} cohort-steps in the real matrix`);
@@ -633,6 +635,31 @@ const rttCard = ReactDOMServer.renderToStaticMarkup(
   const ok = rttCard.includes("The wait, with the network taken out") && rttCard.includes("30 of 30 turns");
   if (!ok) bad++;
   console.log(`${ok ? "ok  " : "FAIL"}  the real run's agent card renders inside the report`);
+}
+
+// The questions section, against the fixtures already here. None of them was
+// shaped to answer every question, so these assert the answers they can give
+// and the reasons they give for the rest: an unanswerable question has to say
+// why, and no answer may fail to compute.
+for (const [name, html, needle] of [
+  ["the questions section heads the report", card, "questions answered, in plain words"],
+  ["capacity is asked in plain words", card, "How many calls at the same time can it take"],
+  ["a chart is drawn for an answered question", card, "slowest callers&#x27; wait"],
+  ["what the test can't tell you is listed", card, "What this kind of test can&#x27;t tell you"],
+  ["a run with no rush step says so", card, "no sudden-rush step"],
+  ["a rush at a level never built up to says why it can't compare", phasedCard, "never built up to that same level"],
+  ["a recovery without timestamps says what is missing", phasedCard, "predates call timestamps"],
+  ["the network question is answered from a matrix", matrixCard, "A bad connection breaks it before load does"],
+  ["a matrix run's job question uses its scenario checks", matrixCard, "failed at every load"],
+]) {
+  const ok = html.includes(needle);
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
+}
+{
+  const broken = [card, legacy, phasedCard, judgedCard, matrixCard, rttCard].filter(h => h.includes("could not be computed")).length;
+  if (broken) bad++;
+  console.log(`${!broken ? "ok  " : "FAIL"}  every question computed on every fixture (${broken} reports with a broken answer)`);
 }
 
 // The readings are prose with numbers spliced into it, and both ways of

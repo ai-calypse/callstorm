@@ -349,6 +349,45 @@ round trips as exactly zero, and zero had been read as "no pong", dropping a
 third of a run's turns from the correction. Whether a pong came back is now
 recorded apart from its value.
 
+## Questions a run answers
+
+Every report on the dashboard opens with plain-language questions: the ones a
+person who has never heard of p95 or endpointing would actually ask. Each
+answer is worked out from that run's own numbers and comes with a chart of the
+evidence. A question the run can't answer says why, and what would answer it.
+
+Each answer follows a fixed rule, so it can be checked against the report:
+
+| question | how it's answered |
+|---|---|
+| How many calls at the same time can it take before callers notice? | The first level where the slowest callers (p95) wait more than twice as long as at normal load, or fewer than 97 calls in 100 connect. The answer is the range between the last level that held and the first that didn't. |
+| Does it slow down gradually or all of a sudden? | If one jump between neighbouring levels holds 60% or more of the total slowdown, it was sudden. When that jump spans a doubling of load, the answer says the test may have missed a steady climb in between. |
+| Do all callers get slower, or only some? | The typical caller (p50) against the slowest (p95), each as a multiple of normal. If the slowest grows at least 0.3 more and the typical stays under 1.2 times, only some calls are stuck. |
+| Do new kinds of problems show up when busy? | Every turn is split into answered normally, agent cut the caller off, no answer in time, other errors, and call never connected, and each kind is reported where it first appears. |
+| Where does the waiting time go? | A typical turn split into the network round trip, the agent noticing the caller stopped, and the agent thinking up its reply, and which part grew most with load. |
+| Can it cope with a sudden rush as well as a slow build-up? | A spike step against a built-up step at the same load. Within 1.2 times counts as coping. |
+| After a rush, how long until it's back to normal? | Seconds from the start of the recovery step to the first call from which every later call's typical wait stays within 1.2 times normal, with none failing. |
+| Does it get slower the longer it runs? | The steady (soak) step split in half by start time; a 15% change in the typical wait counts. |
+| Does it still hear people correctly when busy? | Words misheard at each load, against the exact script the test caller spoke. A rise of 2 points counts. |
+| Does it still do its job when busy? | Each scenario node's assertion pass rate at each load, or the judge's pass rate when no node is checked. A drop of 10 points counts. |
+| Does it talk over people more when busy? | The share of turns where the agent spoke before the caller finished. A rise of 5 points counts. |
+| Does it talk longer or faster when busy? | Seconds of agent speech per turn, and words per minute. A 15% change counts. |
+| How much worse on a bad network connection? | From an impairment matrix: which network conditions broke it, and the worst step's wait as a multiple of the same step on a clean network. |
+| Does each turn cost more when busy? | Price per turn, or billed call time per turn without a rate. A 5% rise counts. |
+| Did the test itself keep up? | How far the test caller fell behind real time in each step (past 100ms a step is doubtful), and on distributed runs whether every call came back exactly once. |
+| Would the same test give the same answer again? | Earlier runs with the same scenario and load plan fingerprints against the same agent. Within 10% on the slowest waits at normal and heaviest load counts as repeatable. |
+
+A run whose test machine fell behind real time opens with a caution that its
+answers are rough. The last card lists what this kind of test can't answer at
+all: what runs out inside the agent, whether a limit is the agent's or its
+providers', tool calls, post-call events, handoffs to humans, audio quality,
+alerts, and callers losing patience. The test caller is patient by design, so it
+never talks over a slow agent.
+
+`profiles/questions-ref.json` is shaped to answer as many of these as possible
+against the reference agent. It has a sudden rush and a slow build-up to the
+same level, a recovery step, and a steady hold.
+
 ## The calls log
 
 Every call a run places is written to the calls file beside its report, failed
