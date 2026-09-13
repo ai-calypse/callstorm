@@ -1,0 +1,305 @@
+{
+  "profile": "sweep-deepgram",
+  "scenario": "refund-escalation",
+  "target": "",
+  "baseline": "baseline",
+  "started_at": "2026-09-12T22:56:50.0722921-04:00",
+  "duration_s": 931.4999648,
+  "steps": [
+    {
+      "name": "baseline",
+      "concurrency": 1,
+      "calls": 10,
+      "calls_attempted": 10,
+      "calls_connected": 10,
+      "turns_total": 50,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 50,
+        "p50_ms": 854.8,
+        "p95_ms": 2405.7,
+        "p99_ms": 3307.9,
+        "max_ms": 3307.9
+      },
+      "endpointing": {
+        "n": 50,
+        "p50_ms": 306.4,
+        "p95_ms": 417.7,
+        "p99_ms": 1925,
+        "max_ms": 1925
+      },
+      "think_speak": {
+        "n": 50,
+        "p50_ms": 538.3,
+        "p95_ms": 704.5,
+        "p99_ms": 3081.3,
+        "max_ms": 3081.3
+      },
+      "turn_latency": {
+        "n": 50,
+        "p50_ms": 4511.3,
+        "p95_ms": 5823.7,
+        "p99_ms": 7025.8,
+        "max_ms": 7025.8
+      },
+      "worst_harness_drift_ms": 331.3,
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 50,
+        "mean": 0.02676056338028169,
+        "worst": 0.07142857142857142,
+        "substitutions": 0,
+        "deletions": 19,
+        "insertions": 0,
+        "ref_words": 710
+      },
+      "harness_degraded": true,
+      "p95_ratio": 1,
+      "verdict": "pass"
+    },
+    {
+      "name": "c5",
+      "concurrency": 5,
+      "calls": 10,
+      "calls_attempted": 10,
+      "calls_connected": 10,
+      "turns_total": 50,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 50,
+        "p50_ms": 823.7,
+        "p95_ms": 1149.3,
+        "p99_ms": 3293.9,
+        "max_ms": 3293.9
+      },
+      "endpointing": {
+        "n": 50,
+        "p50_ms": 302.7,
+        "p95_ms": 380.1,
+        "p99_ms": 438.4,
+        "max_ms": 438.4
+      },
+      "think_speak": {
+        "n": 50,
+        "p50_ms": 534.8,
+        "p95_ms": 846.6,
+        "p99_ms": 3063.7,
+        "max_ms": 3063.7
+      },
+      "turn_latency": {
+        "n": 50,
+        "p50_ms": 4558.1,
+        "p95_ms": 5933.6,
+        "p99_ms": 6983.5,
+        "max_ms": 6983.5
+      },
+      "worst_harness_drift_ms": 128.3,
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 50,
+        "mean": 0.022535211267605635,
+        "worst": 0.14285714285714285,
+        "substitutions": 1,
+        "deletions": 15,
+        "insertions": 0,
+        "ref_words": 710
+      },
+      "harness_degraded": true,
+      "p95_ratio": 0.48,
+      "verdict": "pass"
+    },
+    {
+      "name": "c10",
+      "concurrency": 10,
+      "calls": 20,
+      "calls_attempted": 20,
+      "calls_connected": 20,
+      "turns_total": 100,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 100,
+        "p50_ms": 839,
+        "p95_ms": 1239.5,
+        "p99_ms": 3216.5,
+        "max_ms": 5469.9
+      },
+      "endpointing": {
+        "n": 100,
+        "p50_ms": 304.8,
+        "p95_ms": 355.5,
+        "p99_ms": 537.4,
+        "max_ms": 604.1
+      },
+      "think_speak": {
+        "n": 100,
+        "p50_ms": 531.1,
+        "p95_ms": 775.9,
+        "p99_ms": 2987,
+        "max_ms": 5240.6
+      },
+      "turn_latency": {
+        "n": 100,
+        "p50_ms": 4278,
+        "p95_ms": 5886.6,
+        "p99_ms": 6485.4,
+        "max_ms": 7989.9
+      },
+      "worst_harness_drift_ms": 365.5,
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 100,
+        "mean": 0.0323943661971831,
+        "worst": 0.875,
+        "substitutions": 2,
+        "deletions": 42,
+        "insertions": 2,
+        "ref_words": 1420
+      },
+      "harness_degraded": true,
+      "p95_ratio": 0.52,
+      "verdict": "pass"
+    },
+    {
+      "name": "c20",
+      "concurrency": 20,
+      "calls": 40,
+      "calls_attempted": 40,
+      "calls_connected": 40,
+      "turns_total": 200,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 200,
+        "p50_ms": 828.3,
+        "p95_ms": 1154.9,
+        "p99_ms": 3187.5,
+        "max_ms": 5566.4
+      },
+      "endpointing": {
+        "n": 200,
+        "p50_ms": 303.5,
+        "p95_ms": 357.4,
+        "p99_ms": 579.5,
+        "max_ms": 816.5
+      },
+      "think_speak": {
+        "n": 200,
+        "p50_ms": 520.1,
+        "p95_ms": 839.3,
+        "p99_ms": 2947.7,
+        "max_ms": 5345.3
+      },
+      "turn_latency": {
+        "n": 200,
+        "p50_ms": 4446.6,
+        "p95_ms": 5763.4,
+        "p99_ms": 6373,
+        "max_ms": 8486.4
+      },
+      "worst_harness_drift_ms": 240.3,
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 200,
+        "mean": 0.0323943661971831,
+        "worst": 1,
+        "substitutions": 2,
+        "deletions": 90,
+        "insertions": 0,
+        "ref_words": 2840
+      },
+      "harness_degraded": true,
+      "p95_ratio": 0.48,
+      "verdict": "pass"
+    },
+    {
+      "name": "c40",
+      "concurrency": 40,
+      "calls": 80,
+      "calls_attempted": 80,
+      "calls_connected": 80,
+      "turns_total": 400,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 400,
+        "p50_ms": 835,
+        "p95_ms": 1350.8,
+        "p99_ms": 3234.8,
+        "max_ms": 5747.7
+      },
+      "endpointing": {
+        "n": 400,
+        "p50_ms": 304.9,
+        "p95_ms": 453.9,
+        "p99_ms": 875,
+        "max_ms": 3300.2
+      },
+      "think_speak": {
+        "n": 400,
+        "p50_ms": 527.2,
+        "p95_ms": 869.6,
+        "p99_ms": 2966.3,
+        "max_ms": 5539.8
+      },
+      "turn_latency": {
+        "n": 400,
+        "p50_ms": 4421.7,
+        "p95_ms": 6116.7,
+        "p99_ms": 7175.1,
+        "max_ms": 8571.5
+      },
+      "worst_harness_drift_ms": 1037,
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 400,
+        "mean": 0.030985915492957747,
+        "worst": 1,
+        "substitutions": 4,
+        "deletions": 171,
+        "insertions": 1,
+        "ref_words": 5680
+      },
+      "harness_degraded": true,
+      "p95_ratio": 0.56,
+      "verdict": "pass"
+    }
+  ]
+}

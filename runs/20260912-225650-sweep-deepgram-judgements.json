@@ -1,0 +1,202 @@
+[
+  {
+    "step": "baseline",
+    "request_id": "01a098b2-33bd-7bf0-a608-aff8e6fd26bd",
+    "outcomes": [
+      {
+        "criterion": "The agent asks the caller for an order number before discussing the specific order",
+        "met": true,
+        "evidence": "turn 1: \"agent:  Can you please provide me with your order number?\""
+      },
+      {
+        "criterion": "The agent offers a replacement shipment before a refund is ever mentioned",
+        "met": true,
+        "evidence": "turn 2: \"agent:  Thank you. I’ll arrange a replacement shipment for your headphones.\""
+      },
+      {
+        "criterion": "The agent issues a refund after the caller turns down the replacement",
+        "met": true,
+        "evidence": "turn 3: \"agent:  I can issue a refund for you. Confirming that now.\""
+      },
+      {
+        "criterion": "The agent tells the caller how long the refund takes to reach their card",
+        "met": true,
+        "evidence": "turn 4: \"agent:  The refund will take five to seven business days to reach your card.\""
+      }
+    ]
+  },
+  {
+    "step": "baseline",
+    "request_id": "01a098b2-fabe-7dc2-910e-a9fb7457f1bb",
+    "outcomes": [
+      {
+        "criterion": "The agent asks the caller for an order number before discussing the specific order",
+        "met": true,
+        "evidence": "turn 1: \"Can I have your order number, please?\""
+      },
+      {
+        "criterion": "The agent offers a replacement shipment before a refund is ever mentioned",
+        "met": true,
+        "evidence": "turn 2: \"I'll arrange a replacement shipment for your order.\""
+      },
+      {
+        "criterion": "The agent issues a refund after the caller turns down the replacement",
+        "met": true,
+        "evidence": "turn 3: \"I can process your refund now.\""
+      },
+      {
+        "criterion": "The agent tells the caller how long the refund takes to reach their card",
+        "met": true,
+        "evidence": "turn 4: \"The refund will take five to seven business days to reach your card.\""
+      }
+    ]
+  },
+  {
+    "step": "c5",
+    "request_id": "01a098b9-f748-7bb3-9747-a6bedc4d39bc",
+    "outcomes": [
+      {
+        "criterion": "The agent asks the caller for an order number before discussing the specific order",
+        "met": true,
+        "evidence": "turn 1: \"agent:  Can you please provide your order number?\""
+      },
+      {
+        "criterion": "The agent offers a replacement shipment before a refund is ever mentioned",
+        "met": true,
+        "evidence": "turn 2: \"agent:  I’ll arrange a replacement shipment for your headphones right away.\""
+      },
+      {
+        "criterion": "The agent issues a refund after the caller turns down the replacement",
+        "met": true,
+        "evidence": "turn 3: \"agent:  I can process a refund for you.\""
+      },
+      {
+        "criterion": "The agent tells the caller how long the refund takes to reach their card",
+        "met": true,
+        "evidence": "turn 4: \"agent:  It takes five to seven business days to reach your card.\""
+      }
+    ]
+  },
+  {
+    "step": "c5",
+    "request_id": "01a098b9-f760-76e2-94b9-d4523936121e",
+    "outcomes": [
+      {
+        "criterion": "The agent asks the caller for an order number before discussing the specific order",
+        "met": true,
+        "evidence": "turn 1: \"agent:  Can you provide me with your order number, please?\""
+      },
+      {
+        "criterion": "The agent offers a replacement shipment before a refund is ever mentioned",
+        "met": true,
+        "evidence": "turn 2: \"agent:  Thank you. I will arrange a replacement shipment for your headphones.\""
+      },
+      {
+        "criterion": "The agent issues a refund after the caller turns down the replacement",
+        "met": true,
+        "evidence": "turn 3: \"agent:  I can process a refund for you. Confirming now.\""
+      },
+      {
+        "criterion": "The agent tells the caller how long the refund takes to reach their card",
+        "met": true,
+        "evidence": "turn 4: \"agent:  The refund takes five to seven business days to reach your card.\""
+      }
+    ]
+  },
+  {
+    "step": "c10",
+    "request_id": "01a098bb-8ccf-7891-87a9-b22ed698aeb0",
+    "outcomes": [
+      {
+        "criterion": "The agent asks the caller for an order number before discussing the specific order",
+        "met": true,
+        "evidence": "turn 1: \"agent:  Can you please provide your order number?\""
+      },
+      {
+        "criterion": "The agent offers a replacement shipment before a refund is ever mentioned",
+        "met": true,
+        "evidence": "turn 2: \"agent:  Thank you. I’ll arrange a replacement shipment for your headphones.\""
+      },
+      {
+        "criterion": "The agent issues a refund after the caller turns down the replacement",
+        "met": true,
+        "evidence": "turn 3: \"agent:  I can issue a refund for you.\""
+      },
+      {
+        "criterion": "The agent tells the caller how long the refund takes to reach their card",
+        "met": true,
+        "evidence": "turn 4: \"agent:  It takes five to seven business days to reach your card.\""
+      }
+    ]
+  },
+  {
+    "step": "c10",
+    "request_id": "01a098bb-8cce-7e22-afed-457e48f3b8a2",
+    "outcomes": [
+      {
+        "criterion": "The agent asks the caller for an order number before discussing the specific order",
+        "met": true,
+        "evidence": "turn 1: \"Can I have your order number, please?\""
+      },
+      {
+        "criterion": "The agent offers a replacement shipment before a refund is ever mentioned",
+        "met": true,
+        "evidence": "turn 2: \"I'll arrange a replacement shipment for your wireless headphones.\""
+      },
+      {
+        "criterion": "The agent issues a refund after the caller turns down the replacement",
+        "met": true,
+        "evidence": "turn 3: \"I can process a refund for you.\""
+      },
+      {
+        "criterion": "The agent tells the caller how long the refund takes to reach their card",
+        "met": true,
+        "evidence": "turn 4: \"It takes five to seven business days to reach your card.\""
+      }
+    ]
+  },
+  {
+    "step": "c20",
+    "request_id": "01a098bd-274f-7213-b7d9-feb097d1e790",
+    "outcomes": [
+      {
+        "criterion": "The agent asks the caller for an order number before discussing the specific order",
+        "met": true,
+        "evidence": "turn 1: \"agent:  Can I have your order number, please?\""
+      },
+      {
+        "criterion": "The agent offers a replacement shipment before a refund is ever mentioned",
+        "met": true,
+        "evidence": "turn 2: \"agent:  Thank you. I’ll arrange a replacement shipment for your order.\""
+      },
+      {
+        "criterion": "The agent issues a refund after the caller turns down the replacement",
+        "met": true,
+        "evidence": "turn 3: \"agent:  I can process a refund for you.\""
+      },
+      {
+        "criterion": "The agent tells the caller how long the refund takes to reach their card",
+        "met": true,
+        "evidence": "turn 4: \"agent:  The refund takes five to seven business days to reach your card.\""
+      }
+    ]
+  },
+  {
+    "step": "c20",
+    "request_id": "01a098bd-2783-7540-946c-286387d75319",
+    "outcomes": null,
+    "error": "groq rate limit: Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m2bmy027ejgrst62tarfzy4r` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7479, Requested 1185. Please try again in 4.98s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing (judge fewer calls with -judge-calls, or wait)"
+  },
+  {
+    "step": "c40",
+    "request_id": "01a098be-c627-7722-9e91-043df487399f",
+    "outcomes": null,
+    "error": "groq rate limit: Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m2bmy027ejgrst62tarfzy4r` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7472, Requested 1185. Please try again in 4.9275s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing (judge fewer calls with -judge-calls, or wait)"
+  },
+  {
+    "step": "c40",
+    "request_id": "01a098be-c6a2-7901-812c-4f79038de148",
+    "outcomes": null,
+    "error": "groq rate limit: Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m2bmy027ejgrst62tarfzy4r` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7464, Requested 1387. Please try again in 6.3825s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing (judge fewer calls with -judge-calls, or wait)"
+  }
+]
