@@ -32,6 +32,10 @@ type Config struct {
 	// Bus publishes per-turn events to Kafka. Nil disables it.
 	Bus   *bus.Producer
 	RunID string
+
+	// RatePerMinute prices a run. Zero leaves cost unpriced rather than
+	// guessed: a stale hardcoded rate is worse than no figure at all.
+	RatePerMinute float64
 }
 
 // Run executes every step of the profile in order and returns the report.
@@ -63,7 +67,7 @@ func Run(ctx context.Context, cfg Config) (*Report, error) {
 			step.Name, step.Concurrency, step.Calls)
 
 		outcomes := runStep(ctx, cfg, step)
-		sr := buildStepReport(step, outcomes)
+		sr := buildStepReportAt(step, outcomes, cfg.RatePerMinute)
 		rep.Steps = append(rep.Steps, sr)
 
 		for _, o := range outcomes {

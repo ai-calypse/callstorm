@@ -82,6 +82,7 @@ func (w *worker) runTurn(ctx context.Context, idx int, pcm []byte, say string,
 	w.printf("\n  caller: %s\n", say)
 	callerStart := w.log.Mark(metrics.CallerSpeechStart, idx, say)
 	utterance := audio.Duration(pcm, w.cfg.SampleRate)
+	m.CallerSpeech = utterance
 	speakDone := w.pump.speak(pcm)
 
 	// Parked until the caller stops talking, then reset to the response

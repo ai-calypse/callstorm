@@ -131,6 +131,12 @@ type TurnMetric struct {
 	Endpointing time.Duration `json:"-"`
 	ThinkSpeak  time.Duration `json:"-"`
 
+	// CallerSpeech is how long this caller line takes to say, taken from the
+	// synthesized audio rather than from the clock. It is the denominator of
+	// talk ratio and words per minute, and using the audio's own length keeps
+	// both honest when the pump runs late.
+	CallerSpeech time.Duration `json:"-"`
+
 	// AgentSpeech is how long the agent's reply takes to play, derived from
 	// the audio received rather than from how long it took to arrive --
 	// Deepgram streams TTS faster than realtime, so arrival time would
@@ -173,12 +179,13 @@ type TurnMetric struct {
 	FailReason string `json:"fail_reason,omitempty"`
 
 	// Millisecond mirrors of the durations above, for the JSON artifact.
-	TTFAMs        float64 `json:"ttfa_ms"`
-	EndpointingMs float64 `json:"endpointing_ms"`
-	ThinkSpeakMs  float64 `json:"think_speak_ms"`
-	AgentSpeechMs float64 `json:"agent_speech_ms"`
-	TurnLatencyMs float64 `json:"turn_latency_ms"`
-	PacingDriftMs float64 `json:"pacing_drift_ms"`
+	TTFAMs         float64 `json:"ttfa_ms"`
+	EndpointingMs  float64 `json:"endpointing_ms"`
+	ThinkSpeakMs   float64 `json:"think_speak_ms"`
+	CallerSpeechMs float64 `json:"caller_speech_ms"`
+	AgentSpeechMs  float64 `json:"agent_speech_ms"`
+	TurnLatencyMs  float64 `json:"turn_latency_ms"`
+	PacingDriftMs  float64 `json:"pacing_drift_ms"`
 
 	// BargeInYieldMs is the millisecond mirror of BargeInYield.
 	BargeInYieldMs float64 `json:"barge_in_yield_ms,omitempty"`
@@ -195,6 +202,7 @@ func (t *TurnMetric) Finalize() {
 	t.TTFAMs = ms(t.TTFA)
 	t.EndpointingMs = ms(t.Endpointing)
 	t.ThinkSpeakMs = ms(t.ThinkSpeak)
+	t.CallerSpeechMs = ms(t.CallerSpeech)
 	t.AgentSpeechMs = ms(t.AgentSpeech)
 	t.TurnLatencyMs = ms(t.TurnLatency)
 	t.PacingDriftMs = ms(t.PacingDrift)
@@ -218,6 +226,7 @@ func (t *TurnMetric) Rehydrate() {
 	t.TTFA = d(t.TTFAMs)
 	t.Endpointing = d(t.EndpointingMs)
 	t.ThinkSpeak = d(t.ThinkSpeakMs)
+	t.CallerSpeech = d(t.CallerSpeechMs)
 	t.AgentSpeech = d(t.AgentSpeechMs)
 	t.TurnLatency = d(t.TurnLatencyMs)
 	t.PacingDrift = d(t.PacingDriftMs)

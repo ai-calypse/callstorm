@@ -75,6 +75,13 @@ type StepReport struct {
 
 	WorstDriftMs float64 `json:"worst_harness_drift_ms"`
 
+	// Conversation is how the calls sounded: pace, share of the talking,
+	// interruptions and dead air. Latency says how fast; this says how it felt.
+	Conversation Conversation `json:"conversation"`
+
+	// Cost is what this step cost to run, priced only when a rate was given.
+	Cost Cost `json:"cost"`
+
 	// BargeIn is how the agent behaved when the caller cut in on it.
 	BargeIn BargeInStats `json:"barge_in"`
 
@@ -172,6 +179,11 @@ type callOutcome struct {
 
 // buildStepReport folds every call placed during one step into its report.
 func buildStepReport(step Step, outcomes []callOutcome) StepReport {
+	return buildStepReportAt(step, outcomes, 0)
+}
+
+// buildStepReportAt is buildStepReport with a per-minute rate for pricing.
+func buildStepReportAt(step Step, outcomes []callOutcome, ratePerMinute float64) StepReport {
 	r := StepReport{Step: step, Errors: map[string]int{}}
 
 	var ttfa, endpointing, thinkSpeak, turnLatency []time.Duration
@@ -272,6 +284,9 @@ func buildStepReport(step Step, outcomes []callOutcome) StepReport {
 		YieldP95Ms: yieldSummary.P95Ms,
 		WorstMs:    yieldSummary.MaxMs,
 	}
+
+	r.Conversation = summarizeConversation(outcomes)
+	r.Cost = summarizeCost(outcomes, ratePerMinute)
 
 	r.WER = WERStats{
 		Turns:         werTurns,

@@ -45,7 +45,7 @@ func RunDistributed(ctx context.Context, cfg Config, d *bus.Dispatcher, runID st
 			return nil, err
 		}
 
-		sr := buildStepReport(step, outcomes)
+		sr := buildStepReportAt(step, outcomes, cfg.RatePerMinute)
 		rep.Steps = append(rep.Steps, sr)
 
 		for _, o := range outcomes {
