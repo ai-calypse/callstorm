@@ -80,7 +80,21 @@
   a { color:var(--signal); }
 
   .hero { padding-block:26px 4px; }
-  .thesis { margin:10px 0 0; font-family:"IBM Plex Serif", Georgia, serif; font-size:17px; line-height:1.55; color:var(--ink-2); max-width:70ch; }
+
+  /* The two questions are the product. Everything else on this page exists to
+     support them, so they are the largest thing on it -- larger than the name,
+     which is only a label. */
+  .asks { margin:22px 0 0; border-top:2px solid var(--ink); border-bottom:1px solid var(--rule); padding-block:20px 22px; }
+  /* The framing is light; the thing being asked carries the weight, so the
+     answer a reader is here for is the boldest text on the page. */
+  .ask { margin:0; font-family:"IBM Plex Serif", Georgia, serif; font-weight:400;
+         font-size:clamp(21px, 3.3vw, 31px); line-height:1.25; letter-spacing:-.015em;
+         color:var(--ink-2); text-wrap:balance; max-width:26ch; }
+  .ask + .ask { margin-top:14px; }
+  .ask span { color:var(--ink); font-weight:600; }
+  .asks-lead { margin:0 0 14px; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--signal); }
+
+  .thesis { margin:20px 0 0; font-family:"IBM Plex Serif", Georgia, serif; font-size:15px; line-height:1.6; color:var(--ink-2); max-width:68ch; }
   .caps { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:1px 26px; margin-top:22px; }
   .caps div { border-top:1px solid var(--rule); padding-block:9px 11px; }
   .caps dt { font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--signal); }
@@ -304,10 +318,16 @@ function App() {
       <header className="hero">
         <span className="eyebrow">Load testing and observability for voice AI agents</span>
         <h1>Callstorm</h1>
-        <p className="thesis">It places synthetic calls against a voice agent, speaks to it with real
-          text-to-speech, listens to what comes back, and stamps every instant on both sides &mdash;
-          to answer two questions rather than one: <b>at what concurrency does this agent stop
-          meeting its own baseline</b>, and <b>did it actually do its job</b>.</p>
+        <div className="asks">
+          <p className="asks-lead">Two questions, not one</p>
+          <p className="ask">At what concurrency does this agent <span>stop meeting its own baseline?</span></p>
+          <p className="ask">And did it <span>actually do its job?</span></p>
+        </div>
+
+        <p className="thesis">Callstorm places synthetic calls against a voice agent, speaks to it
+          with real text-to-speech, listens to what comes back, and stamps every instant on both
+          sides of the conversation. The first question is answered in milliseconds, the second by
+          reading what was actually said.</p>
 
         <dl className="caps">
           <div><dt>Latency</dt><dd>Time to first audio, split into endpointing and think+speak. Percentiles per step, and the breakpoint scored against the run's own baseline rather than a number someone else picked.</dd></div>
