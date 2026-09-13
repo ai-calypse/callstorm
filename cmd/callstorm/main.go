@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -49,6 +50,7 @@ type opts struct {
 	metricsLinger  time.Duration
 	kafkaBrokers   string
 	kafkaTopic     string
+	ratePerMinute  float64
 	distributed    bool
 	judge          bool
 	judgeCalls     int
@@ -72,6 +74,8 @@ func main() {
 		"keep /metrics up this long after the run, so the last step can be scraped")
 	flag.StringVar(&o.kafkaBrokers, "kafka", "", "comma-separated Kafka brokers to publish turn events to")
 	flag.StringVar(&o.kafkaTopic, "kafka-topic", bus.DefaultTopic, "topic for per-turn events")
+	flag.Float64Var(&o.ratePerMinute, "rate-per-minute", 0,
+		"price a run at this cost per agent-minute (0 = report usage without dollars)")
 	flag.BoolVar(&o.distributed, "distributed", false,
 		"place calls through a worker fleet over Kafka instead of in this process")
 	flag.BoolVar(&o.judge, "judge", false,
@@ -191,17 +195,18 @@ func runLoad(ctx context.Context, o opts, sc *scenario.Scenario, apiKey string) 
 	}
 
 	lg := loadgen.Config{
-		APIKey:      apiKey,
-		Scenario:    sc,
-		Profile:     profile,
-		TTS:         tts.New(apiKey, o.sampleRate, o.cacheDir),
-		SampleRate:  o.sampleRate,
-		TurnTimeout: o.turnTimeout,
-		TargetURL:   o.targetURL,
-		Out:         os.Stdout,
-		Metrics:     mx,
-		Bus:         producer,
-		RunID:       runID,
+		APIKey:        apiKey,
+		Scenario:      sc,
+		Profile:       profile,
+		TTS:           tts.New(apiKey, o.sampleRate, o.cacheDir),
+		SampleRate:    o.sampleRate,
+		TurnTimeout:   o.turnTimeout,
+		TargetURL:     o.targetURL,
+		Out:           os.Stdout,
+		Metrics:       mx,
+		Bus:           producer,
+		RunID:         runID,
+		RatePerMinute: o.ratePerMinute,
 	}
 
 	var rep *loadgen.Report
@@ -401,6 +406,10 @@ func printLoadReport(rep *loadgen.Report, jsonPath, csvPath, svgPath, callsPath 
 		}
 	}
 
+	printConversation(rep)
+	printComponentShare(rep)
+	printCost(rep)
+
 	if bp := rep.Breakpoint(); bp != nil {
 		fmt.Printf("\nBREAKPOINT   %s at %d concurrent: p95 TTFA %s is %.2fx baseline\n",
 			bp.Name, bp.Concurrency, msf(bp.TTFA.P95Ms), bp.P95Ratio)
@@ -439,6 +448,125 @@ func printLoadReport(rep *loadgen.Report, jsonPath, csvPath, svgPath, callsPath 
 	if callsPath != "" {
 		fmt.Printf("calls        %s\n", callsPath)
 	}
+}
+
+// printConversation reports how the calls sounded rather than how fast they
+// were. The benchmarks in the notes are the published ones, so a reader can
+// tell an unusual agent from a normal one without having a fleet to compare
+// against.
+func printConversation(rep *loadgen.Report) {
+	if len(rep.Steps) == 0 || rep.Steps[0].Conversation.Turns == 0 {
+		return
+	}
+	fmt.Printf("\n%-12s %-9s %-10s %-11s %-12s %-7s %s\n",
+		"step", "talk", "agent wpm", "caller wpm", "interrupts", "score", "dead air")
+	for _, s := range rep.Steps {
+		c := s.Conversation
+		if c.Turns == 0 {
+			continue
+		}
+		dead := "-"
+		if c.DeadAirTurns > 0 {
+			dead = fmt.Sprintf("%d turns, %.0fs", c.DeadAirTurns, c.DeadAirSeconds)
+		}
+		note := ""
+		switch {
+		case c.TalkRatio >= 0.80:
+			note = "   <- agent holds 80%+ of the floor"
+		case c.AgentWPM > 190:
+			note = "   <- above comfortable listening pace"
+		}
+		fmt.Printf("%-12s %-9s %-10.0f %-11.0f %-12s %-7.2f %s%s\n",
+			s.Name,
+			fmt.Sprintf("%.0f%%", c.TalkRatio*100),
+			c.AgentWPM, c.CallerWPM,
+			fmt.Sprintf("%d/%d", c.Interruptions, c.Turns),
+			c.InterruptionScore, dead, note)
+	}
+}
+
+// printComponentShare splits p95 TTFA into the two halves an agent builder can
+// actually act on, and tracks the split across concurrency.
+//
+// The point is not the absolute numbers, which the percentile table already
+// gives: it is which half grows. Endpointing that widens under load is a VAD or
+// transport problem; think/speak that widens is the LLM or TTS queueing. A
+// single TTFA number cannot tell those apart, and they have different fixes.
+func printComponentShare(rep *loadgen.Report) {
+	any := false
+	for _, s := range rep.Steps {
+		if s.Endpointing.N > 0 && s.ThinkSpeak.N > 0 {
+			any = true
+		}
+	}
+	if !any {
+		return
+	}
+
+	fmt.Printf("\n%-12s %-11s %-13s %-13s %s\n",
+		"step", "ttfa p95", "endpointing", "think/speak", "which half")
+	var base float64
+	for i, s := range rep.Steps {
+		if s.Endpointing.N == 0 || s.ThinkSpeak.N == 0 {
+			continue
+		}
+		total := s.Endpointing.P95Ms + s.ThinkSpeak.P95Ms
+		if total <= 0 {
+			continue
+		}
+		share := s.ThinkSpeak.P95Ms / total
+		if i == 0 {
+			base = share
+		}
+		// "Shifted" is the finding: a step whose split moved is a step where
+		// one component saturated before the other.
+		trend := fmt.Sprintf("%.0f%% think/speak", share*100)
+		if d := share - base; math.Abs(d) >= 0.05 {
+			trend += fmt.Sprintf("  (%+.0f pts vs baseline)", d*100)
+		}
+		fmt.Printf("%-12s %-11s %-13s %-13s %s\n",
+			s.Name, msf(s.TTFA.P95Ms), msf(s.Endpointing.P95Ms), msf(s.ThinkSpeak.P95Ms), trend)
+	}
+}
+
+// printCost reports billable minutes, and dollars only when -rate-per-minute
+// supplied one. A run that quietly priced itself at a guessed rate would be
+// worse than one that reports none.
+func printCost(rep *loadgen.Report) {
+	var minutes float64
+	for _, s := range rep.Steps {
+		minutes += s.Cost.AgentMinutes
+	}
+	if minutes <= 0 {
+		return
+	}
+	rate := rep.Steps[0].Cost.RatePerMinute
+
+	if rate <= 0 {
+		fmt.Printf("\ncost         %.1f agent-minutes across the run; pass -rate-per-minute to price it\n",
+			minutes)
+		return
+	}
+
+	fmt.Printf("\n%-12s %-13s %-11s %-11s %s\n",
+		"step", "agent-min", "$ / call", "$ / turn", "$ step")
+	var total float64
+	for _, s := range rep.Steps {
+		c := s.Cost
+		if c.AgentMinutes <= 0 {
+			continue
+		}
+		total += c.USD
+		// Every column carries four places so the step costs visibly sum to
+		// the total. Rounding them for looks makes the arithmetic fail to
+		// check, which is the one thing a cost table has to survive.
+		fmt.Printf("%-12s %-13.2f %-11s %-11s %s\n",
+			s.Name, c.AgentMinutes,
+			fmt.Sprintf("$%.4f", c.USDPerCall),
+			fmt.Sprintf("$%.4f", c.USDPerTurn),
+			fmt.Sprintf("$%.4f", c.USD))
+	}
+	fmt.Printf("%-12s %-13.2f %-11s %-11s $%.4f\n", "total", minutes, "", "", total)
 }
 
 // judgeRun scores a sample of the run's conversations against the scenario's
