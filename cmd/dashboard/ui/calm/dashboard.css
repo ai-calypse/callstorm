@@ -471,6 +471,7 @@ dialog::backdrop { background: #22282045; backdrop-filter: blur(3px); }
 .eventlog { font-size: 12px; }
 .eventlog td { text-align: left; white-space: normal; font-family: var(--cs-font-mono); padding: 4px 10px 4px 0; }
 .eventlog td:first-child { white-space: nowrap; color: var(--cs-text-caption); }
+
 /* ---- Suites: several runs that count as one test ------------------------ */
 .suite { margin: 0 0 22px; padding: 20px 24px; background: var(--cs-surface); border: 1px solid var(--cs-border); border-radius: var(--cs-radius-card); }
 .suite-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
@@ -523,3 +524,43 @@ tr.total td { border-top: 1px solid var(--cs-border-strong); font-weight: 500; }
 .dropped ul { margin: 8px 0 0; padding-left: 18px; font-size: 12px; line-height: 1.6; color: var(--cs-text-secondary); }
 .dropped li b { font-weight: 400; color: var(--cs-ink); }
 
+/* ---- What this run answers: the plain-language questions ----------------- */
+/* The answer functions and charts are the classic page's, verbatim, so its
+   colour roles are mapped onto the kit's tokens here rather than rewritten. */
+.questions {
+  --signal: var(--cs-chart-primary); --surface: var(--cs-surface); --sunk: var(--cs-canvas);
+  --pass: var(--cs-success-text); --fail: var(--cs-danger-text); --warn: var(--cs-warning-text);
+  --ink: var(--cs-ink); --ink-2: var(--cs-text-secondary); --mute: var(--cs-text-caption); --rule: var(--cs-border);
+  margin-top: 22px; padding: 22px 24px; background: var(--cs-surface); border: 1px solid var(--cs-border); border-radius: var(--cs-radius-card);
+}
+.questions .section-top { margin: 0 0 6px; align-items: flex-start; }
+.questions .section-top .quiet { max-width: 34ch; text-align: right; }
+.q-caution { margin: 12px 0 4px; font-size: 14px; line-height: 1.6; }
+.q-caution b { font-weight: 600; }
+.qgroup { margin-top: 18px; }
+.qgroup > .eyebrow { display: block; margin-bottom: 4px; }
+.q { border-top: 1px solid var(--cs-border); }
+.q:last-child { border-bottom: 1px solid var(--cs-border); }
+.q summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 18px minmax(0, 1.1fr) minmax(0, 1fr); gap: 14px; align-items: baseline; padding: 13px 0; }
+.q summary::-webkit-details-marker { display: none; }
+.q summary::before { content: "▸"; color: var(--cs-text-caption); font-size: 12px; }
+.q[open] summary::before { content: "▾"; }
+.q summary:hover .q-ask { color: var(--cs-olive); }
+.q-ask { font-size: 15px; line-height: 1.45; color: var(--cs-ink); }
+.q-short { font-size: 14px; line-height: 1.45; color: var(--cs-text-secondary); }
+.q.unanswered .q-short { color: var(--cs-text-caption); font-style: italic; }
+.q-body { padding: 4px 0 20px 32px; }
+.q-answer { margin: 0; font-size: 16px; line-height: 1.55; max-width: 78ch; }
+.q-answer b { font-weight: 600; }
+.q-how { margin: 8px 0 0; font-size: 13px; line-height: 1.6; color: var(--cs-text-secondary); max-width: 78ch; }
+.q-body .chart { margin-top: 14px; max-width: 760px; }
+.q-body .cs-notice { font-size: 14px; line-height: 1.6; max-width: 78ch; }
+.qchart { width: 100%; height: auto; display: block; }
+.q-body .legend { margin-top: 8px; }
+td.wrapcell { white-space: normal; min-width: 22ch; line-height: 1.5; color: var(--cs-ink); }
+@media (max-width: 760px) {
+  .q summary { grid-template-columns: 14px 1fr; }
+  .q-short { grid-column: 2; }
+  .q-body { padding-left: 0; }
+  .questions .section-top .quiet { display: none; }
+}

@@ -485,6 +485,27 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
   has(sp, "suite analysis notes its run count", "from 2 runs");
 }
 
+// The plain-language questions: the same answers as the classic page, one-liners
+// as an index, each opening to the full answer and its chart.
+{
+  const html = page1(run, "run", "load");
+  has(html, "questions section", "questions answered, in plain words");
+  has(html, "capacity question asked", "How many calls at the same time can it take before callers notice it getting slower?");
+  has(html, "capacity group", "HOW MUCH IT CAN TAKE");
+  has(html, "a one-liner answer", "at once");
+  has(html, "a full answer", 'class="q-answer"');
+  has(html, "a method line", "The slowest callers means the wait that 95 turns in 100 beat");
+  has(html, "a chart of the evidence", 'class="qchart"');
+  has(html, "an unanswered question says what it would take", "Not answered by this run.");
+  has(html, "what the test cannot tell you", "What this kind of test can&#x27;t tell you");
+  check("no answer failed to compute", !html.includes("could not be worked out"));
+  check("questions sit between the analysis and the evidence tabs",
+    html.indexOf("questions answered, in plain words") < html.indexOf("What would you like to understand?"));
+  const qs = (html.match(/<details class="q/g) || []).length;
+  check(`${qs} questions rendered (want 17: 16 plus what the test cannot answer)`, qs === 17);
+  has(page1(phases, "phases", "load"), "recovery question answered on a run with a recovery step", "After a rush ends, how long does it take to get back to normal?");
+}
+
 // The reference sections the original page opens with, kept on the page.
 {
   const gl = render(mod.Glossary, {});
