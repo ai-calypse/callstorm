@@ -17,13 +17,15 @@ COPY . .
 # Static binaries: the runtime image has no libc to link against.
 RUN CGO_ENABLED=0 go build -trimpath -o /out/worker ./cmd/worker && \
     CGO_ENABLED=0 go build -trimpath -o /out/refagent ./cmd/refagent && \
-    CGO_ENABLED=0 go build -trimpath -o /out/callstorm ./cmd/callstorm
+    CGO_ENABLED=0 go build -trimpath -o /out/callstorm ./cmd/callstorm && \
+    CGO_ENABLED=0 go build -trimpath -o /out/dashboard ./cmd/dashboard
 
 FROM gcr.io/distroless/static-debian12:nonroot
 
 COPY --from=build /out/worker /worker
 COPY --from=build /out/refagent /refagent
 COPY --from=build /out/callstorm /callstorm
+COPY --from=build /out/dashboard /dashboard
 
 # Scenarios and profiles travel with the image so the dispatcher can run as a
 # Job with nothing mounted.

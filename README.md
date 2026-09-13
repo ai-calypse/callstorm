@@ -22,6 +22,17 @@ kubectl apply -f deploy/k8s/50-dispatch-job.yaml
 ./bin/dashboard -runs runs             # history and report cards on :8090
 ```
 
+On a machine where Smart App Control or another application-control policy
+refuses freshly built, unsigned binaries, run the dashboard in a container
+instead of turning the policy off -- the block applies to Windows executables,
+and the one in the image is Linux:
+
+```bash
+docker run -d --name callstorm-dashboard -p 8090:8090   -v "$PWD/runs:/runs:ro" --entrypoint /dashboard callstorm:dev -runs /runs
+```
+
+`go run ./cmd/dashboard` works for the same reason and needs no image.
+
 Callers used to be goroutines in one process, which meant scaling that binary
 to ten replicas would have run ten independent sweeps, each with its own
 baseline. Workers now take assignments from Kafka and publish results back.
