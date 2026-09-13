@@ -29,8 +29,10 @@ RUN CGO_ENABLED=0 go build -trimpath -o /out/worker ./cmd/worker && \
 # kubectl cp needs to copy the run's artifacts back out.
 FROM debian:bookworm-slim AS impair
 
+# ca-certificates because this image also dispatches and judges: without roots
+# the judge's HTTPS call to Groq fails verification and every verdict errors.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends iproute2 && \
+    apt-get install -y --no-install-recommends iproute2 ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /out/callstorm /callstorm

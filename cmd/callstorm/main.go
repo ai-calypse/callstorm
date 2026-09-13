@@ -309,6 +309,12 @@ func runLoad(ctx context.Context, o opts, sc *scenario.Scenario, apiKey string) 
 	// it produces -- how badly the agent misheard, and whether it did the job
 	// -- only mean something together, and anything that reads the report and
 	// nothing else could not see the join while they lived apart.
+	//
+	// The directory is made first: the judge writes its own file into it, and
+	// a run whose -out did not exist yet lost its verdicts to that write.
+	if err := os.MkdirAll(o.outDir, 0o755); err != nil {
+		return err
+	}
 	judgePath := ""
 	if o.judge {
 		var jerr error
@@ -320,9 +326,6 @@ func runLoad(ctx context.Context, o opts, sc *scenario.Scenario, apiKey string) 
 		}
 	}
 
-	if err := os.MkdirAll(o.outDir, 0o755); err != nil {
-		return err
-	}
 	jsonPath := filepath.Join(o.outDir, runID+".json")
 	b, err := json.MarshalIndent(rep, "", "  ")
 	if err != nil {
