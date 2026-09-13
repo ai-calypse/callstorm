@@ -161,6 +161,29 @@
   .crit td:first-child { white-space:normal; text-align:left; line-height:1.5; max-width:52ch; }
   .quote { display:block; margin-top:5px; font-size:11px; color:var(--mute);
            font-style:italic; white-space:normal; line-height:1.5; }
+
+  /* A segmented control for what a grid shows. One row, above the chart. */
+  .seg { display:flex; flex-wrap:wrap; gap:0; margin-top:14px; }
+  .seg button { font:inherit; font-size:11px; padding:5px 10px; background:var(--surface); color:var(--ink-2);
+                border:1px solid var(--rule); margin-left:-1px; cursor:pointer; }
+  .seg button:first-child { margin-left:0; border-radius:2px 0 0 2px; }
+  .seg button:last-child { border-radius:0 2px 2px 0; }
+  .seg button[aria-pressed="true"] { background:var(--ink); color:var(--surface); border-color:var(--ink); }
+
+  /* The heatmap: one hue, lighter is lower. Cells carry their value as text, so
+     the colour is never the only way to read one. A 2px surface gap separates
+     adjacent fills. */
+  .heat { border-collapse:separate; border-spacing:2px; }
+  .heat tbody tr { border-bottom:0; }
+  .heat td.hm { text-align:center; color:var(--ink); border-radius:2px; padding:9px 10px; }
+  @media (prefers-color-scheme: dark) { .heat td.hm.hot { color:#04181D; } }
+  .heat td:first-child { white-space:normal; line-height:1.3; }
+  .heat .quote { font-style:normal; margin-top:2px; }
+  .ramp { display:inline-block; width:120px; height:10px; border-radius:2px; vertical-align:-1px;
+          background:linear-gradient(90deg, color-mix(in srgb, var(--signal) 6%, var(--surface)), color-mix(in srgb, var(--signal) 88%, var(--surface))); }
+  .gloss code { font-size:11px; white-space:normal; }
+  td.dim { color:var(--mute); }
+  td.fail-text { color:var(--fail); }
 </style>
 </head>
 <body>
@@ -1173,6 +1196,380 @@ function readTaskSuccess(j) {
   };
 }
 
+// The impairment heatmap: every cohort crossed with every step.
+//
+// Load runs along one axis and the caller's network along the other, so a
+// reader can see in one grid whether the agent breaks under calls, under a bad
+// line, or only under both. Each row ran the same calls at the same concurrency,
+// minutes apart, with only the network changed -- which is what lets a cell be
+// read against the clean row above it at all.
+const HEAT_METRICS = [
+  ["p50", "p50 TTFA", s => s.ttfa && s.ttfa.p50_ms, v => ms(v)],
+  ["p90", "p90 TTFA", s => s.ttfa && s.ttfa.p90_ms, v => ms(v)],
+  ["p95", "p95 TTFA", s => s.ttfa && s.ttfa.p95_ms, v => ms(v)],
+  ["vs_clean", "p95 × clean", s => s.vs_clean, v => v.toFixed(2) + "×"],
+];
+
+const describeNet = p => {
+  const parts = [];
+  if (p.delay_ms > 0 || p.jitter_ms > 0) parts.push(`+${p.delay_ms || 0}ms${p.jitter_ms > 0 ? ` ±${p.jitter_ms}ms` : ""}`);
+  if (p.loss_pct > 0) parts.push(`${p.loss_pct}% loss`);
+  return parts.length ? parts.join(", ") : "unimpaired";
+};
+
+function ImpairmentHeatmap({ rep }) {
+  const [picked, setPicked] = useState("p95");
+  const m = rep.matrix;
+  if (!m || !m.cohorts || m.cohorts.length === 0) {
+    return html`
+      <div className="card">
+        <div className="eyebrow">Network impairment</div>
+        <h2>Placed on an unimpaired network</h2>
+        <div className="note">
+          Every call in this run left over whatever network the harness happened to have. Re-run
+          with <code>-impairments profiles/impairments.json</code> from a Linux pod with NET_ADMIN
+          (<code>deploy/k8s/60-impair-job.yaml</code>) and the same profile runs once per network
+          condition, clean first, drawn here as a grid of load against network.
+        </div>
+      </div>`;
+  }
+
+  const metric = HEAT_METRICS.find(x => x[0] === (picked || "p95")) || HEAT_METRICS[2];
+  const [, label, get, fmt] = metric;
+  const steps = m.cohorts[0].steps || [];
+  const values = m.cohorts.flatMap(c => (c.steps || []).map(get)).filter(v => v > 0);
+  const top = Math.max(...values, 0);
+  // Anchored so small differences do not saturate the scale: latency runs from
+  // zero to at least a second, the ratio from parity to at least 2.5x.
+  const intensity = v => metric[0] === "vs_clean"
+    ? Math.min(Math.max((v - 1) / Math.max(top - 1, 1.5), 0), 1)
+    : Math.min(v / Math.max(top, 1000), 1);
+  const fill = t => `color-mix(in srgb, var(--signal) ${Math.round(6 + t * 82)}%, var(--surface))`;
+
+  return html`
+    <div className="card">
+      <div className="eyebrow">Network impairment</div>
+      <h2>Load against network</h2>
+      <div className="read-why" style=${{marginTop:"8px",maxWidth:"78ch"}}>
+        Each row is the same profile run again with only the caller's network changed, clean first.
+        Read across a row for what load did on that network, and down a column for what the network
+        did at that load.
+      </div>
+      <div className="seg" role="group" aria-label="Cell value">
+        ${HEAT_METRICS.map(x => html`
+          <button key=${x[0]} aria-pressed=${String(x[0] === metric[0])}
+                  onClick=${() => setPicked(x[0])}>${x[1]}</button>`)}
+      </div>
+      <div className="tablewrap">
+        <table className="heat">
+          <thead><tr>
+            <th>Network</th>
+            ${steps.map(s => html`<th key=${s.name}>${s.name} · ${s.concurrency}</th>`)}
+            <th>Breaks at</th>
+          </tr></thead>
+          <tbody>
+            ${m.cohorts.map(c => html`
+              <tr key=${c.impairment.name}>
+                <td><b>${c.impairment.name}</b><span className="quote">${describeNet(c.impairment)}</span></td>
+                ${(c.steps || []).map(s => {
+                  const v = get(s);
+                  const t = v > 0 ? intensity(v) : 0;
+                  return html`<td key=${s.name} className=${"hm" + (t > 0.6 ? " hot" : "")}
+                      style=${{background: v > 0 ? fill(t) : "transparent"}}
+                      title=${`${c.impairment.name} · ${s.name} at ${s.concurrency} concurrent: p95 ${ms(s.ttfa && s.ttfa.p95_ms)}${s.vs_clean ? `, ${s.vs_clean.toFixed(2)}× clean` : ""}, ${s.verdict}`}>
+                    ${v > 0 ? fmt(v) : "-"}${s.verdict === "fail" ? " ✕" : ""}
+                  </td>`;
+                })}
+                <td>${c.breakpoint || "held"}</td>
+              </tr>`)}
+          </tbody>
+        </table>
+      </div>
+      <div className="bandkey">
+        <span>${label}: lighter is lower</span>
+        <span className="ramp" aria-hidden="true"></span>
+        <span>✕ failed against the clean baseline</span>
+      </div>
+      <div className="tablewrap gloss">
+        <table>
+          <thead><tr><th>Cohort</th><th>Command, exactly as run on ${m.device}</th><th>What the kernel then reported</th></tr></thead>
+          <tbody>
+            ${m.cohorts.map(c => html`
+              <tr key=${c.impairment.name}>
+                <td>${c.impairment.name}</td>
+                <td><code>${c.tc_command}</code></td>
+                <td>${c.qdisc || "-"}</td>
+              </tr>`)}
+          </tbody>
+        </table>
+      </div>
+      <${Reading} ...${readImpairment(m)}/>
+    </div>`;
+}
+
+function readImpairment(m) {
+  const clean = m.cohorts[0];
+  const impaired = m.cohorts.slice(1);
+  const peakOf = c => (c.steps || []).reduce((a, s) => ((s.vs_clean || 0) > (a.vs_clean || 0) ? s : a), (c.steps || [])[0] || {});
+  const worst = impaired.reduce((a, c) => (!a || (peakOf(c).vs_clean || 0) > (peakOf(a).vs_clean || 0) ? c : a), null);
+  const broke = impaired.filter(c => c.breakpoint);
+  const firstBroke = broke[0];
+  const stepOf = (c, name) => (c.steps || []).find(s => s.name === name);
+
+  // Which half of the wait the network landed in, at the worst cohort's first
+  // step. Delay on the caller's uplink should land in endpointing: the agent
+  // hears the end of the utterance late, and replies no slower once it has.
+  let split = null;
+  if (worst && clean.steps && clean.steps.length) {
+    const a = clean.steps[0], b = stepOf(worst, a.name);
+    if (b && a.endpointing && b.endpointing && a.endpointing.n > 0 && b.endpointing.n > 0) {
+      split = { step: a.name, ep: b.endpointing.p50_ms - a.endpointing.p50_ms,
+                ts: b.think_speak.p50_ms - a.think_speak.p50_ms };
+    }
+  }
+
+  if (!worst) {
+    return {
+      verdict: html`<b>Only the clean cohort ran</b>, so there is no network to compare it against.`,
+      why: html`A matrix needs at least one impaired profile beside the control.`,
+      act: html`Add profiles to the impairments file; the defaults are in <code>profiles/impairments.json</code>.`,
+    };
+  }
+
+  const peak = peakOf(worst);
+  return {
+    verdict: firstBroke
+      ? html`<b>The network breaks it before load does.</b> On ${firstBroke.impairment.name} (${describeNet(firstBroke.impairment)}) it fails at ${firstBroke.breakpoint}; on the clean network ${clean.breakpoint ? html`it failed at ${clean.breakpoint}` : "no step failed"}.`
+      : html`<b>No network tested broke it.</b> The worst, ${worst.impairment.name} (${describeNet(worst.impairment)}), held p95 at ${(peak.vs_clean || 0).toFixed(2)}× the clean line at ${peak.name}.`,
+    why: html`Every cohort placed the same calls at the same concurrency, one after the other, so a cell divided by the clean cell above it is what the network cost and nothing else. The impairment is netem on the calling pod's own interface, outbound only — a bad connection at the customer's end. This target speaks WebSocket, which is TCP: a lost packet is sent again rather than lost, so the network arrives as delay, not as damaged audio. netem also draws each packet's delay separately, so jitter reorders packets, and TCP backs off as if congested — a jittered cell can grow far past the jitter itself, and is an upper bound on what a real bad line does. Every cell is a latency, and none of them says how the call sounded.${split ? html` At ${split.step}, ${worst.impairment.name} moved endpointing by ${ms(split.ep)} and think/speak by ${ms(split.ts)}.` : ""}`,
+    act: split && Math.abs(split.ep) > Math.abs(split.ts)
+      ? html`<b>The network lands in endpointing</b>, as it should: the agent hears the caller stop late, then replies at its usual speed. A faster model buys nothing on a bad line; a shorter silence threshold buys back some of it, at the cost of cutting off callers who pause.`
+      : html`Compare the split on the component card for the worst cohort. Delay that lands in think/speak rather than endpointing means the agent's own calls to its model or voice share the impaired path.`,
+  };
+}
+
+// Per-node pass rates: which part of the conversation gave way.
+//
+// A call-level success rate says the agent got worse and nothing about where.
+// Completion can hold while the one node that verifies an order collapses, and
+// that is a different fix from a slow greeting, so each node is scored apart.
+function NodeScores({ rep }) {
+  const [picked, setPicked] = useState(null);
+  const views = rep.matrix && rep.matrix.cohorts && rep.matrix.cohorts.length
+    ? rep.matrix.cohorts.map(c => ({ name: c.impairment.name, steps: c.steps || [] }))
+    : [{ name: "", steps: rep.steps || [] }];
+  const scored = v => v.steps.reduce((a, s) => {
+    for (const n of s.nodes || []) { a.checked += n.checked; a.passed += n.passed; }
+    return a;
+  }, { checked: 0, passed: 0 });
+
+  const anyNodes = views.some(v => v.steps.some(s => (s.nodes || []).length > 0));
+  const anyChecked = views.some(v => scored(v).checked > 0);
+  if (!anyNodes || !anyChecked) {
+    return html`
+      <div className="card">
+        <div className="eyebrow">Scenario nodes</div>
+        <h2>No node was scored</h2>
+        <div className="note">
+          ${anyNodes
+            ? html`<span>The scenario names its nodes but none of them carries an <code>expect</code>, so there is nothing to pass or fail. Add <code>"expect": { "said_any": [...] }</code> to the turns that matter.</span>`
+            : html`<span>This run predates per-node scoring. Runs placed from this version onward record which node every turn spoke.</span>`}
+        </div>
+      </div>`;
+  }
+
+  // Default to the cohort whose nodes passed least often: that is where the
+  // diagnosis is.
+  const rate = v => { const x = scored(v); return x.checked > 0 ? x.passed / x.checked : 1; };
+  const worstView = views.reduce((a, v) => (rate(v) < rate(a) ? v : a), views[0]);
+  const view = views.find(v => v.name === picked) || worstView;
+  const steps = view.steps.filter(s => (s.nodes || []).length > 0);
+  const order = (steps[0] && steps[0].nodes || []).map(n => n.node);
+
+  let worst = null;
+  for (const s of steps) for (const n of s.nodes) {
+    if (n.checked > 0 && (!worst || n.pass_rate < worst.n.pass_rate)) worst = { s, n };
+  }
+
+  return html`
+    <div className="card">
+      <div className="eyebrow">Scenario nodes</div>
+      <h2>Which part of the conversation gave way</h2>
+      ${views.length > 1 && html`
+        <div className="seg" role="group" aria-label="Cohort">
+          ${views.map(v => html`
+            <button key=${v.name} aria-pressed=${String(v === view)} onClick=${() => setPicked(v.name)}>
+              ${v.name}${v === worstView ? " · worst" : ""}
+            </button>`)}
+        </div>`}
+      <div className="tablewrap">
+        <table>
+          <thead><tr>
+            <th>Node</th>
+            ${steps.map(s => html`<th key=${s.name}>${s.name} · ${s.concurrency}</th>`)}
+          </tr></thead>
+          <tbody>
+            ${order.map(id => html`
+              <tr key=${id}>
+                <td>${id}</td>
+                ${steps.map(s => {
+                  const n = s.nodes.find(x => x.node === id);
+                  if (!n || n.visits === 0) return html`<td key=${s.name} className="dim">not reached</td>`;
+                  if (n.checked === 0) return html`<td key=${s.name} className="dim">${n.visits} visits</td>`;
+                  return html`<td key=${s.name} title=${n.miss || ""}
+                      className=${n.pass_rate < 1 ? "fail-text" : ""}>${pct(n.pass_rate)} · ${n.passed}/${n.checked}</td>`;
+                })}
+              </tr>`)}
+          </tbody>
+        </table>
+      </div>
+      <${Reading} ...${readNodes(worst, view)}/>
+    </div>`;
+}
+
+function readNodes(worst, view) {
+  const where = view.name ? ` on the ${view.name} network` : "";
+  if (!worst || worst.n.pass_rate >= 1) {
+    return {
+      verdict: html`<b>Every scored node held</b>${where}: each assertion passed on every visit.`,
+      why: html`A node passes when the agent's reply contains one of its expected phrases and none of its forbidden ones, matched as plain text so any verdict can be checked against the transcript.`,
+      act: html`Tighten the assertions or push the load higher; a node that never fails has not been tested at its limit.`,
+    };
+  }
+  return {
+    verdict: html`<b>${worst.n.node} is the node that gives way</b>${where}: it passed ${pct(worst.n.pass_rate)} of ${worst.n.checked} visits at ${worst.s.name}.`,
+    why: html`A call-level rate would average this node in with the ones that held and report a mild decline. Scored per node, the failure has an address.${worst.n.miss ? html` The first failing reply ${worst.n.miss}.` : ""}`,
+    act: html`<b>Read that node's turns in the calls file</b>, filtered to ${worst.s.name}. A node that fails only at high concurrency is usually a timeout on whatever that step of the conversation depends on; one that fails everywhere is the prompt.`,
+  };
+}
+
+// Harness event integrity: did the pipeline carrying the calls deliver them?
+//
+// This checks Callstorm, not the target. Callstorm does not receive the
+// target's webhooks, so nothing here says a CRM got its record. What it does
+// say is whether the numbers above rest on every call the run placed.
+function IntegrityCard({ integrity }) {
+  const d = integrity && integrity.dispatch;
+  const te = integrity && integrity.turn_events;
+  if (!d && !te) {
+    return html`
+      <div className="card">
+        <div className="eyebrow">Harness event integrity</div>
+        <h2>No pipeline to check on this run</h2>
+        <div className="note">
+          This run placed its calls in this process and published no turn events, so there was no
+          dispatch that could lose or duplicate a call. Run with <b>-distributed</b> to check the
+          fleet's delivery, or add <b>-kafka</b> to count turn events. This card checks
+          Callstorm's own pipeline, not the target's webhooks, which Callstorm does not receive.
+        </div>
+      </div>`;
+  }
+  return html`
+    <div className="card">
+      <div className="eyebrow">Harness event integrity</div>
+      <h2>Did every call come back exactly once?</h2>
+      ${d && html`<div>
+        <dl className="spec">
+          <div><dt>Dispatched</dt><dd>${d.dispatched}</dd></div>
+          <div><dt>Came back</dt><dd>${d.received}</dd></div>
+          <div><dt>Duplicates dropped</dt><dd>${d.duplicates}</dd></div>
+          <div><dt>Never came back</dt><dd>${d.missing}</dd></div>
+          <div><dt>Arrived late</dt><dd>${d.late}</dd></div>
+        </dl>
+        <div className="tablewrap">
+          <table>
+            <thead><tr><th>Step</th><th>Dispatched</th><th>Came back</th><th>Duplicates</th><th>Missing</th><th>Late from earlier</th></tr></thead>
+            <tbody>
+              ${(d.steps || []).map(s => html`
+                <tr key=${s.step}>
+                  <td>${s.step}</td><td>${s.dispatched}</td><td>${s.received}</td>
+                  <td>${s.duplicates}</td><td>${s.missing}</td><td>${s.late}</td>
+                </tr>`)}
+            </tbody>
+          </table>
+        </div>
+      </div>`}
+      ${te && html`
+        <dl className="spec">
+          <div><dt>Turn events published</dt><dd>${te.published}</dd></div>
+          <div><dt>Turn events dropped</dt><dd>${te.dropped}</dd></div>
+          ${te.last_error && html`<div><dt>Last error</dt><dd>${te.last_error}</dd></div>`}
+        </dl>`}
+      <${Reading} ...${readIntegrity(d, te)}/>
+    </div>`;
+}
+
+function readIntegrity(d, te) {
+  const dropped = te ? te.dropped : 0;
+  const verdict = d && d.missing > 0
+    ? html`<b>${d.missing} of ${d.dispatched} calls never came back.</b> They are scored as failed calls, so those steps describe the fleet as much as the agent.`
+    : d && d.duplicates > 0
+    ? html`<b>Every call came back, and ${d.duplicates} came back twice.</b> The second copy was dropped, so no call was counted twice.`
+    : d
+    ? html`<b>Every call dispatched came back exactly once.</b>`
+    : dropped > 0
+    ? html`<b>${dropped} turn events never reached the broker.</b>`
+    : html`<b>Every turn event reached the broker.</b>`;
+  return {
+    verdict: verdict,
+    why: html`Delivery is at-least-once by design: a worker commits an assignment only after publishing its result, so a worker killed between the two hands the call to another, which places it again. A duplicate is therefore expected under chaos and dropped by call identity; a missing call is not expected, and is counted as a failure rather than quietly retried. Turn events are fire-and-forget so they can never delay a caller's audio, which is why drops are counted instead of retried. None of this is the target's own events.`,
+    act: d && d.missing > 0
+      ? html`<b>Check the workers before the agent.</b> Look for pods restarted or rescheduled during the steps with missing calls, and re-run those steps before trusting their verdicts.`
+      : html`Nothing to fix. The percentiles above rest on every call the run placed.`,
+  };
+}
+
+// The appendix: every number on the page as a formula, so a reader can check
+// it means what it claims. The glossary above says what each number catches;
+// this says exactly how it is computed, matching the code that computes it.
+const APPENDIX = [
+  ["TTFA", "t(agent's first audio byte arrives) − t(caller's last audio frame finishes playing)", "Per turn. Kept negative when the agent spoke before the caller finished. Turns the agent talked over are left out of percentiles."],
+  ["Endpointing", "t(agent's transcript of the caller arrives) − t(caller's last frame finishes)", "The last transcript before the agent's first audio. Absent when the target sends none."],
+  ["Think / speak", "t(agent's first audio) − t(agent's transcript of the caller)", "Endpointing + think/speak = TTFA whenever both exist."],
+  ["Turn latency", "t(agent's audio finishes playing) − t(caller's last frame finishes)", "Playout end comes from audio duration, not arrival: voices stream faster than realtime."],
+  ["Percentile", "value at rank ⌈p ÷ 100 × n⌉ of the step's values sorted ascending", "Nearest rank over one step's turns, never pooled across steps. p50, p90, p95, p99."],
+  ["Setup success", "calls that reached a conversation ÷ calls attempted", "Per step."],
+  ["Verdict", "r = step p95 TTFA ÷ baseline step p95 TTFA. Pass r ≤ 1.5, warn r ≤ 2, fail r > 2 or setup < 97%", "In an impairment matrix every cohort's r uses the clean cohort's baseline step."],
+  ["Breakpoint", "first step, in profile order, whose verdict is fail", "One per run, and one per cohort in a matrix."],
+  ["Latency grade", "under 300ms natural, under 500ms acceptable, under 800ms sluggish, otherwise breakdown", "Typical grades p50; at worst grades p95."],
+  ["Drift", "(p50 of the later half − p50 of the earlier half) ÷ p50 of the earlier half", "Halves split by call start. +15% or more drifting, −15% or less settling. Each half needs 10 turns."],
+  ["Recovered", "recovery step r ≤ 1.2", "Recovery runs at the baseline's own concurrency."],
+  ["Pacing drift", "(t(caller end) − t(caller start)) − length of the caller's audio", "Measures the harness. A step whose worst drift exceeds 100ms either way is marked suspect."],
+  ["Word error rate", "(substitutions + deletions + insertions) ÷ words in the caller's script, summed over the step", "Turns the target transcribed and the caller finished."],
+  ["Talk ratio", "agent speech seconds ÷ (agent + caller speech seconds)", "Speech lengths from audio duration."],
+  ["Words per minute", "words spoken ÷ that speaker's own speech minutes", "Not wall clock, so pauses do not flatter anyone."],
+  ["Interruption score", "clamp(5 × (1 − interruptions ÷ turns), 0, 5)", "An interruption is a turn where the agent began speaking before the caller finished."],
+  ["Dead air", "turns with TTFA over 2s", "A turn the agent talked over has no silence to count."],
+  ["Barge-in yield", "t(interrupted reply's audio stops) − t(interrupting caller line starts)", "Zero means the agent was never seen to stop."],
+  ["Cost", "Σ(caller speech + turn latency) ÷ 60 × rate per minute", "Per step; per call and per turn by division. Unpriced without a rate."],
+  ["Node pass rate", "visits whose reply met the node's expect ÷ visits to nodes with an expect", "Met: the reply contains a said_any phrase and no not_said phrase, ignoring case. A visit with no reply fails."],
+  ["× clean", "cohort step p95 TTFA ÷ the clean cohort's same step p95 TTFA", "What the network cost at equal load."],
+  ["Impairment", "tc qdisc replace dev <interface> root netem delay D J loss L", "Outbound on the calling pod, recorded verbatim with the kernel's own readback. Clean deletes the root qdisc and always runs first."],
+  ["Dispatch integrity", "came back = distinct (step, seq) results; duplicates = results for a call already back; missing = dispatched − came back at the step deadline; late = results for a step already closed", "Callstorm's own pipeline, not the target's events."],
+];
+
+function Appendix() {
+  return html`
+    <div className="card">
+      <div className="eyebrow">Appendix</div>
+      <h2>How every number is computed</h2>
+      <div className="read-why" style=${{marginTop:"8px",maxWidth:"78ch"}}>
+        The glossary says what each number catches. This says exactly how it is calculated, so a
+        figure on this page can be recomputed from the run's own files: the report JSON and the
+        calls file beside it, which keep every turn's raw instants.
+      </div>
+      <div className="tablewrap gloss">
+        <table>
+          <thead><tr><th>Metric</th><th>Formula</th><th>Scope</th></tr></thead>
+          <tbody>
+            ${APPENDIX.map(([t, f, n]) => html`
+              <tr key=${t}><td>${t}</td><td><code>${f}</code></td><td>${n}</td></tr>`)}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
 function ReportCard({ id }) {
   const [rep, setRep] = useState(null);
   const [err, setErr] = useState(null);
@@ -1242,6 +1639,7 @@ function ReportCard({ id }) {
       ${steps.length > 0 && html`<${Reading} ...${readLatency(steps, rep)}/>`}
     </div>
 
+    <${ImpairmentHeatmap} rep=${rep}/>
     <${GradeScale} steps=${steps}/>
     <${PhaseTable} steps=${steps}/>
 
@@ -1342,7 +1740,11 @@ function ReportCard({ id }) {
           </table>
         </div>
         <${Reading} ...${readBarge(steps.filter(s => s.barge_in && s.barge_in.turns > 0))}/>
-      </div>`}`;
+      </div>`}
+
+    <${IntegrityCard} integrity=${rep.integrity}/>
+    <${NodeScores} rep=${rep}/>
+    <${Appendix}/>`;
 }
 
 function App() {
@@ -1420,6 +1822,8 @@ function App() {
                   ${r.breakpoint ? ` · breaks at ${r.breakpoint}` : ""}
                   ${r.judged > 0 ? ` · judged ${r.passed}/${r.judged}` : ""}
                   ${r.drifted > 0 ? ` · ${r.drifted} drifting` : ""}
+                  ${r.cohorts > 0 ? ` · ${r.cohorts} network cohorts` : ""}
+                  ${r.network_breaks && r.network_breaks.length ? ` · network breaks it: ${r.network_breaks.join(", ")}` : ""}
                 </span>
               </button>`)}
           </div>

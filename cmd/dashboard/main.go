@@ -173,6 +173,16 @@ type summary struct {
 	// Drifted counts steps that got slower across their own duration. It is
 	// the one finding that can be true while every verdict in the run passes.
 	Drifted int `json:"drifted,omitempty"`
+
+	// Cohorts counts the network conditions an impairment matrix ran under,
+	// zero for a run on an unimpaired network.
+	Cohorts int `json:"cohorts,omitempty"`
+
+	// NetworkBreaks names each impaired cohort that failed, and where. The
+	// verdict and percentiles above describe the clean control, so without
+	// this a matrix whose severe network broke at the first step reads as a
+	// pass in the history.
+	NetworkBreaks []string `json:"network_breaks,omitempty"`
 }
 
 func listRuns(dir string) http.HandlerFunc {
@@ -226,6 +236,14 @@ func summarize(path string, rep *loadgen.Report) summary {
 		s.Judged, s.Passed = rep.Judge.Judged, rep.Judge.Passed
 	}
 	s.Drifted = len(rep.Drifted())
+	if rep.Matrix != nil {
+		s.Cohorts = len(rep.Matrix.Cohorts)
+		for _, c := range rep.Matrix.Cohorts[1:] {
+			if c.Breakpoint != "" {
+				s.NetworkBreaks = append(s.NetworkBreaks, fmt.Sprintf("%s at %s", c.Impairment.Name, c.Breakpoint))
+			}
+		}
+	}
 	return s
 }
 

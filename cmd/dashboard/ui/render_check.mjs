@@ -45,7 +45,7 @@ globalThis.fetch = async (url) => ({
   json: async () => (url.includes("/runs/") ? run : index),
 });
 
-const mod = new Function(src + "\n;return { App, ReportCard, ComponentShare, CostChart, GradeScale, PhaseTable, TaskSuccessCard, bandOf, BANDS };")();
+const mod = new Function(src + "\n;return { App, ReportCard, ComponentShare, CostChart, GradeScale, PhaseTable, TaskSuccessCard, ImpairmentHeatmap, NodeScores, IntegrityCard, Appendix, bandOf, BANDS };")();
 
 // useEffect does not run during renderToString, so the components are driven
 // directly with the data the fetch would have produced. That is the point:
@@ -436,6 +436,145 @@ for (const [name, needle] of [
   console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
 }
 
+// The impairment matrix, the scenario nodes, harness integrity and the
+// appendix. Every run already on disk predates all four, so the empty states
+// are what ships first and are asserted as closely as the populated ones.
+for (const [name, needle] of [
+  ["an unimpaired run says so", "Placed on an unimpaired network"],
+  ["and says how to impair one", "60-impair-job.yaml"],
+  ["a run with no pipeline says there was nothing to check", "No pipeline to check"],
+  ["and that it is not the target's webhooks", "not the target&#x27;s webhooks"],
+  ["a run before node scoring says so", "predates per-node scoring"],
+  ["the appendix mounts in the report", "How every number is computed"],
+  ["the appendix gives the percentile formula", "⌈p ÷ 100 × n⌉"],
+]) {
+  const ok = card.includes(needle);
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
+}
+
+// A matrix whose answer is fixed by construction: the severe network fails c8
+// against the clean baseline, its delay lands in endpointing (+500ms) rather
+// than think/speak (+10ms), and the refund node collapses to 2 of 16 there.
+const heldNodes = [
+  { node: "open", visits: 6, checked: 6, passed: 6, pass_rate: 1 },
+  { node: "refund", visits: 6, checked: 6, passed: 6, pass_rate: 1 },
+  { node: "close", visits: 6, checked: 0, passed: 0, pass_rate: 0 },
+];
+const brokeNodes = [
+  { node: "open", visits: 16, checked: 16, passed: 16, pass_rate: 1 },
+  { node: "refund", visits: 16, checked: 16, passed: 2, pass_rate: 0.125, miss: 'said none of ["refund"]' },
+  { node: "close", visits: 0, checked: 0, passed: 0, pass_rate: 0 },
+];
+const mstep = (name, conc, p95, vs, verdict, ep, ts, nodes) => ({
+  name, concurrency: conc, verdict, vs_clean: vs, nodes,
+  ttfa: { n: 20, p50_ms: p95 - 5, p90_ms: p95 - 2, p95_ms: p95 },
+  endpointing: { n: 20, p50_ms: ep, p95_ms: ep }, think_speak: { n: 20, p50_ms: ts, p95_ms: ts },
+});
+const matrixRun = {
+  steps: [], matrix: { device: "eth0", cohorts: [
+    { impairment: { name: "clean" }, tc_command: "tc qdisc del dev eth0 root",
+      qdisc: "qdisc noqueue 0: root refcnt 2",
+      steps: [mstep("c2", 2, 505, 1, "pass", 200, 300, heldNodes), mstep("c8", 8, 510, 1, "pass", 200, 300, heldNodes)] },
+    { impairment: { name: "severe", loss_pct: 5, jitter_ms: 100, delay_ms: 200 },
+      tc_command: "tc qdisc replace dev eth0 root netem delay 200ms 100ms loss 5%",
+      qdisc: "qdisc netem 8001: root refcnt 2 limit 1000 delay 200ms  100ms loss 5%", breakpoint: "c8",
+      steps: [mstep("c2", 2, 900, 1.78, "warn", 700, 310, heldNodes), mstep("c8", 8, 1300, 2.55, "fail", 900, 310, brokeNodes)] },
+  ] },
+};
+const heat = ReactDOMServer.renderToStaticMarkup(React.createElement(mod.ImpairmentHeatmap, { rep: matrixRun }));
+for (const [name, needle] of [
+  ["heatmap card", "Load against network"],
+  ["one row per cohort", ">severe<"],
+  ["the exact tc command", "tc qdisc replace dev eth0 root netem delay 200ms 100ms loss 5%"],
+  ["the kernel's readback", "qdisc netem 8001"],
+  ["a failed cell is marked", "✕"],
+  ["breaks-at column", ">c8<"],
+  ["names the finding", "The network breaks it before load does"],
+  ["says loss arrives as delay over TCP", "not as damaged audio"],
+  ["places the delay in endpointing", "The network lands in endpointing"],
+]) {
+  const ok = heat.includes(needle);
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
+}
+{
+  // Four cells, four fills: a heatmap whose cells render uncoloured is the
+  // silent way this one lies.
+  const filled = (heat.match(/background:color-mix/g) || []).length;
+  const ok = filled === 4;
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${filled} filled cells for 4 cohort-steps`);
+}
+
+const nodes = ReactDOMServer.renderToStaticMarkup(React.createElement(mod.NodeScores, { rep: matrixRun }));
+for (const [name, needle] of [
+  ["node card", "Which part of the conversation gave way"],
+  ["defaults to the worst cohort", "severe · worst"],
+  ["names the collapsed node", "refund is the node that gives way"],
+  ["quotes its rate", "12.5%"],
+  ["an unvisited node is kept", "not reached"],
+  ["a node with no assertion shows visits, not a rate", "6 visits"],
+]) {
+  const ok = nodes.includes(needle);
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
+}
+
+const dup = ReactDOMServer.renderToStaticMarkup(React.createElement(mod.IntegrityCard, { integrity: {
+  dispatch: { dispatched: 16, received: 16, duplicates: 2, missing: 0, late: 1,
+    steps: [{ step: "c8", dispatched: 16, received: 16, duplicates: 2, missing: 0, late: 1 }] } } }));
+const lost = ReactDOMServer.renderToStaticMarkup(React.createElement(mod.IntegrityCard, { integrity: {
+  dispatch: { dispatched: 16, received: 13, duplicates: 0, missing: 3, late: 0,
+    steps: [{ step: "c8", dispatched: 16, received: 13, duplicates: 0, missing: 3, late: 0 }] } } }));
+for (const [name, html, needle] of [
+  ["integrity card", dup, "Did every call come back exactly once"],
+  ["duplicates are named and said to be dropped", dup, "came back twice"],
+  ["missing calls are the headline", lost, "3 of 16 calls never came back"],
+  ["and point at the fleet first", lost, "Check the workers before the agent"],
+]) {
+  const ok = html.includes(needle);
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
+}
+
+// A real matrix: graph-ref against the in-cluster reference agent under the
+// four default networks. Its answers are known. refagent's replies fix the node
+// rates in every cohort, and its injected 300ms think/speak means any network
+// cost has to land in endpointing.
+const realMatrix = JSON.parse(fs.readFileSync("testdata/run-matrix.json", "utf8"));
+seeded = 0;
+current = realMatrix;
+const matrixCard = ReactDOMServer.renderToStaticMarkup(
+  React.createElement(mod2.ReportCard, { id: "run-matrix" }));
+for (const [name, needle] of [
+  ["heatmap mounts in the full report", "Load against network"],
+  ["every default cohort is a row", ">moderate<"],
+  ["the recorded command is shown", "tc qdisc replace dev eth0 root netem delay 200ms 100ms loss 5%"],
+  ["the real run breaks on the network", "The network breaks it before load does"],
+  ["and the delay lands in endpointing", "The network lands in endpointing"],
+  ["the refund node is the one that gives way", "refund is the node that gives way"],
+  ["an in-process matrix has no pipeline to check", "No pipeline to check"],
+]) {
+  const ok = matrixCard.includes(needle);
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
+}
+{
+  const cells = realMatrix.matrix.cohorts.reduce((a, c) => a + c.steps.length, 0);
+  const filled = (matrixCard.match(/background:color-mix/g) || []).length;
+  const ok = filled === cells;
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${filled} filled cells for ${cells} cohort-steps in the real matrix`);
+  // Every cohort in this run scored the same fixed answers, so every cohort
+  // must show refund at 0% and number over twice the visits of open.
+  const zero = realMatrix.matrix.cohorts.every(c => c.steps.every(s =>
+    s.nodes.find(n => n.node === "refund").pass_rate === 0 &&
+    s.nodes.find(n => n.node === "number").visits === 2 * s.nodes.find(n => n.node === "open").visits));
+  if (!zero) bad++;
+  console.log(`${zero ? "ok  " : "FAIL"}  the graph's known answer held in every cohort`);
+}
+
 // The readings are prose with numbers spliced into it, and both ways of
 // getting that wrong are silent. htm drops whitespace spanning a newline
 // exactly as JSX does, so a value on its own line arrives glued to the word
@@ -445,7 +584,7 @@ for (const [name, needle] of [
 // Every reading rendered above, scanned together: a glue bug in one card is
 // the same bug in all of them, and a check that only looks at the first is how
 // the last one ships broken.
-const ALL = [card, legacy, grade, drifted, stuck, nojudge, task, thinHtml, phasedCard, judgedCard].join(String.fromCharCode(10));
+const ALL = [card, legacy, grade, drifted, stuck, nojudge, task, thinHtml, phasedCard, judgedCard, heat, nodes, dup, lost, matrixCard].join(String.fromCharCode(10));
 const prose = [...ALL.matchAll(/<div class="read[^"]*">([\s\S]*?)<\/div>/g)]
   // Inline tags are dropped rather than spaced out: <b> and <code> sit inside
   // sentences, so replacing them with a space would invent gaps the reader
