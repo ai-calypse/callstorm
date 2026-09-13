@@ -93,6 +93,14 @@ type StepReport struct {
 
 	WorstDriftMs float64 `json:"worst_harness_drift_ms"`
 
+	// StartedAt and EndedAt are when the step's first call started and its last
+	// call hung up. Timeline is every call in the step in start order with its
+	// median TTFA: what a per-step percentile flattens away, and what recovery
+	// time and slowing over time are read from.
+	StartedAt time.Time   `json:"started_at"`
+	EndedAt   time.Time   `json:"ended_at"`
+	Timeline  []CallPoint `json:"timeline,omitempty"`
+
 	// Conversation is how the calls sounded: pace, share of the talking,
 	// interruptions and dead air. Latency says how fast; this says how it felt.
 	Conversation Conversation `json:"conversation"`
@@ -177,6 +185,7 @@ type Report struct {
 	Baseline  string       `json:"baseline"`
 	StartedAt time.Time    `json:"started_at"`
 	Duration  float64      `json:"duration_s"`
+	EndedAt   time.Time    `json:"ended_at"`
 	Steps     []StepReport `json:"steps"`
 
 	// Judge is what an LLM grader made of the conversations, present only when
@@ -200,6 +209,12 @@ type Report struct {
 	// report should still say what it was compared with.
 	References []Reference `json:"references,omitempty"`
 
+	// ScenarioHash and ProfileHash fingerprint the scenario and load profile
+	// exactly as the run executed them, defaults applied. Two runs with the
+	// same hashes against the same target asked the same question.
+	ScenarioHash string `json:"scenario_hash,omitempty"`
+	ProfileHash  string `json:"profile_hash,omitempty"`
+
 	// Calls is every conversation the run produced, kept out of the report
 	// card and written alongside it. The report card answers how fast the
 	// agent was; these are what it actually said, which is what a judge -- or
@@ -221,6 +236,16 @@ type CallRecord struct {
 	// cannot be traced back to the network it ran on.
 	Cohort string `json:"cohort,omitempty"`
 
+	// StartedAt and EndedAt are when the call's clock started and when it hung
+	// up, and Events is its full event log, each instant in milliseconds from
+	// StartedAt. Error is set on a call that failed, which is recorded like any
+	// other: a call that never connected is part of what happened, and the log
+	// should say when.
+	StartedAt time.Time       `json:"started_at"`
+	EndedAt   time.Time       `json:"ended_at"`
+	Events    []metrics.Event `json:"events,omitempty"`
+	Error     string          `json:"error,omitempty"`
+
 	Turns []metrics.TurnMetric `json:"turns"`
 }
 
@@ -238,6 +263,12 @@ type callOutcome struct {
 	// calls and drift across it cannot be seen at all.
 	startedAt time.Time
 	endedAt   time.Time
+
+	// clockZero and callEnded are the worker's own timestamps for the call,
+	// and events its event log. All three are zero for a call that never ran.
+	clockZero time.Time
+	callEnded time.Time
+	events    []metrics.Event
 }
 
 // buildStepReport folds every call placed during one step into its report.
@@ -368,6 +399,7 @@ func buildStepReportAt(step Step, outcomes []callOutcome, ratePerMinute float64)
 	r.Conversation = summarizeConversation(outcomes)
 	r.Cost = summarizeCost(outcomes, ratePerMinute)
 	r.Phase = summarizePhase(step, outcomes)
+	r.StartedAt, r.EndedAt, r.Timeline = summarizeTimeline(outcomes)
 
 	// A step held for a duration was configured with no call count, so the
 	// report supplies the one it actually placed. Otherwise every consumer
@@ -442,6 +474,7 @@ func (rep *Report) scoreAgainst(base time.Duration) {
 		// latency means the agent returned rather than stayed broken.
 		if s.Phase.Kind == KindRecovery {
 			s.Phase.Recovered = s.P95Ratio > 0 && s.P95Ratio <= recoveredRatio
+			s.Phase.BackToNormal, s.Phase.BackToNormalAfterS = backToNormal(*s, rep.baselineP50Ms())
 		}
 	}
 }

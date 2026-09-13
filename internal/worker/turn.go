@@ -227,6 +227,15 @@ collect:
 	}
 	m.TransportRTT, m.TransportRTTMeasured = w.rtt.median(callerStart, end)
 
+	// The raw instants behind every duration on this turn, so the turn can be
+	// placed on a timeline and recomputed from the log.
+	m.StartedAt = w.log.Start().Add(callerStart)
+	m.CallerStartMs = metrics.Millis(callerStart)
+	m.CallerEndMs = metrics.Millis(callerEnd)
+	m.HeardMs = metrics.Millis(userTranscript)
+	m.FirstAudioMs = metrics.Millis(firstAudio)
+	m.PlayoutEndMs = metrics.Millis(playoutEnd)
+
 	if m.AgentText != "" {
 		w.lastAgentText = m.AgentText
 	}

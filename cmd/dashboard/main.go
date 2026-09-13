@@ -192,6 +192,11 @@ type summary struct {
 	// this a matrix whose severe network broke at the first step reads as a
 	// pass in the history.
 	NetworkBreaks []string `json:"network_breaks,omitempty"`
+
+	// ScenarioHash and ProfileHash let a run be compared with earlier runs
+	// that asked exactly the same question.
+	ScenarioHash string `json:"scenario_hash,omitempty"`
+	ProfileHash  string `json:"profile_hash,omitempty"`
 }
 
 func listRuns(dir string) http.HandlerFunc {
@@ -245,6 +250,7 @@ func summarize(path string, rep *loadgen.Report) summary {
 		s.Judged, s.Passed = rep.Judge.Judged, rep.Judge.Passed
 	}
 	s.Drifted = len(rep.Drifted())
+	s.ScenarioHash, s.ProfileHash = rep.ScenarioHash, rep.ProfileHash
 	if rep.Matrix != nil {
 		s.Cohorts = len(rep.Matrix.Cohorts)
 		for _, c := range rep.Matrix.Cohorts[1:] {

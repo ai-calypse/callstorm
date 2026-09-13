@@ -2,9 +2,12 @@ package worker
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/yakshgandhi/callstorm/internal/metrics"
 )
 
 // pingInterval is how often a call measures its round trip. Once a second
@@ -93,8 +96,13 @@ func (w *worker) pingLoop(ctx context.Context) {
 			if ctx.Err() != nil {
 				return
 			}
+			w.log.MarkAt(sent, metrics.TransportPing, int(w.curTurn.Load()), "no pong: "+err.Error())
 			continue
 		}
-		w.rtt.add(sent, w.log.Since()-sent)
+		rtt := w.log.Since() - sent
+		w.rtt.add(sent, rtt)
+		// Every ping is also an event, so the call's log shows when each round
+		// trip was taken and what it read, not only a turn's median of them.
+		w.log.MarkAt(sent, metrics.TransportPing, int(w.curTurn.Load()), fmt.Sprintf("rtt %.2fms", metrics.Millis(rtt)))
 	}
 }

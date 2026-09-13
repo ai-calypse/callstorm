@@ -63,6 +63,13 @@ type Phase struct {
 	// Recovered is meaningful only on a recovery step: it says whether
 	// returning to the baseline's concurrency returned the baseline's latency.
 	Recovered bool `json:"recovered,omitempty"`
+
+	// BackToNormal and BackToNormalAfterS are meaningful only on a recovery
+	// step with a timeline: whether the agent got back to normal and stayed
+	// there, and how many seconds into the step that began. Normal is every
+	// later call's median TTFA within recoveredRatio of the baseline's median.
+	BackToNormal       bool    `json:"back_to_normal,omitempty"`
+	BackToNormalAfterS float64 `json:"back_to_normal_after_s,omitempty"`
 }
 
 const (

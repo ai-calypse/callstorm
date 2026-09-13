@@ -56,6 +56,12 @@ type Result struct {
 	RequestID string    `json:"request_id"`
 	StartedAt time.Time `json:"started_at"`
 
+	// ClockZero is the wall-clock instant the call's clock started, once the
+	// connection was up; every event's t_ms counts from it. EndedAt is when the
+	// call hung up.
+	ClockZero time.Time `json:"clock_zero"`
+	EndedAt   time.Time `json:"ended_at"`
+
 	Turns  []metrics.TurnMetric `json:"turns"`
 	Events []metrics.Event      `json:"events"`
 
@@ -232,6 +238,8 @@ func Run(ctx context.Context, cfg Config) (*Result, error) {
 		Persona:        cfg.Scenario.Persona,
 		RequestID:      w.requestID,
 		StartedAt:      startedAt,
+		ClockZero:      w.log.Start(),
+		EndedAt:        w.log.Start().Add(total),
 		Turns:          turns,
 		Events:         w.log.Events(),
 		CallDurationMs: float64(total.Milliseconds()),

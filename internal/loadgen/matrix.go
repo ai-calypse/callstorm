@@ -39,6 +39,11 @@ type Cohort struct {
 	// Breakpoint is the first step that failed against the clean cohort's
 	// baseline, empty when none did.
 	Breakpoint string `json:"breakpoint,omitempty"`
+
+	// StartedAt is when the network was put into this condition and the cohort
+	// began; EndedAt is when its last step finished.
+	StartedAt time.Time `json:"started_at"`
+	EndedAt   time.Time `json:"ended_at"`
 }
 
 // RunMatrix runs the profile under each cohort in turn, clean first.
@@ -65,6 +70,7 @@ func RunMatrix(ctx context.Context, cfg Config, cohorts []impair.Profile, device
 	m := &Matrix{Device: device}
 
 	for _, p := range cohorts {
+		cohortStart := time.Now()
 		cmd, qdisc, err := net.Apply(ctx, p)
 		if err != nil {
 			return nil, fmt.Errorf("cohort %s: %w", p.Name, err)
@@ -87,7 +93,8 @@ func RunMatrix(ctx context.Context, cfg Config, cohorts []impair.Profile, device
 		}
 		rep.markVsClean(r)
 
-		c := Cohort{Impairment: p, Command: cmd, Qdisc: qdisc, Steps: r.Steps}
+		c := Cohort{Impairment: p, Command: cmd, Qdisc: qdisc, Steps: r.Steps,
+			StartedAt: cohortStart, EndedAt: time.Now()}
 		if bp := r.Breakpoint(); bp != nil {
 			c.Breakpoint = bp.Name
 		}
@@ -101,6 +108,7 @@ func RunMatrix(ctx context.Context, cfg Config, cohorts []impair.Profile, device
 	rep.Matrix = m
 	rep.StartedAt = started
 	rep.Duration = time.Since(started).Seconds()
+	rep.EndedAt = time.Now()
 	return rep, nil
 }
 

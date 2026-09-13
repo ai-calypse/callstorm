@@ -68,16 +68,7 @@ func RunDistributed(ctx context.Context, cfg Config, d *bus.Dispatcher, runID st
 		sr.Nodes = summarizeNodes(outcomes, cfg.Scenario.NodeIDs())
 		rep.Steps = append(rep.Steps, sr)
 
-		for _, o := range outcomes {
-			if o.err == nil && len(o.turns) > 0 {
-				rep.Calls = append(rep.Calls, CallRecord{
-					Step:      o.step,
-					RequestID: o.requestID,
-					Worker:    o.worker,
-					Turns:     o.turns,
-				})
-			}
-		}
+		rep.Calls = append(rep.Calls, callRecords(outcomes)...)
 
 		fmt.Fprintf(cfg.Out, " p95 %.0fms  setup %.0f%%  turns %d  across %d workers",
 			sr.TTFA.P95Ms, sr.SetupSuccess*100, sr.TurnsTotal, len(workers))
@@ -88,6 +79,7 @@ func RunDistributed(ctx context.Context, cfg Config, d *bus.Dispatcher, runID st
 	}
 
 	rep.Duration = time.Since(rep.StartedAt).Seconds()
+	rep.EndedAt = time.Now()
 	rep.Integrity = &Integrity{Dispatch: dispatch}
 	rep.score()
 	fmt.Fprintln(cfg.Out)
@@ -163,7 +155,8 @@ func dispatchStep(ctx context.Context, cfg Config, d fleet, runID string, step S
 			}
 			answered[r.Seq] = true
 			o := callOutcome{step: r.Step, requestID: r.RequestID, turns: r.Turns, worker: r.Worker,
-				startedAt: sentAt[r.Seq], endedAt: time.Now()}
+				startedAt: sentAt[r.Seq], endedAt: time.Now(),
+				clockZero: r.ClockZero, callEnded: r.EndedAt, events: r.Events}
 			if r.Err != "" {
 				o.err = errors.New(r.Err)
 			}

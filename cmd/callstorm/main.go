@@ -282,6 +282,8 @@ func runLoad(ctx context.Context, o opts, sc *scenario.Scenario, apiKey string) 
 	}
 
 	rep.References = loadgen.References()
+	rep.ScenarioHash = loadgen.Fingerprint(sc)
+	rep.ProfileHash = loadgen.Fingerprint(profile)
 
 	if producer != nil {
 		produced, dropped := producer.Flush(ctx)
@@ -699,6 +701,7 @@ func judgeRun(ctx context.Context, o opts, sc *scenario.Scenario, rep *loadgen.R
 		}
 		g := j.Score(ctx, ex, sc.SuccessCriteria)
 		g.Step, g.RequestID = c.Step, c.RequestID
+		g.JudgedAt = time.Now()
 		judgements = append(judgements, g)
 	}
 
@@ -833,13 +836,15 @@ func judgeModel(o opts) (judge.Model, string, error) {
 
 // sampleCalls takes the first n conversations of each step. n <= 0 takes all.
 func sampleCalls(calls []loadgen.CallRecord, n int) []loadgen.CallRecord {
-	if n <= 0 {
-		return calls
-	}
 	seen := map[string]int{}
 	var out []loadgen.CallRecord
 	for _, c := range calls {
-		if seen[c.Step] >= n {
+		// The calls log now holds failed calls too, and a call with no
+		// conversation has nothing to grade.
+		if c.Error != "" || len(c.Turns) == 0 {
+			continue
+		}
+		if n > 0 && seen[c.Step] >= n {
 			continue
 		}
 		seen[c.Step]++

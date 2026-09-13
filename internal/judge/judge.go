@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // Exchange is one turn of a conversation as the judge sees it: what the caller
@@ -29,9 +30,12 @@ type Outcome struct {
 
 // Judgement is one conversation scored against every criterion.
 type Judgement struct {
-	Step      string    `json:"step,omitempty"`
-	RequestID string    `json:"request_id,omitempty"`
-	Outcomes  []Outcome `json:"outcomes"`
+	Step      string `json:"step,omitempty"`
+	RequestID string `json:"request_id,omitempty"`
+
+	// JudgedAt is when the verdict came back.
+	JudgedAt time.Time `json:"judged_at"`
+	Outcomes []Outcome `json:"outcomes"`
 
 	// Err records a judge that failed to run or answer. It is kept separate
 	// from an unmet criterion on purpose: "the agent got it wrong" and "we

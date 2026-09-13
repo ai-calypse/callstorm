@@ -71,15 +71,7 @@ func Run(ctx context.Context, cfg Config) (*Report, error) {
 		sr.Nodes = summarizeNodes(outcomes, cfg.Scenario.NodeIDs())
 		rep.Steps = append(rep.Steps, sr)
 
-		for _, o := range outcomes {
-			if o.err == nil && len(o.turns) > 0 {
-				rep.Calls = append(rep.Calls, CallRecord{
-					Step:      o.step,
-					RequestID: o.requestID,
-					Turns:     o.turns,
-				})
-			}
-		}
+		rep.Calls = append(rep.Calls, callRecords(outcomes)...)
 
 		fmt.Fprintf(cfg.Out, " p95 %.0fms  setup %.0f%%  turns %d",
 			sr.TTFA.P95Ms, sr.SetupSuccess*100, sr.TurnsTotal)
@@ -90,6 +82,7 @@ func Run(ctx context.Context, cfg Config) (*Report, error) {
 	}
 
 	rep.Duration = time.Since(rep.StartedAt).Seconds()
+	rep.EndedAt = time.Now()
 	rep.score()
 	fmt.Fprintln(cfg.Out)
 	return rep, nil
@@ -173,6 +166,7 @@ func runStep(ctx context.Context, cfg Config, step Step) []callOutcome {
 				if err == nil {
 					o.requestID = res.RequestID
 					o.turns = res.Turns
+					o.clockZero, o.callEnded, o.events = res.ClockZero, res.EndedAt, res.Events
 					for _, t := range res.Turns {
 						cfg.Bus.Publish(ctx, bus.NewTurnEvent(cfg.RunID, step.Name, res.RequestID, t))
 					}

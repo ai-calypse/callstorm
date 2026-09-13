@@ -349,6 +349,27 @@ round trips as exactly zero, and zero had been read as "no pong", dropping a
 third of a run's turns from the correction. Whether a pong came back is now
 recorded apart from its value.
 
+## The calls log
+
+Every call a run places is written to the calls file beside its report, failed
+ones included:
+
+- **Each call:** when its clock started and when it hung up; its full event log,
+  each event in milliseconds from that start, including every ping and its
+  round trip; and its error, if it failed. A call that never connected has an
+  empty list of turns.
+- **Each turn:** when the caller began the line, plus the raw instants behind
+  every duration: caller started, caller stopped, the agent's transcript
+  arrived, first audio, playout ended.
+- **Each step:** when it started and ended, and a timeline of every call in start
+  order with its typical wait. Recovery steps also record how long they took to
+  get back to normal.
+
+The report also records network cohorts' start and end times, when each judge
+verdict came back, when the run ended, and fingerprints of the scenario and
+load plan exactly as they ran. Together these let any number on the dashboard be
+recomputed from the files.
+
 ## Why there is a reference agent
 
 `cmd/refagent` speaks the Deepgram Voice Agent wire protocol but has no STT, no

@@ -33,6 +33,7 @@ const (
 	ServerError       Kind = "server_error"
 	ServerWarning     Kind = "server_warning"
 	CallEnd           Kind = "call_end"
+	TransportPing     Kind = "ping"
 )
 
 // Event is one timestamped thing that happened during a call.
@@ -59,6 +60,10 @@ func NewLog() *Log {
 
 // Since is the time elapsed since call start.
 func (l *Log) Since() time.Duration { return time.Since(l.t0) }
+
+// Start is the wall-clock instant the call's clock started. Every event's t_ms
+// is measured from it, so Start plus t_ms is when the event happened.
+func (l *Log) Start() time.Time { return l.t0 }
 
 // Mark stamps an event at the current instant and returns that instant.
 func (l *Log) Mark(k Kind, turn int, text string) time.Duration {
@@ -166,6 +171,18 @@ type TurnMetric struct {
 	// pong" dropped a third of the run's turns from the correction.
 	TransportRTTMeasured bool `json:"transport_rtt_measured,omitempty"`
 
+	// StartedAt is when the caller began this turn's line, as a wall-clock
+	// time. The instants after it are on the call's own clock, in milliseconds
+	// from its start: the raw readings every duration above is a difference
+	// of. With them a turn can be placed on a timeline and every derived number
+	// recomputed from the log. Zero means the instant was never observed.
+	StartedAt     time.Time `json:"started_at"`
+	CallerStartMs float64   `json:"caller_start_ms"`
+	CallerEndMs   float64   `json:"caller_end_ms"`
+	HeardMs       float64   `json:"heard_ms,omitempty"`
+	FirstAudioMs  float64   `json:"first_audio_ms,omitempty"`
+	PlayoutEndMs  float64   `json:"playout_end_ms,omitempty"`
+
 	// CallerYielded records that the caller stopped mid-sentence because the
 	// agent started talking over them, which is what a real caller does.
 	CallerYielded bool `json:"caller_yielded,omitempty"`
@@ -223,14 +240,18 @@ type TurnMetric struct {
 	TransportRTTMs float64 `json:"transport_rtt_ms"`
 }
 
+// Millis renders a duration as milliseconds to two decimal places, keeping the
+// sign. It is the one rounding every millisecond field in the artifact uses.
+func Millis(d time.Duration) float64 {
+	return math.Round(float64(d.Microseconds())/1000*100) / 100
+}
+
 // Finalize populates the millisecond mirrors from the duration fields.
 func (t *TurnMetric) Finalize() {
 	// Negatives are preserved: an agent that answers before the caller has
 	// finished is a finding, not a missing measurement. Only an exact zero
 	// means "never observed".
-	ms := func(d time.Duration) float64 {
-		return math.Round(float64(d.Microseconds())/1000*100) / 100
-	}
+	ms := Millis
 	t.TTFAMs = ms(t.TTFA)
 	t.EndpointingMs = ms(t.Endpointing)
 	t.ThinkSpeakMs = ms(t.ThinkSpeak)

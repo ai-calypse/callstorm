@@ -196,5 +196,6 @@ func place(ctx context.Context, a bus.Assignment, apiKey string, synth *tts.Clie
 	}
 	res.RequestID = out.RequestID
 	res.Turns = out.Turns
+	res.ClockZero, res.EndedAt, res.Events = out.ClockZero, out.EndedAt, out.Events
 	return res
 }
