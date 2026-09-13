@@ -204,7 +204,21 @@ function ComponentShare({ steps }) {
   const rows = steps.filter(s =>
     s.endpointing && s.endpointing.n > 0 && s.think_speak && s.think_speak.n > 0 &&
     s.endpointing.p95_ms + s.think_speak.p95_ms > 0);
-  if (rows.length < 2) return null;
+  // One step still answers "what is this agent's split"; two or more answer
+  // "which half moves under load". Both are worth drawing.
+  if (rows.length < 1) {
+    if (steps.length === 0) return null;
+    return html`
+      <div className="card">
+        <div className="eyebrow">Which half saturates first</div>
+        <h2>No split to draw</h2>
+        <div className="note">
+          Splitting TTFA needs the moment the agent's transcript of the caller arrived, and this
+          run recorded none. A target that returns no user transcript can be timed but not
+          decomposed.
+        </div>
+      </div>`;
+  }
 
   const W = 640, ROW = 30, LEFT = 64, RIGHT = 78;
   const H = rows.length * ROW + 16;
@@ -251,7 +265,26 @@ function ComponentShare({ steps }) {
 // in the units a budget is written in.
 function CostChart({ steps }) {
   const rows = steps.filter(s => s.cost && s.cost.usd_per_turn > 0);
-  if (rows.length < 2) return null;
+  if (rows.length < 2) {
+    // A card that silently disappears when its data is missing tells the
+    // reader nothing, and looks identical to a card that is broken. Say which
+    // of the two it is and what would populate it.
+    const priced = steps.some(s => s.cost);
+    return html`
+      <div className="card">
+        <div className="eyebrow">What the latency costs</div>
+        <h2>Not priced</h2>
+        <div className="note">
+          ${priced
+            ? html`<span>This run counted ${steps.reduce((a, s) => a + ((s.cost && s.cost.agent_minutes) || 0), 0).toFixed(1)}
+                   agent-minutes but was not given a rate. Re-run with
+                   <b> -rate-per-minute</b> to price it — voice agents bill by the minute, so
+                   latency is a cost as well as an experience.</span>`
+            : html`<span>This run predates cost accounting. Runs placed from this version onward carry
+                   billable minutes, and <b>-rate-per-minute</b> turns them into dollars.</span>`}
+        </div>
+      </div>`;
+  }
 
   const W = 640, H = 150, PAD = 44;
   const max = Math.max(...rows.map(s => s.cost.usd_per_turn)) * 1.2;
@@ -352,6 +385,17 @@ function ReportCard({ id }) {
           believed here.
         </div>`}
     </div>
+
+    ${conv.length === 0 && steps.length > 0 && html`
+      <div className="card">
+        <div className="eyebrow">Conversation quality</div>
+        <h2>Not measured on this run</h2>
+        <div className="note">
+          This run predates talk ratio, pace, interruption score and dead air. Those come from
+          instants the harness already stamps, so any run placed from this version onward carries
+          them — nothing needs enabling. Re-run the profile to populate this card.
+        </div>
+      </div>`}
 
     ${conv.length > 0 && html`
       <div className="card">

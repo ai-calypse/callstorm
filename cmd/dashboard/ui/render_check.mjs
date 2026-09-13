@@ -16,6 +16,13 @@ const scripts = [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1
 const src = scripts.join("\n");
 if (!src.includes("function ReportCard")) throw new Error("did not find the page script");
 
+// React reports key and prop problems through console.error and carries on.
+// Those are the warnings that precede the bugs this dashboard has actually
+// had, so they fail the check rather than scrolling past.
+const warnings = [];
+const realError = console.error;
+console.error = (...a) => { warnings.push(String(a[0])); realError(...a); };
+
 const run = JSON.parse(fs.readFileSync(RUN, "utf8"));
 const id = path.basename(RUN, ".json");
 const index = [{
@@ -73,8 +80,9 @@ if (drawn < run.steps.length * 2) bad++;
 // fires server-side, so the state hooks are seeded in call order instead: the
 // first useState in ReportCard is the report, the second is the error.
 let seeded = 0;
+let current = run;
 const stub = Object.create(React);
-stub.useState = () => [seeded++ === 0 ? run : null, () => {}];
+stub.useState = () => [seeded++ === 0 ? current : null, () => {}];
 stub.useEffect = () => {};
 globalThis.React = stub;
 const mod2 = new Function(src + "\n;return { ReportCard };")();
@@ -96,5 +104,30 @@ for (const [name, needle] of wantCard) {
   console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
 }
 
+// The same card against a run recorded before these fields existed. A card
+// that hides itself when its data is absent is indistinguishable from a card
+// that is broken, and every run already on disk is this shape -- so the empty
+// state is the case that actually ships, and it has to say something.
+const old = JSON.parse(JSON.stringify(run));
+for (const s of old.steps) { delete s.conversation; delete s.cost; }
+seeded = 0;
+current = old;
+const legacy = ReactDOMServer.renderToStaticMarkup(
+  React.createElement(mod2.ReportCard, { id }));
+
+const wantLegacy = [
+  ["legacy run explains missing conversation data", "predates talk ratio"],
+  ["legacy run explains missing cost data", "predates cost accounting"],
+  ["legacy run still draws the component split", "Which half saturates first"],
+];
+for (const [name, needle] of wantLegacy) {
+  const ok = legacy.includes(needle);
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
+}
+
+
+console.log(`${warnings.length === 0 ? "ok  " : "FAIL"}  ${warnings.length} React warnings during render`);
+bad += warnings.length;
 
 process.exit(bad === 0 ? 0 : 1);

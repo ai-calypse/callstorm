@@ -1,0 +1,5 @@
+step,concurrency,calls,setup_success,ttfa_p50_ms,ttfa_p95_ms,ttfa_p99_ms,turn_latency_p95_ms,turns,turns_failed,p95_ratio,verdict
+baseline,1,4,1.0000,680.0,742.8,755.3,3742.8,20,0,1.00,pass
+c4,4,8,1.0000,624.6,767.9,770.6,3767.9,40,0,1.03,pass
+c8,8,12,1.0000,674.4,761.9,775.7,3854.4,60,0,1.03,pass
+c16,16,16,1.0000,1034.4,1276.2,1410.5,4276.2,80,0,1.72,warn
