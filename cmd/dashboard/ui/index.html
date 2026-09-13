@@ -1761,20 +1761,30 @@ const SERIES = {
 // The load ladder: each level of calls at the same time the run tried, lightest
 // first, one step per level. A built-up step is preferred over a sudden jump to
 // the same level, so the ladder reads as a build-up.
+// Steps where the test machine fell behind real time are left off it, because
+// they measured the machine rather than the agent -- as long as two clean levels
+// remain to compare. A run suspect throughout keeps every step, and the caution
+// at the top of its answers says why they are rough.
 function ladderOf(steps) {
   const rank = s => (kindOf(s) === "spike" ? 1 : 0);
-  const load = steps
-    .filter(s => s.ttfa && s.ttfa.n > 0 && ["smoke", "ramp", "stress", "spike"].includes(kindOf(s)))
-    .slice()
-    .sort((a, b) => a.concurrency - b.concurrency || rank(a) - rank(b));
-  const seen = new Set();
-  return load.filter(s => {
-    if (seen.has(s.concurrency)) return false;
-    seen.add(s.concurrency);
-    return true;
-  });
+  const byLevel = list => {
+    const seen = new Set();
+    return list.slice()
+      .sort((a, b) => a.concurrency - b.concurrency || rank(a) - rank(b))
+      .filter(s => {
+        if (seen.has(s.concurrency)) return false;
+        seen.add(s.concurrency);
+        return true;
+      });
+  };
+  const load = steps.filter(s => s.ttfa && s.ttfa.n > 0 && ["smoke", "ramp", "stress", "spike"].includes(kindOf(s)));
+  const clean = byLevel(load.filter(s => !s.harness_degraded));
+  return clean.length >= 2 ? clean : byLevel(load);
 }
-const baselineOf = (rep, L) => rep.steps.find(s => s.name === rep.baseline && s.ttfa && s.ttfa.n > 0) || L[0];
+// Normal load is the run's baseline step when the ladder kept it, and the
+// lightest level it kept otherwise: an answer that says a suspect step was left
+// out cannot then measure everything against that step.
+const baselineOf = (rep, L) => L.find(s => s.name === rep.baseline) || L[0];
 
 // A line across load levels. Missing values leave a gap rather than a zero.
 function LineChart({ labels, series, yFmt, refs, highlight, xTitle }) {
@@ -1900,6 +1910,17 @@ function TimeDots({ points, bands, limit, lines, yFmt, xTitle }) {
     </div>`;
 }
 
+// Saying which suspect steps the ladder left out keeps an answer from quietly
+// changing its evidence. A run suspect throughout keeps them all, and says
+// nothing here.
+const leftOut = rep => {
+  const kept = new Set(ladderOf(rep.steps || []).map(s => s.name));
+  const names = (rep.steps || [])
+    .filter(s => s.harness_degraded && !kept.has(s.name) && ["smoke", "ramp", "stress", "spike"].includes(kindOf(s)))
+    .map(s => s.name);
+  return names.length ? ` Left out: ${names.join(", ")}, where the test machine fell behind real time.` : "";
+};
+
 function qCapacity(rep, L) {
   const q = { id: "capacity", group: "How much it can take", ask: "How many calls at the same time can it take before callers notice it getting slower?" };
   if (L.length < 2) return { ...q, missing: "This run tried only one level of calls at the same time, so there is nothing to compare it with. Run a load plan with several steps." };
@@ -1913,34 +1934,54 @@ function qCapacity(rep, L) {
   const chart = html`<${LineChart} labels=${L.map(s => String(s.concurrency))} xTitle="calls at the same time" yFmt=${ms}
       series=${[{ name: "slowest callers' wait", color: SERIES.main, values: L.map(s => s.ttfa.p95_ms) }]}
       refs=${[{ value: 2 * base.ttfa.p95_ms, label: "twice the normal wait" }]}/>`;
-  const how = "The slowest callers means the wait that 95 turns in 100 beat. Noticeably slower means more than twice that wait at normal load, or fewer than 97 calls in 100 connecting.";
+  const how = "The slowest callers means the wait that 95 turns in 100 beat. Noticeably slower means more than twice that wait at normal load, or fewer than 97 calls in 100 connecting. A level that fails while every busier level passes is not treated as the limit.";
+  const note = leftOut(rep);
+  // A limit is where it stays broken. A failed level with every busier level
+  // passing again was slowed by something other than the number of calls.
+  const busier = failed ? L.filter(s => s.concurrency > failed.concurrency) : [];
+  if (failed && busier.length > 0 && busier.every(s => s.verdict !== "fail")) {
+    return { ...q, how, chart, short: `Unclear: ${failed.concurrency} at once was too slow, but every busier level was not.`,
+      answer: html`<b>Not clearly limited by load.</b> At ${failed.concurrency}, ${why}, but every busier level it tried stayed within twice normal, up to ${atOnce(top.concurrency)}. A slowdown that does not come back as load rises points at something else, such as the service varying over time, so run the test again before treating ${failed.concurrency} as the limit.${note}` };
+  }
   return failed
     ? { ...q, how, chart,
         short: ok ? `Between ${ok.concurrency} and ${failed.concurrency} at once: fine at ${ok.concurrency}, too slow at ${failed.concurrency}.` : `Fewer than ${failed.concurrency} at once.`,
         answer: ok
-          ? html`<b>Somewhere between ${ok.concurrency} and ${atOnce(failed.concurrency)}.</b> It was fine at ${ok.concurrency}, but at ${failed.concurrency}, ${why}. The test tried nothing in between, so more steps between those two would narrow it down.`
-          : html`<b>Fewer than ${atOnce(failed.concurrency)}.</b> At ${failed.concurrency}, ${why}.` }
+          ? html`<b>Somewhere between ${ok.concurrency} and ${atOnce(failed.concurrency)}.</b> It was fine at ${ok.concurrency}, but at ${failed.concurrency}, ${why}. The test tried nothing in between, so more steps between those two would narrow it down.${note}`
+          : html`<b>Fewer than ${atOnce(failed.concurrency)}.</b> At ${failed.concurrency}, ${why}.${note}` }
     : { ...q, how, chart, short: `At least ${top.concurrency} at once, and it never got noticeably slower.`,
-        answer: html`<b>At least ${atOnce(top.concurrency)}, and it never got noticeably slower.</b> Even at ${top.concurrency}, the slowest callers waited ${ms(top.ttfa.p95_ms)}, within twice the ${ms(base.ttfa.p95_ms)} at normal load. Its real limit is higher than this test went.` };
+        answer: html`<b>At least ${atOnce(top.concurrency)}, and it never got noticeably slower.</b> Even at ${top.concurrency}, the slowest callers waited ${ms(top.ttfa.p95_ms)}, within twice the ${ms(base.ttfa.p95_ms)} at normal load. Its real limit is higher than this test went.${note}` };
 }
 
 function qShape(rep, L) {
   const q = { id: "shape", group: "How it breaks", ask: "When it gets slower, does that happen gradually or all of a sudden?" };
   if (L.length < 3) return { ...q, missing: "Telling gradual from sudden needs at least three levels of calls at the same time, and this run had fewer." };
   const p = L.map(s => s.ttfa.p95_ms);
-  const rises = p.slice(1).map((v, i) => v - p[i]);
-  const total = p[p.length - 1] - p[0];
+  const first = p[0], last = p[p.length - 1];
+  const peak = p.indexOf(Math.max(...p));
+  // The slowdown is the climb to the slowest level. Measured to the last level
+  // instead, a wait that rose and fell back left a jump bigger than the whole,
+  // and the answer printed a share of it above 100%.
+  const climb = p[peak] - first;
   const labels = L.map(s => String(s.concurrency));
   const chart = j => html`<${LineChart} labels=${labels} xTitle="calls at the same time" yFmt=${ms}
       series=${[{ name: "slowest callers' wait", color: SERIES.main, values: p }]}
       highlight=${j >= 0 ? [j, j + 1] : null}/>`;
-  const how = "We measure how much of the total slowdown happens in the single biggest jump between neighbouring levels. If one jump holds more than 60% of it, the slowdown was sudden.";
-  if (total <= 0.15 * p[0]) {
-    return { ...q, how, chart: chart(-1), short: "Neither: it barely got slower.",
-      answer: html`<b>Neither: it barely got slower.</b> From ${L[0].concurrency} to ${atOnce(L[L.length - 1].concurrency)}, the slowest wait went from ${ms(p[0])} to ${ms(p[p.length - 1])}.` };
+  const how = "We measure how much of the climb to the slowest level happens in the single biggest jump between neighbouring levels. If one jump holds more than 60% of it, the slowdown was sudden. A wait that peaks and then falls back as load keeps rising is not counted as a slowdown caused by load.";
+  const note = leftOut(rep);
+  if (climb <= 0.15 * first) {
+    const faster = last < 0.85 * first;
+    const verdict = faster ? "Neither: it got faster, not slower." : "Neither: it barely got slower.";
+    return { ...q, how, chart: chart(-1), short: verdict,
+      answer: html`<b>${verdict}</b> From ${L[0].concurrency} to ${atOnce(L[L.length - 1].concurrency)}, the slowest wait went from ${ms(first)} to ${ms(last)}.${note}` };
   }
+  if (peak < p.length - 1 && last - first <= 0.5 * climb) {
+    return { ...q, how, chart: chart(-1), short: `Neither: it slowed at ${atOnce(L[peak].concurrency)}, then recovered at busier levels.`,
+      answer: html`<b>Neither: the slowdown did not follow the load.</b> The slowest wait peaked at ${ms(p[peak])} at ${atOnce(L[peak].concurrency)}, then came back to ${ms(last)} at ${L[L.length - 1].concurrency}, a busier level. Something other than the number of calls made that level slow, such as the service varying over time.${note}` };
+  }
+  const rises = p.slice(1, peak + 1).map((v, i) => v - p[i]);
   const j = rises.indexOf(Math.max(...rises));
-  const share = rises[j] / total;
+  const share = Math.min(1, rises[j] / climb);
   // A jump across a wide gap in load may hide a steady climb between the two
   // levels the test tried, so a sudden answer says when that is possible.
   const gap = L[j + 1].concurrency >= 2 * L[j].concurrency
@@ -2182,9 +2223,16 @@ function qJob(rep, L) {
       answer: html`<b>Not fully.</b> The ${drops[0].id} step of the conversation passed ${pctOf(drops[0].from)} of the time at ${atOnce(low.concurrency)}, but only ${pctOf(drops[0].to)} at ${high.concurrency}.` };
   }
   const neverAt = rate(low, weakest.id) || 0;
+  // A check that fails every call at every load is as likely to be wrong as
+  // the agent is: one written against another agent's words fails each time. A
+  // judge that read the same calls says which.
+  const graded = judged ? judged.calls.filter(c => c.judged) : [];
+  const checkNote = graded.length
+    ? ` The judge, reading the whole transcripts, found ${pctOf(graded.filter(c => c.met).length / graded.length)} of graded calls did the job, so check whether that step expects words this agent was ever asked to say.`
+    : " If that step expects words this agent was never asked to say, the check is wrong rather than the agent.";
   return weakest.to === 0 && neverAt === 0
-    ? { ...q, how, chart, short: `Load made no difference, but ${weakest.id} failed at every load.`,
-        answer: html`<b>Load made no difference.</b> Every checked step passed about as often at ${atOnce(high.concurrency)} as at ${low.concurrency}. One step, ${weakest.id}, failed at every load, which points at the agent itself rather than at being busy.` }
+    ? { ...q, how, chart, short: `Load made no difference, but ${weakest.id} failed its check at every load.`,
+        answer: html`<b>Load made no difference.</b> Every checked step passed about as often at ${atOnce(high.concurrency)} as at ${low.concurrency}. One step, ${weakest.id}, failed its check at every load.${checkNote}` }
     : { ...q, how, chart, short: "Yes: every checked step held up under load.",
         answer: html`<b>Yes.</b> Every checked step passed about as often at ${atOnce(high.concurrency)} as at ${low.concurrency}. The weakest, ${weakest.id}, passed ${pctOf(weakest.to)} of the time at the heaviest load.` };
 }

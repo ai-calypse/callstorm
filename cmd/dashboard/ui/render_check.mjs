@@ -650,7 +650,7 @@ for (const [name, html, needle] of [
   ["a rush at a level never built up to says why it can't compare", phasedCard, "never built up to that same level"],
   ["a recovery without timestamps says what is missing", phasedCard, "predates call timestamps"],
   ["the network question is answered from a matrix", matrixCard, "A bad connection breaks it before load does"],
-  ["a matrix run's job question uses its scenario checks", matrixCard, "failed at every load"],
+  ["a matrix run's job question uses its scenario checks", matrixCard, "failed its check at every load"],
 ]) {
   const ok = html.includes(needle);
   if (!ok) bad++;
