@@ -207,6 +207,8 @@
         "interruption_score": 5,
         "dead_air_turns": 8,
         "dead_air_seconds": 25.4,
+        "repeated_replies": 0,
+        "calls_with_repeats": 0,
         "agent_speech_seconds": 494.7,
         "caller_speech_seconds": 706.8,
         "turns": 150
@@ -229,6 +231,109 @@
         "deletions": 62,
         "insertions": 0,
         "ref_words": 2130
+      },
+      "leading_silence": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "audible_ttfa": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "caller_line": "Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 905.6,
+            "p90_ms": 1115.7,
+            "p95_ms": 1847.6,
+            "p99_ms": 1884.1,
+            "max_ms": 1884.1
+          },
+          "endpointing_p50_ms": 300.6,
+          "think_speak_p50_ms": 600.8
+        },
+        {
+          "turn": 2,
+          "caller_line": "Sure, it's four four eight one two. It was a pair of wireless headphones.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 854.4,
+            "p90_ms": 912.1,
+            "p95_ms": 957.1,
+            "p99_ms": 964.3,
+            "max_ms": 964.3
+          },
+          "endpointing_p50_ms": 302.5,
+          "think_speak_p50_ms": 552.3
+        },
+        {
+          "turn": 3,
+          "caller_line": "I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 844.8,
+            "p90_ms": 937.6,
+            "p95_ms": 1122.3,
+            "p99_ms": 1401.6,
+            "max_ms": 1401.6
+          },
+          "endpointing_p50_ms": 302.9,
+          "think_speak_p50_ms": 525.8
+        },
+        {
+          "turn": 4,
+          "caller_line": "Okay. And how long is that going to take to actually show up on my card?",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 892.9,
+            "p90_ms": 1194.6,
+            "p95_ms": 1283,
+            "p99_ms": 1303.2,
+            "max_ms": 1303.2
+          },
+          "endpointing_p50_ms": 303.3,
+          "think_speak_p50_ms": 572.5
+        },
+        {
+          "turn": 5,
+          "caller_line": "Alright, that works. Thanks for sorting it out.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 884,
+            "p90_ms": 3151.6,
+            "p95_ms": 3688.2,
+            "p99_ms": 3689,
+            "max_ms": 3689
+          },
+          "endpointing_p50_ms": 242.1,
+          "think_speak_p50_ms": 563
+        }
+      ],
+      "waits": {
+        "turns": 150,
+        "up_to_800ms": 29,
+        "800_to_1200ms": 105,
+        "1200_to_2000ms": 8,
+        "over_2000ms": 8
+      },
+      "quality": {
+        "verdict": "pass",
+        "compared": [
+          "failed turns",
+          "words misheard",
+          "interruptions"
+        ]
       },
       "phase": {
         "kind": "ramp",
@@ -492,6 +597,8 @@
         "interruption_score": 5,
         "dead_air_turns": 6,
         "dead_air_seconds": 18.4,
+        "repeated_replies": 0,
+        "calls_with_repeats": 0,
         "agent_speech_seconds": 484.3,
         "caller_speech_seconds": 706.8,
         "turns": 150
@@ -514,6 +621,109 @@
         "deletions": 58,
         "insertions": 0,
         "ref_words": 2130
+      },
+      "leading_silence": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "audible_ttfa": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "caller_line": "Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 871,
+            "p90_ms": 1020.4,
+            "p95_ms": 1033.3,
+            "p99_ms": 1073.5,
+            "max_ms": 1073.5
+          },
+          "endpointing_p50_ms": 306.7,
+          "think_speak_p50_ms": 546.5
+        },
+        {
+          "turn": 2,
+          "caller_line": "Sure, it's four four eight one two. It was a pair of wireless headphones.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 822.6,
+            "p90_ms": 1026.2,
+            "p95_ms": 1201.7,
+            "p99_ms": 1356.1,
+            "max_ms": 1356.1
+          },
+          "endpointing_p50_ms": 305.4,
+          "think_speak_p50_ms": 523.7
+        },
+        {
+          "turn": 3,
+          "caller_line": "I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 856.1,
+            "p90_ms": 1060.6,
+            "p95_ms": 1270.8,
+            "p99_ms": 2144.9,
+            "max_ms": 2144.9
+          },
+          "endpointing_p50_ms": 304.9,
+          "think_speak_p50_ms": 547.8
+        },
+        {
+          "turn": 4,
+          "caller_line": "Okay. And how long is that going to take to actually show up on my card?",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 888.2,
+            "p90_ms": 1049.5,
+            "p95_ms": 1106.5,
+            "p99_ms": 1231.4,
+            "max_ms": 1231.4
+          },
+          "endpointing_p50_ms": 305.4,
+          "think_speak_p50_ms": 575.1
+        },
+        {
+          "turn": 5,
+          "caller_line": "Alright, that works. Thanks for sorting it out.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 869.5,
+            "p90_ms": 3139.8,
+            "p95_ms": 3156.5,
+            "p99_ms": 3673.4,
+            "max_ms": 3673.4
+          },
+          "endpointing_p50_ms": 247.9,
+          "think_speak_p50_ms": 596.1
+        }
+      ],
+      "waits": {
+        "turns": 150,
+        "up_to_800ms": 30,
+        "800_to_1200ms": 107,
+        "1200_to_2000ms": 7,
+        "over_2000ms": 6
+      },
+      "quality": {
+        "verdict": "pass",
+        "compared": [
+          "failed turns",
+          "words misheard",
+          "interruptions"
+        ]
       },
       "phase": {
         "kind": "ramp",
@@ -777,6 +987,8 @@
         "interruption_score": 5,
         "dead_air_turns": 5,
         "dead_air_seconds": 15.7,
+        "repeated_replies": 0,
+        "calls_with_repeats": 0,
         "agent_speech_seconds": 469.3,
         "caller_speech_seconds": 706.8,
         "turns": 150
@@ -799,6 +1011,109 @@
         "deletions": 57,
         "insertions": 0,
         "ref_words": 2130
+      },
+      "leading_silence": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "audible_ttfa": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "caller_line": "Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 855.9,
+            "p90_ms": 1026.3,
+            "p95_ms": 1042.6,
+            "p99_ms": 1518.3,
+            "max_ms": 1518.3
+          },
+          "endpointing_p50_ms": 303.9,
+          "think_speak_p50_ms": 561.2
+        },
+        {
+          "turn": 2,
+          "caller_line": "Sure, it's four four eight one two. It was a pair of wireless headphones.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 827.7,
+            "p90_ms": 1003.3,
+            "p95_ms": 1261.2,
+            "p99_ms": 1894.5,
+            "max_ms": 1894.5
+          },
+          "endpointing_p50_ms": 306.9,
+          "think_speak_p50_ms": 498.5
+        },
+        {
+          "turn": 3,
+          "caller_line": "I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 853.9,
+            "p90_ms": 971.7,
+            "p95_ms": 1194.5,
+            "p99_ms": 1869.8,
+            "max_ms": 1869.8
+          },
+          "endpointing_p50_ms": 303.5,
+          "think_speak_p50_ms": 544.3
+        },
+        {
+          "turn": 4,
+          "caller_line": "Okay. And how long is that going to take to actually show up on my card?",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 871.3,
+            "p90_ms": 1018.8,
+            "p95_ms": 1089.7,
+            "p99_ms": 1197.5,
+            "max_ms": 1197.5
+          },
+          "endpointing_p50_ms": 303.1,
+          "think_speak_p50_ms": 567.4
+        },
+        {
+          "turn": 5,
+          "caller_line": "Alright, that works. Thanks for sorting it out.",
+          "ttfa": {
+            "n": 30,
+            "p50_ms": 801.3,
+            "p90_ms": 3112.8,
+            "p95_ms": 3156,
+            "p99_ms": 3160,
+            "max_ms": 3160
+          },
+          "endpointing_p50_ms": 243,
+          "think_speak_p50_ms": 557.6
+        }
+      ],
+      "waits": {
+        "turns": 150,
+        "up_to_800ms": 32,
+        "800_to_1200ms": 108,
+        "1200_to_2000ms": 5,
+        "over_2000ms": 5
+      },
+      "quality": {
+        "verdict": "pass",
+        "compared": [
+          "failed turns",
+          "words misheard",
+          "interruptions"
+        ]
       },
       "phase": {
         "kind": "ramp",
@@ -1102,6 +1417,8 @@
         "interruption_score": 5,
         "dead_air_turns": 6,
         "dead_air_seconds": 21.5,
+        "repeated_replies": 0,
+        "calls_with_repeats": 0,
         "agent_speech_seconds": 633.2,
         "caller_speech_seconds": 942.4,
         "turns": 200
@@ -1124,6 +1441,109 @@
         "deletions": 85,
         "insertions": 0,
         "ref_words": 2840
+      },
+      "leading_silence": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "audible_ttfa": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "caller_line": "Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.",
+          "ttfa": {
+            "n": 40,
+            "p50_ms": 869.5,
+            "p90_ms": 965.2,
+            "p95_ms": 1067.7,
+            "p99_ms": 1099.3,
+            "max_ms": 1099.3
+          },
+          "endpointing_p50_ms": 310.8,
+          "think_speak_p50_ms": 552.8
+        },
+        {
+          "turn": 2,
+          "caller_line": "Sure, it's four four eight one two. It was a pair of wireless headphones.",
+          "ttfa": {
+            "n": 40,
+            "p50_ms": 805.9,
+            "p90_ms": 907.6,
+            "p95_ms": 940.4,
+            "p99_ms": 1000.6,
+            "max_ms": 1000.6
+          },
+          "endpointing_p50_ms": 309.8,
+          "think_speak_p50_ms": 493.9
+        },
+        {
+          "turn": 3,
+          "caller_line": "I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?",
+          "ttfa": {
+            "n": 40,
+            "p50_ms": 841.5,
+            "p90_ms": 943.5,
+            "p95_ms": 1049.3,
+            "p99_ms": 1244.5,
+            "max_ms": 1244.5
+          },
+          "endpointing_p50_ms": 320.8,
+          "think_speak_p50_ms": 515.4
+        },
+        {
+          "turn": 4,
+          "caller_line": "Okay. And how long is that going to take to actually show up on my card?",
+          "ttfa": {
+            "n": 40,
+            "p50_ms": 902.8,
+            "p90_ms": 1095.5,
+            "p95_ms": 1125.2,
+            "p99_ms": 1389.7,
+            "max_ms": 1389.7
+          },
+          "endpointing_p50_ms": 309.5,
+          "think_speak_p50_ms": 570.1
+        },
+        {
+          "turn": 5,
+          "caller_line": "Alright, that works. Thanks for sorting it out.",
+          "ttfa": {
+            "n": 40,
+            "p50_ms": 810.5,
+            "p90_ms": 3148,
+            "p95_ms": 3232.7,
+            "p99_ms": 5600.2,
+            "max_ms": 5600.2
+          },
+          "endpointing_p50_ms": 265.8,
+          "think_speak_p50_ms": 536.7
+        }
+      ],
+      "waits": {
+        "turns": 200,
+        "up_to_800ms": 49,
+        "800_to_1200ms": 139,
+        "1200_to_2000ms": 6,
+        "over_2000ms": 6
+      },
+      "quality": {
+        "verdict": "pass",
+        "compared": [
+          "failed turns",
+          "words misheard",
+          "interruptions"
+        ]
       },
       "phase": {
         "kind": "ramp",
@@ -1587,6 +2007,8 @@
         "interruption_score": 5,
         "dead_air_turns": 8,
         "dead_air_seconds": 26.7,
+        "repeated_replies": 0,
+        "calls_with_repeats": 0,
         "agent_speech_seconds": 1251.5,
         "caller_speech_seconds": 1884.8,
         "turns": 400
@@ -1609,6 +2031,109 @@
         "deletions": 164,
         "insertions": 1,
         "ref_words": 5680
+      },
+      "leading_silence": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "audible_ttfa": {
+        "n": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "caller_line": "Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up.",
+          "ttfa": {
+            "n": 80,
+            "p50_ms": 874.6,
+            "p90_ms": 1026.8,
+            "p95_ms": 1108.3,
+            "p99_ms": 1545.2,
+            "max_ms": 1545.2
+          },
+          "endpointing_p50_ms": 308.1,
+          "think_speak_p50_ms": 548.8
+        },
+        {
+          "turn": 2,
+          "caller_line": "Sure, it's four four eight one two. It was a pair of wireless headphones.",
+          "ttfa": {
+            "n": 80,
+            "p50_ms": 821.6,
+            "p90_ms": 979.4,
+            "p95_ms": 1028.8,
+            "p99_ms": 1283.2,
+            "max_ms": 1283.2
+          },
+          "endpointing_p50_ms": 307.1,
+          "think_speak_p50_ms": 512
+        },
+        {
+          "turn": 3,
+          "caller_line": "I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?",
+          "ttfa": {
+            "n": 80,
+            "p50_ms": 864.8,
+            "p90_ms": 1031.3,
+            "p95_ms": 1053.7,
+            "p99_ms": 1197.6,
+            "max_ms": 1197.6
+          },
+          "endpointing_p50_ms": 305.1,
+          "think_speak_p50_ms": 547.2
+        },
+        {
+          "turn": 4,
+          "caller_line": "Okay. And how long is that going to take to actually show up on my card?",
+          "ttfa": {
+            "n": 80,
+            "p50_ms": 909.6,
+            "p90_ms": 1137.1,
+            "p95_ms": 1226,
+            "p99_ms": 1552.9,
+            "max_ms": 1552.9
+          },
+          "endpointing_p50_ms": 304.9,
+          "think_speak_p50_ms": 598
+        },
+        {
+          "turn": 5,
+          "caller_line": "Alright, that works. Thanks for sorting it out.",
+          "ttfa": {
+            "n": 80,
+            "p50_ms": 824.6,
+            "p90_ms": 1946.3,
+            "p95_ms": 3157.7,
+            "p99_ms": 5417.3,
+            "max_ms": 5417.3
+          },
+          "endpointing_p50_ms": 245.4,
+          "think_speak_p50_ms": 547
+        }
+      ],
+      "waits": {
+        "turns": 400,
+        "up_to_800ms": 92,
+        "800_to_1200ms": 278,
+        "1200_to_2000ms": 22,
+        "over_2000ms": 8
+      },
+      "quality": {
+        "verdict": "pass",
+        "compared": [
+          "failed turns",
+          "words misheard",
+          "interruptions"
+        ]
       },
       "phase": {
         "kind": "ramp",
@@ -1870,6 +2395,17 @@
       "median_wer_failed": 0,
       "conclusive": false,
       "note": "every judged call was heard cleanly, so there is nothing to compare it against"
+    },
+    "waits": {
+      "line_ms": 1200,
+      "calls": 20,
+      "slow_calls": 4,
+      "slow_passed": 4,
+      "quick_calls": 16,
+      "quick_passed": 16,
+      "slow_pass_rate": 1,
+      "quick_pass_rate": 1,
+      "conclusive": true
     },
     "judgements": [
       {

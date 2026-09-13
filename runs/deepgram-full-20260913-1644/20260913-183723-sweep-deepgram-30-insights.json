@@ -4,89 +4,87 @@
   "runs": [
     "20260913-183723-sweep-deepgram-30"
   ],
-  "generated_at": "2026-09-13T21:19:01.8565206Z",
+  "generated_at": "2026-09-13T22:16:29.4371957Z",
   "model": "gemini-3.5-flash",
-  "prompt_hash": "ee975de27155",
-  "data_hash": "a060ba0ef345",
-  "headline": "The agent demonstrates high task success and steady median latency up to 40 concurrent calls, but tail latency spikes severely on the final turn.",
+  "prompt_hash": "9c9d8c617b73",
+  "data_hash": "c3eccb93c992",
+  "headline": "The voice agent demonstrates excellent responsiveness and accuracy under load, meeting core production benchmarks, but suffers from isolated tail latency spikes during the final closing turn.",
   "insights": [
     {
-      "title": "Spiking Tail Latency on the Final Turn",
+      "title": "Severe Tail Latency Spikes on the Final Closing Turn",
       "category": "latency",
       "severity": "high",
       "evidence": [
         "refund-hesitant, turn 5: ttfa_p95_ms 3181.8",
-        "refund-hesitant, turn 5: ttfa_p50_ms 736.3"
+        "refund-hesitant, step baseline: turn 5 ttfa p95_ms 3166.9",
+        "refund-hesitant, step c40: turn 5 ttfa p95_ms 3116.2"
       ],
-      "finding": "The p95 response time (time to first audio) on the final turn (turn 5) spikes to 3181.8 milliseconds, even though its median (p50) is very low at 736.3 milliseconds.",
-      "why_it_matters": "A delay of over 3 seconds when ending a call can cause callers to think the system hung up or disconnected, spoiling the user experience right at the end.",
-      "next_step": "Profile the conversation-ending turn in the agent logs to find why the tail latency is disproportionately slow."
+      "finding": "The agent experiences a severe response delay during the final conversational turn (turn 5, where the caller says goodbye), even at a baseline concurrency of 1 call.",
+      "why_it_matters": "When a caller finishes a transaction and says goodbye, they are left waiting in silence for over 3116.2 ms under heavy load and 3166.9 ms at baseline before the agent begins speaking, creating awkward dead air at the end of the call.",
+      "next_step": "Analyze the prompt and LLM termination handling for turn 5 to determine why response generation stalls regardless of load."
     },
     {
-      "title": "Transient Latency Anomaly Rather than Capacity Exhaustion",
+      "title": "Transient Latency Spikes at Low Concurrency",
       "category": "capacity",
       "severity": "medium",
       "evidence": [
+        "refund-hesitant, step c5: verdict fail",
         "refund-hesitant, step c5: ttfa p95_ms 1939.9",
-        "refund-hesitant, step c10: ttfa p95_ms 1252.6",
-        "refund-hesitant, step c20: ttfa p95_ms 985.5",
+        "refund-hesitant, step c40: verdict pass",
         "refund-hesitant, step c40: ttfa p95_ms 1029.2"
       ],
-      "finding": "The p95 time to first audio spiked to 1939.9 milliseconds at concurrency 5, but then decreased to 1252.6 milliseconds at concurrency 10, 985.5 milliseconds at concurrency 20, and 1029.2 milliseconds at concurrency 40.",
-      "why_it_matters": "A slowdown that rises and then falls back as calls increase was not caused by load, pointing instead to a transient host or network issue during the second step.",
-      "next_step": "Check the system logs for step c5 to see if any backend cold-starts or network route changes occurred."
+      "finding": "The test step at 5 concurrent calls failed its latency criteria with a p95 response time of 1939.9 ms, whereas the step at 40 concurrent calls passed successfully with a faster p95 of 1029.2 ms.",
+      "why_it_matters": "Because latency metrics improved significantly as load increased to 40 concurrent calls, the failure at 5 concurrent calls was likely caused by a transient platform or network glitch rather than a systemic capacity bottleneck.",
+      "next_step": "Investigate underlying hosting or dependency stability during the time of the c5 test step to rule out external resource contention."
     },
     {
-      "title": "Tail Latency Breaks while Median Holds Flat under Load",
+      "title": "Response Generation is the Primary Latency Component",
       "category": "latency",
       "severity": "medium",
       "evidence": [
-        "refund-hesitant, step baseline: ttfa p50_ms 781.8",
-        "refund-hesitant, step c40: ttfa p50_ms 784.7",
-        "refund-hesitant, step baseline: ttfa p99_ms 3166.9",
-        "refund-hesitant, step c40: ttfa p99_ms 3116.2"
+        "refund-hesitant, step baseline: think_speak p50_ms 472.6",
+        "refund-hesitant, step baseline: endpointing p50_ms 301.4",
+        "refund-hesitant, step baseline: transport_rtt p50_ms 81.5"
       ],
-      "finding": "The median response time (p50) holds steady between 781.8 milliseconds at baseline and 784.7 milliseconds at maximum load (c40). However, the tail latency (p99) remains highly elevated at 3166.9 milliseconds at baseline and 3116.2 milliseconds at c40.",
-      "why_it_matters": "While the typical caller experiences consistent, fast responses under load, the worst-case tail latency is broken even at a single caller, suggesting a persistent optimization issue rather than load-induced queueing.",
-      "next_step": "Investigate the slowest single-user calls at baseline to understand why 1% of turns take more than 3 seconds."
+      "finding": "The majority of the wait time before the agent speaks is spent thinking up the reply (think_speak), rather than waiting to detect the caller has stopped speaking (endpointing) or transmitting packets over the network (transport_rtt).",
+      "why_it_matters": "To make the conversation feel more natural, developers must focus optimization efforts on the LLM's response generation speed (think_speak), as endpointing and network transit times are already fast.",
+      "next_step": "Profile the LLM response-generation pipeline to identify potential speedups in the thinking step."
     },
     {
-      "title": "Thinking Process is the Primary Latency Bottleneck",
-      "category": "latency",
-      "severity": "low",
-      "evidence": [
-        "refund-hesitant, step c40: think_speak p50_ms 490.5",
-        "refund-hesitant, step c40: endpointing p50_ms 300.7",
-        "refund-hesitant, step c40: transport_rtt p50_ms 83.3"
-      ],
-      "finding": "At the highest load of 40 concurrent calls, the median thinking and speaking time (think_speak p50) is 490.5 milliseconds, which is much larger than the median endpointing time of 300.7 milliseconds and the median network round trip of 83.3 milliseconds.",
-      "why_it_matters": "The agent's internal processing (deciding what to say and generating the response) is the largest contributor to the caller's wait, meaning optimization efforts should focus on model response time.",
-      "next_step": "Optimize the LLM prompt and speech generation pipelines to decrease the median thinking time."
-    },
-    {
-      "title": "High Task Success Over a Small Judged Sample",
-      "category": "quality",
-      "severity": "low",
-      "evidence": [
-        "refund-hesitant, judge: judged 20",
-        "refund-hesitant, judge: passed 20"
-      ],
-      "finding": "The automated judge evaluated only 20 calls out of 210 total calls and passed all 20 of them, resulting in a 100.0% pass rate.",
-      "why_it_matters": "While a 100.0% pass rate is highly encouraging, the evaluation sample is less than 10% of the total run, which means rare conversational failures might not be captured.",
-      "next_step": "Increase the judge sample size in future tests to evaluate a larger portion of the generated calls."
-    },
-    {
-      "title": "Strong Performance Against Observed Industry Standards",
+      "title": "Excellent Response Times Relative to Production Standards",
       "category": "latency",
       "severity": "info",
       "evidence": [
         "refund-hesitant, step c40: ttfa p50_ms 784.7",
-        "human-turn-offset: ms 300",
-        "hamming-observed-production-p50: ms 1400"
+        "refund-hesitant, run: references hamming-observed-production-p50 1400"
       ],
-      "finding": "The median response latency of 784.7 milliseconds at maximum load is well below the Hamming observed production median of 1400 milliseconds, though it remains slower than the human conversational marker of 300 milliseconds.",
-      "why_it_matters": "The typical user experience is highly competitive and faster than many production implementations, although it does not yet match natural human conversational speed.",
-      "next_step": "Aim to reduce the gap between the agent's median latency and the natural human turn-taking standard."
+      "finding": "Even under the maximum tested load of 40 concurrent calls, the agent's median response time (784.7 ms) remains far speedier than the production median benchmark range of 1400 ms to 1700 ms.",
+      "why_it_matters": "The agent provides an exceptionally fast response in typical scenarios, surpassing established industry benchmarks for natural conversation.",
+      "next_step": "Maintain the current low-latency baseline architecture as concurrency scales up."
+    },
+    {
+      "title": "Transcription Accuracy Remains Intact Under High Load",
+      "category": "quality",
+      "severity": "info",
+      "evidence": [
+        "refund-hesitant, step baseline: wer mean 0.02535211267605634",
+        "refund-hesitant, step c40: wer mean 0.0329225352112676"
+      ],
+      "finding": "The agent's Word Error Rate (WER) — representing how often words are misheard — is exceptionally low at 2.5% during single-call baseline tests and only rises slightly to 3.3% under 40 concurrent calls.",
+      "why_it_matters": "The system's ability to accurately transcribe and understand caller speech is highly resilient to concurrent call load, ensuring callers are not misheard when the system is busy.",
+      "next_step": "Preserve the current speech-to-text configuration since it maintains high accuracy up to 40 concurrent calls."
+    },
+    {
+      "title": "Fragile Sample Sizes for Quality Evaluation",
+      "category": "test",
+      "severity": "low",
+      "evidence": [
+        "refund-hesitant, run: judge judged 20",
+        "refund-hesitant, run: integrity dispatch received 210"
+      ],
+      "finding": "The automated LLM judge evaluated only 20 calls out of 210 total dispatched calls across the entire test suite.",
+      "why_it_matters": "Although all 20 judged calls successfully passed the functional evaluation, the small sample size means quality and task success rates are fragile and may not represent the full test population.",
+      "next_step": "Adjust the test configuration to judge a larger portion of the dispatched calls in future load tests."
     }
   ]
 }
