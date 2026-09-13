@@ -350,19 +350,19 @@ function readCost(rows, steps) {
   return {
     verdict: rise >= 0.05
       ? html`<b>The same conversation costs ${(rise * 100).toFixed(0)}% more under load.</b>
-             ${first.cost.usd_per_turn.toFixed(4)} a turn at ${first.concurrency} concurrent,
-             ${last.cost.usd_per_turn.toFixed(4)} at ${last.concurrency}.`
+             $${first.cost.usd_per_turn.toFixed(4)} a turn at ${first.concurrency} concurrent,
+             $${last.cost.usd_per_turn.toFixed(4)} at ${last.concurrency}.`
       : html`<b>Load did not change the price.</b> A turn cost
-             ${first.cost.usd_per_turn.toFixed(4)} at ${first.concurrency} concurrent and
-             ${last.cost.usd_per_turn.toFixed(4)} at ${last.concurrency}.`,
+             $${first.cost.usd_per_turn.toFixed(4)} at ${first.concurrency} concurrent and
+             $${last.cost.usd_per_turn.toFixed(4)} at ${last.concurrency}.`,
     why: html`Voice agents bill for the time the session is open, so every second the caller spends
       waiting is a second you pay for. That makes latency a line item and verbosity another one:
       an agent that answers in 300ms and then talks for fifteen seconds is expensive in a way no
       percentile shows. This run billed ${steps.reduce((a, s) => a + ((s.cost && s.cost.agent_minutes) || 0), 0).toFixed(1)} agent-minutes
-      across ${turns} turns at ${last.cost.rate_per_minute.toFixed(4)} a minute, or
-      ${total.toFixed(2)} in total.`,
-    act: html`At ${perCall.toFixed(4)} a call, <b>1,000 calls a day is about
-      ${(perCall * 1000 * 30).toFixed(0)} a month</b>${rise >= 0.05
+      across ${turns} turns at $${last.cost.rate_per_minute.toFixed(4)} a minute, or
+      $${total.toFixed(2)} in total.`,
+    act: html`At $${perCall.toFixed(4)} a call, <b>1,000 calls a day is about
+      $${(perCall * 1000 * 30).toFixed(0)} a month</b>${rise >= 0.05
         ? html`, and that is the busy-hour price — the ${(rise * 100).toFixed(0)}% you see here is
                what the extra latency costs, so shortening replies pays twice.` : "."}${" "}Substitute your own volume; the per-call figure is the one to multiply.`,
   };
@@ -2359,7 +2359,8 @@ function view(tab, ctx) {
     observation: html`<${Frag}>
       <small>SELECTED STEP</small>
       <strong>${s.name} · $${s.cost.usd_per_turn.toFixed(4)} per turn · $${(s.cost.usd_per_call || 0).toFixed(4)} per call</strong>
-      ${(s.cost.agent_minutes || 0).toFixed(1)} agent-minutes billed across ${s.turns_total} turns · $${(s.cost.usd || 0).toFixed(2)} for the step
+      ${(s.cost.agent_minutes || 0).toFixed(1)} ${priced ? "agent-minutes billed" : `connected minutes across ${s.calls} calls`} · ${s.turns_total} turns · $${(s.cost.usd || 0).toFixed(2)} for the step
+      ${!priced && s.harness_minutes > 0 ? html`<small>The harness's own count for this step is ${s.harness_minutes.toFixed(1)} agent-minutes (caller speech plus reply wait); connection time also covers setup and the agent speaking.</small>` : ""}
     <//>`,
     footnote: "Agent-minutes are caller speech plus turn latency, so every second of waiting is on the bill. Telephony, hosting and the judge are excluded.",
     compareable: true,

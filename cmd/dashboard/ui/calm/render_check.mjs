@@ -325,6 +325,8 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
   has(html, "question", "Is each call costing more under load?");
   has(html, "cost polyline present", "<polyline");
   has(html, "cost takeaway projects to real money", "a month");
+  // The readings are spliced in verbatim; a String.replace once ate their "$$".
+  check("cost reading keeps its dollar signs", /A turn cost\s*\$\d/.test(html));
   const ev = drawer("evidence", run, "run", "cost");
   has(ev, "cost card", "Where the billed minutes go");
   has(ev, "cost table", "Per turn");
