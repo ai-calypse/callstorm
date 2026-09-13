@@ -48,7 +48,9 @@ func main() {
 	// Paths carry .json so the very same requests work against a static
 	// export, where a file server has nothing but files to offer.
 	mux.HandleFunc("GET /api/runs.json", listRuns(*runsDir))
-	mux.HandleFunc("GET /api/runs/{id}.json", getRun(*runsDir))
+	// A wildcard has to be a whole path segment, so the extension is stripped
+	// in the handler rather than written into the pattern.
+	mux.HandleFunc("GET /api/runs/{id}", getRun(*runsDir))
 	mux.HandleFunc("POST /api/clienterror", clientError)
 
 	pages, err := newFS()
@@ -215,7 +217,8 @@ func summarize(path string, rep *loadgen.Report) summary {
 
 func getRun(dir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		p, err := resolve(dir, r.PathValue("id"), ".json")
+		id := strings.TrimSuffix(r.PathValue("id"), ".json")
+		p, err := resolve(dir, id, ".json")
 		if err != nil {
 			http.NotFound(w, r)
 			return
