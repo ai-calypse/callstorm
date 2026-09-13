@@ -49,7 +49,9 @@ type Groq struct {
 
 // outcomesSchema constrains the reply to exactly the verdict shape. Every
 // field is required and nothing else is permitted, so a criterion cannot come
-// back without the evidence that makes it checkable.
+// back without the evidence that makes it checkable. The fields are in the
+// order the model writes them: the quote and the reasoning come before the
+// verdict, so the verdict is decided from them rather than justified after.
 var outcomesSchema = json.RawMessage(`{
   "type": "object",
   "properties": {
@@ -58,11 +60,12 @@ var outcomesSchema = json.RawMessage(`{
       "items": {
         "type": "object",
         "properties": {
-          "criterion": { "type": "string" },
-          "met":       { "type": "boolean" },
-          "evidence":  { "type": "string" }
+          "id":        { "type": "string" },
+          "evidence":  { "type": "string" },
+          "reasoning": { "type": "string" },
+          "met":       { "type": "boolean" }
         },
-        "required": ["criterion", "met", "evidence"],
+        "required": ["id", "evidence", "reasoning", "met"],
         "additionalProperties": false
       }
     }

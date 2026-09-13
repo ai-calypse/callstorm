@@ -104,6 +104,32 @@ oracle, and an oracle is the one number in a run nobody can check. A judge that
 fails to run is recorded apart from a criterion that was not met, because "the
 agent got it wrong" and "we could not tell" are different results.
 
+**How the judge is asked.** The prompt follows [Coval's guidance on judge
+prompts](https://docs.coval.ai/concepts/metrics/writing-judge-prompts). It stays
+under 2,000 characters. The parties are only ever *the user* and *the
+assistant*. Criteria are numbered, written as something the assistant visibly
+says, and use explicit AND, OR and before. Each criterion goes through ordered
+gates -- can words decide it, which turns settle it, does its logic hold -- and
+anything unclear is not met. The reply quotes and reasons before it gives the
+verdict, and three examples anchor the edge cases. A criterion about timing
+cannot be read from words, so none is written: a hesitant caller being talked
+over is measured by endpointing and talked-over turns instead.
+
+**Checking the judge.** A pass rate is only as good as the judge's agreement
+with a person. Copy a run's `-judgements.json`, correct the verdicts you
+disagree with, and judge the run again against it:
+
+```bash
+./bin/callstorm -scenario scenarios/refund.json -judge-calls 4 \
+    -rejudge runs/<run>.json -labels runs/<run>-labels.json
+```
+
+That reports agreement per criterion and every disagreement with the judge's
+quote, and places no calls. Below 90%, reword the criterion or the prompt and
+run it again. `-rejudge` alone re-scores a run whose judge could not run at the
+time; it refuses a scenario with a different name, and says so when the file's
+criteria have changed since the run.
+
 Two backends. `groq` is an HTTP call that works from CI and constrains the
 reply to a JSON schema. `claude-code` spends a Claude subscription instead of
 API credits, but needs the CLI installed and logged in.

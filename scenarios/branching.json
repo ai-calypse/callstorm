@@ -10,8 +10,8 @@
     "listen_model": "nova-3"
   },
   "success_criteria": [
-    "The agent asks the caller for an order number before discussing the specific order",
-    "The agent issues a refund by the end of the call"
+    "The assistant asks the user for an order number before the assistant discusses the specific order",
+    "The assistant confirms a refund at any point in the call"
   ],
   "turns": [
     { "say": "Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up." },

@@ -62,6 +62,7 @@ type opts struct {
 	impairDev      string
 	suite          string
 	rejudge        string
+	labels         string
 }
 
 func main() {
@@ -98,6 +99,8 @@ func main() {
 		"name of the load test this run is part of; runs sharing it read as one test")
 	flag.StringVar(&o.rejudge, "rejudge", "",
 		"judge a run already placed, from its report and calls file, instead of placing calls; needs its -scenario")
+	flag.StringVar(&o.labels, "labels", "",
+		"with -rejudge: a person's corrected copy of a judgements file; reports how often the judge agrees")
 	flag.Parse()
 
 	if err := run(o); err != nil {
@@ -932,6 +935,46 @@ func rejudge(ctx context.Context, o opts, sc *scenario.Scenario) error {
 		return err
 	}
 	printTaskSuccess(rep.Judge, path)
+	if o.labels != "" {
+		return printAgreement(rep.Judge, o.labels)
+	}
+	return nil
+}
+
+// printAgreement compares the judge's verdicts with a person's: the check that
+// says whether a pass rate from this judge can be believed at all.
+func printAgreement(t *loadgen.TaskSuccess, labelsPath string) error {
+	b, err := os.ReadFile(labelsPath)
+	if err != nil {
+		return err
+	}
+	var labels []judge.Judgement
+	if err := json.Unmarshal(b, &labels); err != nil {
+		return fmt.Errorf("read %s: %w", labelsPath, err)
+	}
+	var judged []judge.Judgement
+	if t != nil {
+		judged = t.Judgements
+	}
+
+	a := judge.Agree(judged, labels)
+	fmt.Println()
+	if a.Compared == 0 {
+		fmt.Printf("agreement    nothing to compare: %s names no call and criterion the judge answered\n", labelsPath)
+		return nil
+	}
+	fmt.Printf("agreement    %d of %d verdicts match the person's (%.0f%%, target %.0f%%)\n",
+		a.Agreed, a.Compared, a.Rate()*100, judge.AgreementTarget*100)
+	for _, c := range a.Criteria {
+		fmt.Printf("  %d/%d  %s\n", c.Agreed, c.Compared, c.Criterion)
+	}
+	for _, d := range a.Disagreements {
+		fmt.Printf("  differs  %s %s: judge %t, person %t -- %s\n           %s\n",
+			d.Step, d.RequestID, d.Judge, d.Human, d.Criterion, d.Evidence)
+	}
+	if a.Rate() < judge.AgreementTarget {
+		fmt.Printf("  below target: read the disagreements, reword the criterion or the prompt, and rejudge.\n")
+	}
 	return nil
 }
 

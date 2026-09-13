@@ -13,9 +13,8 @@
     "listen_model": "nova-3"
   },
   "success_criteria": [
-    "The agent lets the caller finish a line rather than answering the first sentence of it",
-    "The agent asks the caller for an order number before discussing the specific order",
-    "The agent issues a refund after the caller turns down the replacement"
+    "The assistant asks the user for an order number before the assistant discusses the specific order",
+    "The assistant confirms a refund, AND does so after the user declines the replacement OR asks for their money back"
   ],
   "turns": [
     { "say": "Hi, yeah. I'm calling because something I ordered about three weeks ago still hasn't turned up." },
