@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
@@ -21,6 +22,7 @@ import (
 	"github.com/yakshgandhi/callstorm/internal/bus"
 	"github.com/yakshgandhi/callstorm/internal/chart"
 	"github.com/yakshgandhi/callstorm/internal/config"
+	"github.com/yakshgandhi/callstorm/internal/impair"
 	"github.com/yakshgandhi/callstorm/internal/judge"
 	"github.com/yakshgandhi/callstorm/internal/loadgen"
 	"github.com/yakshgandhi/callstorm/internal/metrics"
@@ -56,6 +58,8 @@ type opts struct {
 	judgeCalls     int
 	judgeBackend   string
 	judgeModel     string
+	impairments    string
+	impairDev      string
 }
 
 func main() {
@@ -85,6 +89,9 @@ func main() {
 	flag.StringVar(&o.judgeBackend, "judge-backend", "auto",
 		"who judges: groq, claude-code, or auto (groq when GROQ_API_KEY is set)")
 	flag.StringVar(&o.judgeModel, "judge-model", "", "model to judge with (default: the backend's own)")
+	flag.StringVar(&o.impairments, "impairments", "",
+		"file of netem profiles; runs the load profile once per profile, clean first (Linux, needs NET_ADMIN)")
+	flag.StringVar(&o.impairDev, "impair-dev", "eth0", "interface the impairment is applied to")
 	flag.Parse()
 
 	if err := run(o); err != nil {
@@ -168,6 +175,30 @@ func runLoad(ctx context.Context, o opts, sc *scenario.Scenario, apiKey string) 
 		return err
 	}
 
+	var cohorts []impair.Profile
+	if o.impairments != "" {
+		switch {
+		case o.distributed:
+			// netem shapes this pod's interface. A distributed run's calls
+			// leave from worker pods it cannot reach, so they would run on a
+			// clean network while the report said otherwise.
+			return fmt.Errorf("-impairments cannot run -distributed: the impairment is applied to " +
+				"this machine's interface, and a fleet's calls leave from other machines")
+		case o.kafkaBrokers != "":
+			return fmt.Errorf("-impairments cannot publish -kafka turn events: step names repeat " +
+				"in every cohort and the events carry no cohort, so a consumer could not tell them apart")
+		case o.judge:
+			return fmt.Errorf("-impairments cannot -judge yet: verdicts are joined to calls by step, " +
+				"and step names repeat in every cohort")
+		}
+		if cohorts, err = impair.Load(o.impairments); err != nil {
+			return err
+		}
+		if _, err := exec.LookPath("tc"); err != nil {
+			return fmt.Errorf("-impairments needs tc from iproute2 and a Linux kernel with netem: %w", err)
+		}
+	}
+
 	held := ""
 	if h := profile.HeldSeconds(); h > 0 {
 		held = fmt.Sprintf(" plus %.0fs held", h)
@@ -214,7 +245,25 @@ func runLoad(ctx context.Context, o opts, sc *scenario.Scenario, apiKey string) 
 	}
 
 	var rep *loadgen.Report
-	if o.distributed {
+	if len(cohorts) > 0 {
+		names := make([]string, len(cohorts))
+		for i, c := range cohorts {
+			names[i] = c.Name
+		}
+		fmt.Printf("impair     %d cohorts on %s: %s\n", len(cohorts), o.impairDev, strings.Join(names, ", "))
+		netem := impair.Netem{Device: o.impairDev}
+		// Leave the interface as it was found, whatever happened to the run. On
+		// a pod that exits this is tidiness; on a Linux workstation it is the
+		// difference between a test and a broken network until reboot.
+		defer func() {
+			clearCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			if cmd, _, err := netem.Apply(clearCtx, impair.Profile{Name: impair.Clean}); err != nil {
+				fmt.Fprintf(os.Stderr, "impair: could not restore %s with %s: %v\n", o.impairDev, cmd, err)
+			}
+		}()
+		rep, err = loadgen.RunMatrix(ctx, lg, cohorts, o.impairDev, netem)
+	} else if o.distributed {
 		if o.kafkaBrokers == "" {
 			return fmt.Errorf("-distributed needs -kafka: the fleet is reached over the bus")
 		}
@@ -235,10 +284,16 @@ func runLoad(ctx context.Context, o opts, sc *scenario.Scenario, apiKey string) 
 	if producer != nil {
 		produced, dropped := producer.Flush(ctx)
 		fmt.Printf("kafka      published %d turn events, dropped %d", produced, dropped)
+		te := &loadgen.TurnEventIntegrity{Published: produced, Dropped: dropped}
 		if err := producer.LastError(); err != nil {
 			fmt.Printf(" (%v)", err)
+			te.LastError = err.Error()
 		}
 		fmt.Println()
+		if rep.Integrity == nil {
+			rep.Integrity = &loadgen.Integrity{}
+		}
+		rep.Integrity.TurnEvents = te
 	}
 
 	// Judging runs before the artifacts are written, not after, so its verdicts
@@ -434,6 +489,9 @@ func printLoadReport(rep *loadgen.Report, jsonPath, csvPath, svgPath, callsPath 
 	printConversation(rep)
 	printComponentShare(rep)
 	printCost(rep)
+	printNodes(rep)
+	printMatrix(rep)
+	printIntegrity(rep)
 
 	if bp := rep.Breakpoint(); bp != nil {
 		fmt.Printf("\nBREAKPOINT   %s at %d concurrent: p95 TTFA %s is %.2fx baseline\n",
@@ -996,6 +1054,139 @@ func printPhases(rep *loadgen.Report) {
 			strings.Join(names, ", "))
 		fmt.Printf("             That is the failure a single percentile cannot show: a leak, a\n")
 		fmt.Printf("             filling queue or a cache going cold looks fine in any one snapshot.\n")
+	}
+}
+
+// printNodes reports each scenario node's assertion pass rate per step.
+//
+// A call-level number says the agent got worse and not where. A node that
+// collapses while the rest of the conversation holds is the diagnosis that
+// pairs with the latency curve, and it is only visible per node.
+func printNodes(rep *loadgen.Report) {
+	views := []struct {
+		name  string
+		steps []loadgen.StepReport
+	}{{"", rep.Steps}}
+	if rep.Matrix != nil {
+		views = views[:0]
+		for _, c := range rep.Matrix.Cohorts {
+			views = append(views, struct {
+				name  string
+				steps []loadgen.StepReport
+			}{c.Impairment.Name, c.Steps})
+		}
+	}
+
+	checked := false
+	for _, v := range views {
+		for _, s := range v.steps {
+			for _, n := range s.Nodes {
+				if n.Checked > 0 {
+					checked = true
+				}
+			}
+		}
+	}
+	if !checked {
+		return
+	}
+
+	fmt.Printf("\nnodes        share of visits whose reply met the node's expect, visits in brackets\n")
+	for _, v := range views {
+		if len(v.steps) == 0 || len(v.steps[0].Nodes) == 0 {
+			continue
+		}
+		label := "node"
+		if v.name != "" {
+			label = v.name
+		}
+		fmt.Printf("%-16s", label)
+		for _, s := range v.steps {
+			fmt.Printf(" %-14s", s.Name)
+		}
+		fmt.Println()
+		for i, n := range v.steps[0].Nodes {
+			fmt.Printf("  %-14s", n.Node)
+			for _, s := range v.steps {
+				if i >= len(s.Nodes) {
+					fmt.Printf(" %-14s", "-")
+					continue
+				}
+				sn := s.Nodes[i]
+				cell := fmt.Sprintf("(%d)", sn.Visits)
+				if sn.Checked > 0 {
+					cell = fmt.Sprintf("%.0f%% (%d)", sn.PassRate*100, sn.Visits)
+				}
+				fmt.Printf(" %-14s", cell)
+			}
+			fmt.Println()
+		}
+	}
+}
+
+// printMatrix reports every cohort's p95 against the same step on the clean
+// network, and the command that made each network what it was.
+func printMatrix(rep *loadgen.Report) {
+	m := rep.Matrix
+	if m == nil || len(m.Cohorts) == 0 {
+		return
+	}
+	fmt.Printf("\nimpairment   p95 TTFA per cohort, and its ratio to the same step on the clean network\n")
+	fmt.Printf("%-10s %-24s", "cohort", "network")
+	for _, s := range m.Cohorts[0].Steps {
+		fmt.Printf(" %-15s", s.Name)
+	}
+	fmt.Printf(" %s\n", "breaks at")
+	for _, c := range m.Cohorts {
+		fmt.Printf("%-10s %-24s", c.Impairment.Name, describeNetwork(c.Impairment))
+		for _, s := range c.Steps {
+			cell := msf(s.TTFA.P95Ms)
+			if s.VsClean > 0 {
+				cell += fmt.Sprintf(" %.2fx", s.VsClean)
+			}
+			fmt.Printf(" %-15s", cell)
+		}
+		fmt.Printf(" %s\n", dash(c.Breakpoint))
+	}
+	fmt.Printf("\n%-10s applied to %s, egress only; verdicts scored against the clean baseline\n", "tc", m.Device)
+	for _, c := range m.Cohorts {
+		fmt.Printf("%-10s %s\n", c.Impairment.Name, c.Command)
+	}
+}
+
+func describeNetwork(p impair.Profile) string {
+	var parts []string
+	if p.DelayMs > 0 || p.JitterMs > 0 {
+		d := fmt.Sprintf("+%gms", p.DelayMs)
+		if p.JitterMs > 0 {
+			d += fmt.Sprintf(" ±%gms", p.JitterMs)
+		}
+		parts = append(parts, d)
+	}
+	if p.LossPct > 0 {
+		parts = append(parts, fmt.Sprintf("%g%% loss", p.LossPct))
+	}
+	if len(parts) == 0 {
+		return "none"
+	}
+	return strings.Join(parts, ", ")
+}
+
+// printIntegrity reports whether the dispatch pipeline delivered every call it
+// sent. It checks the harness, not the target: a lost or doubled result moves
+// a step's percentiles as surely as the agent does.
+func printIntegrity(rep *loadgen.Report) {
+	if rep.Integrity == nil || rep.Integrity.Dispatch == nil {
+		return
+	}
+	d := rep.Integrity.Dispatch
+	fmt.Printf("\ndispatch     %d dispatched, %d received, %d duplicates dropped, %d missing, %d late\n",
+		d.Dispatched, d.Received, d.Duplicates, d.Missing, d.Late)
+	for _, s := range d.Steps {
+		if s.Duplicates > 0 || s.Missing > 0 || s.Late > 0 {
+			fmt.Printf("%-12s %d duplicates, %d missing, %d late from earlier steps\n",
+				s.Step, s.Duplicates, s.Missing, s.Late)
+		}
 	}
 }
 
