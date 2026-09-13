@@ -342,6 +342,36 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
   has(ev, "cost table", "Per turn");
 }
 
+// Pricing from connection time: a run the harness never priced, with calls
+// that carry start and end instants, priced at Deepgram's published rate.
+{
+  const unpriced = JSON.parse(JSON.stringify(run));
+  for (const s of unpriced.steps) { delete s.cost; s.calls_attempted = 2; }
+  unpriced.started_at = "2026-09-13T16:44:09Z";
+  const t0 = Date.parse("2026-09-13T16:44:09Z");
+  const calls = unpriced.steps.flatMap((s, i) => [0, 1].map(k => ({
+    step: s.name, request_id: `p${i}${k}`, started_at: new Date(t0 + i * 120000 + k * 1000).toISOString(),
+    ended_at: new Date(t0 + i * 120000 + k * 1000 + 60000).toISOString(), turns: [] })));
+  const html = page1(unpriced, "unpriced", "cost", { initialCalls: calls });
+  has(html, "priced from connection time", "priced from each call&#x27;s connection time");
+  has(html, "promotional rate in force on the run's date", "$0.056 per minute");
+  has(html, "tier picker", "Deepgram tier");
+  has(html, "rate is editable", 'type="number"');
+  has(html, "cost line drawn from the estimate", "<polyline");
+  // 2 calls × 1 minute per step at $0.056: $0.112 a step, $0.056 a call.
+  has(html, "per-call figure on the glance", "$0.056");
+  has(html, "observation counts connected minutes", "2.0 connected minutes across 2 calls");
+  has(html, "takeaway is the cost reading", "a month");
+  const ev = render(mod.Report, { rep: { ...unpriced, id: "unpriced" }, id: "unpriced", refs: REFS, runs: index, prev: null, initialTab: "cost", initialDrawer: "evidence", initialCalls: calls, onOpenRuns() {}, onPick() {} });
+  has(ev, "evidence card is the estimate", "Priced from connection time");
+  has(ev, "evidence cites the source", "deepgram.com/pricing");
+  has(ev, "evidence totals the run", `$${(0.112 * unpriced.steps.length).toFixed(2)}`);
+  has(page1(unpriced, "unpriced", "cost"), "cost tab waits for the calls file", "Reading the calls file to price this run");
+  has(page1(unpriced, "unpriced", "cost", { initialCalls: null }), "no calls file falls back to the unpriced note", "predates cost accounting");
+  const later = JSON.parse(JSON.stringify(unpriced)); later.started_at = "2026-10-01T10:00:00Z";
+  has(page1(later, "later", "cost", { initialCalls: calls }), "list rate after the promotion ends", "$0.075 per minute");
+}
+
 // Phases: the shape table appears in the evidence only when the run has one.
 {
   has(drawer("evidence", phases, "phases", "load"), "phase table", "What each phase did over its own duration");

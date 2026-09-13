@@ -488,3 +488,12 @@ dialog::backdrop { background: #22282045; backdrop-filter: blur(3px); }
 .reasoning { display: block; margin-top: 4px; font-size: 12px; line-height: 1.5; color: var(--cs-text-caption); font-style: italic; }
 .cs-badge.ungraded { background: var(--cs-canvas); color: var(--cs-text-caption); border: 1px solid var(--cs-border); }
 
+/* Pricing a run the harness did not price: tier and rate, above the step slider. */
+.range-control.pricing { grid-template-columns: 1.6fr 1fr; margin-bottom: 10px; }
+.range-control.pricing label { display: block; }
+.range-control.pricing .cs-input { margin-top: 6px; min-height: 2.5rem; padding: .375rem .625rem; font-size: 14px; }
+.range-control.pricing small { grid-column: 1 / -1; }
+.range-control.pricing small .text-button { margin-left: 6px; }
+tr.total td { border-top: 1px solid var(--cs-border-strong); font-weight: 500; }
+@media (max-width: 760px) { .range-control.pricing { grid-template-columns: 1fr; } }
+

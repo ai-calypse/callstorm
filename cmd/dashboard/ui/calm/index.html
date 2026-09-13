@@ -700,6 +700,19 @@ function qWhereWait(rep, L) {
     answer: html`<b>The extra wait under load is ${NAMES[k]}.</b> From ${rows[0].concurrency} to ${atOnce(rows[rows.length - 1].concurrency)}, that part grew by ${ms(grew[k])}, more than either of the other two.` };
 }
 
+const OUT_OF_REACH = [
+  ["What exactly inside the agent runs out first: memory, workers, or connections?", "Callstorm calls the agent from outside, the way a customer does. What runs out inside it only shows up in the agent's own monitoring."],
+  ["Is the limit the agent's own, or its AI providers'?", "That needs the agent's own record of each provider's errors and rate limits. From outside, both look like waiting."],
+  ["Is time lost between the agent's own internal steps?", "That needs tracing inside the agent. From outside, the wait splits only into the network, noticing you stopped, and composing the reply."],
+  ["Does it leak memory or connections over many hours?", "Getting slower over time is checked above, but the leak itself is only visible in the agent's own metrics."],
+  ["Are its lookups and bookings slower when it's busy?", "The agent's requests to other systems aren't observed yet. A stand-in for those systems would make this measurable."],
+  ["Did the records a call should create actually arrive?", "That needs something to receive the events the agent sends after a call, and Deepgram's agent sends none."],
+  ["Does it hand more calls to a human when it's busy?", "Handing a call over to a person isn't measured yet."],
+  ["Does the sound get worse on a bad connection?", "That needs an audio quality score and a phone-style connection. Over this kind of connection a bad network causes delay, not broken audio."],
+  ["Did our alerts go off at the right time?", "Alerts live in the agent's own monitoring, outside the test."],
+  ["Do real callers lose patience and talk over a slow agent?", "The test caller is patient by design and waits for every answer, so it can't show that."],
+];
+
 // ---- Selections the readings are built from ---------------------------------
 // The same filters, in one place, so the chart, the takeaway, the findings list
 // and the evidence drawer can never disagree about which steps count.
@@ -1891,6 +1904,41 @@ function SlowTurn({ rep, calls, step: s, onOpenCall }) {
 
 // ---- Cost evidence ----------------------------------------------------------
 
+// Deepgram's published Voice Agent prices, Pay As You Go, as read from
+// deepgram.com/pricing on the date below. Deepgram bills the agent by
+// WebSocket connection time, so a run that was not given a rate can still be
+// priced from each call's own start and end instants.
+const DEEPGRAM_PRICING = {
+  source: "https://deepgram.com/pricing", fetched: "2026-09-13", plan: "Pay As You Go", basis: "WebSocket connection time",
+  tiers: [
+    { id: "standard", label: "Standard — Deepgram STT, LLM and TTS", list: 0.075, promo: 0.056, promoUntil: "2026-09-14" },
+    { id: "standard-byo-tts", label: "Standard — bring your own TTS", list: 0.065 },
+    { id: "custom-byo-llm", label: "Custom — bring your own LLM", list: 0.065, promo: 0.050, promoUntil: "2026-09-14" },
+    { id: "custom-byo-llm-tts", label: "Custom — bring your own LLM and TTS", list: 0.050 },
+    { id: "advanced", label: "Advanced", list: 0.163, promo: 0.122, promoUntil: "2026-09-14" },
+    { id: "advanced-byo-tts", label: "Advanced — bring your own TTS", list: 0.122 },
+  ],
+};
+const tierOf = id => DEEPGRAM_PRICING.tiers.find(t => t.id === id) || DEEPGRAM_PRICING.tiers[0];
+// The rate in force on a given day: the promotional one while it lasted.
+const rateOn = (tier, date) => (tier.promo && !isNaN(wall(date)) && wall(date) <= Date.parse(tier.promoUntil + "T23:59:59Z")) ? tier.promo : tier.list;
+
+// Price a run from its calls' connection time, in the shape the harness's own
+// cost rows take, so the chart and the reading need no second path.
+function connectedRows(rep, calls, rate) {
+  return sel.steps(rep).map(s => {
+    const cs = calls.filter(c => c.step === s.name && !c.cohort && !isNaN(wall(c.started_at)) && !isNaN(wall(c.ended_at)));
+    if (cs.length === 0) return null;
+    const minutes = cs.reduce((a, c) => a + Math.max(wall(c.ended_at) - wall(c.started_at), 0) / 60000, 0);
+    const usd = minutes * rate;
+    return { name: s.name, concurrency: s.concurrency, turns_total: s.turns_total, calls: cs.length,
+      harness_minutes: (s.cost && s.cost.agent_minutes) || 0,
+      cost: { rate_per_minute: rate, agent_minutes: minutes, usd, usd_per_call: usd / cs.length, usd_per_turn: s.turns_total > 0 ? usd / s.turns_total : 0 } };
+  }).filter(Boolean);
+}
+const minutesOf = calls => calls.filter(c => !isNaN(wall(c.started_at)) && !isNaN(wall(c.ended_at)))
+  .reduce((a, c) => a + Math.max(wall(c.ended_at) - wall(c.started_at), 0) / 60000, 0);
+
 function costMissing(steps) {
   const priced = steps.some(s => s.cost && s.cost.agent_minutes > 0);
   return priced
@@ -1901,9 +1949,63 @@ function costMissing(steps) {
            billable minutes, and <b>-rate-per-minute</b> turns them into dollars.`;
 }
 
-function CostCard({ rep }) {
+function CostCard({ rep, estimate }) {
   const steps = sel.steps(rep);
   const rows = sel.cost(rep);
+  if (rows.length < 2 && estimate && estimate.rows.length > 0) {
+    const e = estimate, tier = tierOf(e.tier);
+    const total = e.rows.reduce((a, r) => a + r.cost.usd, 0), minutes = e.rows.reduce((a, r) => a + r.cost.agent_minutes, 0);
+    const harness = e.rows.reduce((a, r) => a + r.harness_minutes, 0), calls = e.rows.reduce((a, r) => a + r.calls, 0);
+    return html`
+      <${Section} eyebrow="WHAT THE LATENCY COSTS" title="Priced from connection time"
+        lede=${html`This run was not given a rate, so it is priced here from each call's own start and end instants at Deepgram's published rate: <b>$${e.rate.toFixed(3)} per minute</b>, ${tier.label}, ${DEEPGRAM_PRICING.plan}${e.rate === tier.promo ? ` (the promotional rate in force on ${day(rep.started_at)}; $${tier.list.toFixed(3)} from ${day(tier.promoUntil + "T12:00:00Z")} on)` : ""}. Deepgram bills the Voice Agent by ${DEEPGRAM_PRICING.basis}; read from <a className="cs-link" href=${DEEPGRAM_PRICING.source}>${DEEPGRAM_PRICING.source.replace("https://", "")}</a> on ${DEEPGRAM_PRICING.fetched}.`}
+        note=${html`Connection time runs from the call's WebSocket opening to its close, so it includes call setup, the agent's own speaking and the caller's pauses — which is why it is ${harness > 0 ? `${((minutes / harness - 1) * 100).toFixed(0)}% more than` : "more than"} the harness's agent-minutes (caller speech plus reply wait). Telephony, the judge and the synthetic caller's speech are not on this bill. Change the tier or the rate on the Cost tab if this agent was built differently.`}
+        reading=${readCost(e.rows, e.rows)}>
+        <div className="timing">
+          <div className="timing-row"><span>Rate</span><strong>$${e.rate.toFixed(3)} per minute · ${tier.label}</strong></div>
+          <div className="timing-row"><span>Connected minutes, from the timestamps</span><strong>${minutes.toFixed(1)}</strong></div>
+          ${harness > 0 && html`<div className="timing-row"><span>Harness agent-minutes, for comparison</span><strong>${harness.toFixed(1)}</strong></div>`}
+          <div className="timing-row"><span>Calls · turns</span><strong>${calls} · ${e.rows.reduce((a, r) => a + (r.turns_total || 0), 0)}</strong></div>
+          <div className="timing-row"><span>Total for this run</span><strong>$${total.toFixed(2)}</strong></div>
+        </div>
+        <div className="tablewrap">
+          <table>
+            <thead><tr><th>Step</th><th>Conc</th><th>Calls</th><th>Connected min</th><th>Harness min</th><th>Per turn</th><th>Per call</th><th>Step total</th></tr></thead>
+            <tbody>
+              ${e.rows.map(r => html`
+                <tr key=${r.name}>
+                  <td>${r.name}</td><td>${r.concurrency}</td><td>${r.calls}</td>
+                  <td>${r.cost.agent_minutes.toFixed(1)}</td><td>${r.harness_minutes > 0 ? r.harness_minutes.toFixed(1) : "-"}</td>
+                  <td>$${r.cost.usd_per_turn.toFixed(4)}</td><td>$${r.cost.usd_per_call.toFixed(4)}</td><td>$${r.cost.usd.toFixed(2)}</td>
+                </tr>`)}
+            </tbody>
+          </table>
+        </div>
+        ${e.suite && e.suite.length > 1 && html`
+          <h4 className="sub">The whole suite, at the same rate</h4>
+          <div className="tablewrap">
+            <table>
+              <thead><tr><th>Part</th><th>Scenario</th><th>Calls</th><th>Connected min</th><th>Per call</th><th>Total</th></tr></thead>
+              <tbody>
+                ${e.suite.map((p, i) => html`
+                  <tr key=${p.id} className=${p.id === rep.id ? "selected" : ""}>
+                    <td>${i + 1}${p.id === rep.id ? " · open" : ""}</td><td>${p.scenario}</td>
+                    <td>${p.calls === null ? "…" : p.calls}</td><td>${p.minutes === null ? "…" : p.minutes.toFixed(1)}</td>
+                    <td>${p.minutes === null || !p.calls ? "…" : "$" + (p.minutes * e.rate / p.calls).toFixed(4)}</td>
+                    <td>${p.minutes === null ? "loading" : "$" + (p.minutes * e.rate).toFixed(2)}</td>
+                  </tr>`)}
+                <tr className="total">
+                  <td colSpan="2">${e.suite.every(p => p.minutes !== null) ? "Whole suite" : "Loading the other parts…"}</td>
+                  <td>${e.suite.reduce((a, p) => a + (p.calls || 0), 0)}</td>
+                  <td>${e.suite.reduce((a, p) => a + (p.minutes || 0), 0).toFixed(1)}</td>
+                  <td></td>
+                  <td>$${(e.suite.reduce((a, p) => a + (p.minutes || 0), 0) * e.rate).toFixed(2)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>`}
+      <//>`;
+  }
   if (rows.length < 2) {
     return html`<${Section} eyebrow="WHAT THE LATENCY COSTS" title="Not priced" note=${costMissing(steps)}/>`;
   }
@@ -2160,7 +2262,7 @@ function findings(rep, refs) {
 // derived from the same steps the tabs draw so the glance and the evidence
 // cannot disagree. Deltas are against the previous run of the same profile
 // and scenario, when there is one.
-function glance(rep, prevIndex, prevRep) {
+function glance(rep, prevIndex, prevRep, estimate) {
   const steps = sel.steps(rep);
   const bp = steps.find(s => s.verdict === "fail");
   const within = steps.filter(s => s.verdict === "pass").reduce((a, s) => Math.max(a, s.concurrency || 0), 0);
@@ -2222,10 +2324,12 @@ function glance(rep, prevIndex, prevRep) {
         note: judged
           ? (rateDelta ? html`<span className=${rateDelta.good ? "good" : "bad"}>${rateDelta.d >= 0 ? "↗" : "↘"} ${Math.abs(rateDelta.d).toFixed(1)} pp</span> vs previous run` : `${j.passed} of ${j.judged} graded · no comparison`)
           : "Not judged · re-run with -judge" },
-      { label: "Cost / call", value: priced ? "$" + perCall.toFixed(3) : "—", unit: "",
+      { label: "Cost / call", value: priced ? "$" + perCall.toFixed(3) : estimate && estimate.rows.length ? "$" + (estimate.rows.reduce((a, r) => a + r.cost.usd, 0) / Math.max(estimate.rows.reduce((a, r) => a + r.calls, 0), 1)).toFixed(3) : "—", unit: "",
         note: priced
           ? (costDelta ? html`<span className=${costDelta.good ? "good" : "bad"}>${costDelta.d <= 0 ? "↘" : "↗"} ${Math.abs(costDelta.d / (prevPerCall || 1) * 100).toFixed(1)}%</span> vs previous run` : `$${usd.toFixed(2)} across ${calls} calls · no comparison`)
-          : "Not priced · re-run with -rate-per-minute" },
+          : estimate && estimate.rows.length
+          ? `$${estimate.rows.reduce((a, r) => a + r.cost.usd, 0).toFixed(2)} for the run · from connection time at $${estimate.rate.toFixed(3)}/min`
+          : "Not priced · open Cost to price it from connection time" },
     ],
   };
 }
@@ -2379,16 +2483,37 @@ function view(tab, ctx) {
     };
   }
   // cost
-  const rows = sel.cost(rep);
-  if (rows.length < 2) return { question: "Is each call costing more under load?", subtitle: "Cost per turn · USD · lower is better",
-    chart: html`<div className="cs-notice">${keyed(costMissing(steps))}</div>`, compareable: false };
+  const harnessRows = sel.cost(rep);
+  const est = ctx.estimate;
+  if (harnessRows.length < 2 && !(est && est.rows.length > 0)) {
+    const loading = ctx.calls === undefined;
+    return { question: "Is each call costing more under load?", subtitle: "Cost per turn · USD · lower is better",
+      chart: html`<div className="cs-notice" aria-busy=${String(loading)}>${loading ? "Reading the calls file to price this run from its connection time…" : keyed(costMissing(steps))}</div>`, compareable: false };
+  }
+  const rows = harnessRows.length >= 2 ? harnessRows : est.rows;
+  const priced = harnessRows.length >= 2;
+  const tier = !priced && tierOf(est.tier);
   const i = Math.min(point, rows.length - 1), s = rows[i];
+  const pricing = !priced && html`
+    <div className="range-control pricing">
+      <label>Deepgram tier
+        <select className="cs-input" value=${est.tier} onChange=${e => ctx.setTier(e.target.value)}>
+          ${DEEPGRAM_PRICING.tiers.map(t => html`<option key=${t.id} value=${t.id}>${t.label} · $${rateOn(t, rep.started_at).toFixed(3)}/min</option>`)}
+        </select>
+      </label>
+      <label>Rate, $ per connected minute
+        <input className="cs-input" type="number" step="0.001" min="0" value=${est.rate} onChange=${e => ctx.setRate(e.target.value === "" ? null : Number(e.target.value))}/>
+      </label>
+      <small>${DEEPGRAM_PRICING.plan}, billed by ${DEEPGRAM_PRICING.basis}; ${DEEPGRAM_PRICING.source.replace("https://", "")} as of ${DEEPGRAM_PRICING.fetched}.${tier.promo ? ` Standard was $${tier.promo.toFixed(3)} through ${day(tier.promoUntil + "T12:00:00Z")}, $${tier.list.toFixed(3)} after.` : ""} ${ctx.rateOverride !== null ? html`<button className="text-button" onClick=${() => ctx.setRate(null)}>Reset to the published rate</button>` : ""}</small>
+    </div>`;
   return {
     question: "Is each call costing more under load?",
-    subtitle: `Cost per turn · USD at $${s.cost.rate_per_minute.toFixed(4)} per agent-minute · lower is better`,
-    chart: html`<${CostLine} rows=${rows} prev=${compare ? prevSteps : null} point=${i} onPick=${setPoint}/>`,
-    legend: [["var(--cs-chart-efficiency)", "This run, per turn"], compare && prevSteps && ["var(--cs-chart-comparison)", "Previous run"]].filter(Boolean),
-    controls: range(rows, "load"),
+    subtitle: priced
+      ? `Cost per turn · USD at $${s.cost.rate_per_minute.toFixed(4)} per agent-minute · lower is better`
+      : `Cost per turn · USD · priced from each call's connection time at $${est.rate.toFixed(3)} per minute, Deepgram's published ${tier.label.split(" — ")[0]} rate · lower is better`,
+    chart: html`<${CostLine} rows=${rows} prev=${compare && priced ? prevSteps : null} point=${i} onPick=${setPoint}/>`,
+    legend: [["var(--cs-chart-efficiency)", "This run, per turn"], compare && priced && prevSteps && ["var(--cs-chart-comparison)", "Previous run"]].filter(Boolean),
+    controls: html`<${Frag}>${pricing || null}${range(rows, "load") || null}<//>`,
     observation: html`<${Frag}>
       <small>SELECTED STEP</small>
       <strong>${s.name} · $${s.cost.usd_per_turn.toFixed(4)} per turn · $${(s.cost.usd_per_call || 0).toFixed(4)} per call</strong>
@@ -2403,7 +2528,7 @@ function view(tab, ctx) {
 }
 
 // The evidence behind a tab: every card the original page draws for it.
-function Evidence({ tab, rep, refs, id, calls, step, onOpenCall }) {
+function Evidence({ tab, rep, refs, id, calls, step, onOpenCall, estimate }) {
   const cards = {
     load: [ReportTable, SlowTurn, Timeline, AgentLatency, ComponentShare, ReferenceLines, PhaseTable, IntegrityCard],
     conversation: [ConversationCard, WERCard, BargeCard],
@@ -2424,7 +2549,7 @@ function Evidence({ tab, rep, refs, id, calls, step, onOpenCall }) {
     <${Frag}>
       <h2>${tabOf(tab).label}: the evidence</h2>
       <p>${intro}</p>
-      ${cards.map((C, i) => html`<${C} key=${tab + i} rep=${rep} refs=${refs} id=${id} calls=${calls} step=${step} onOpenCall=${onOpenCall}/>`)}
+      ${cards.map((C, i) => html`<${C} key=${tab + i} rep=${rep} refs=${refs} id=${id} calls=${calls} step=${step} onOpenCall=${onOpenCall} estimate=${estimate}/>`)}
     <//>`;
 }
 
@@ -2793,8 +2918,10 @@ function Report({ rep, id, refs, runs, prev, initialTab, initialDrawer, initialC
   const [suiteCalls, setSuiteCalls] = useState({});
 
   // The calls file is read the first time something needs a turn: the call
-  // logs tab, or the latency evidence with its representative slow turn.
-  const needCalls = tab === "calls" || (drawer === "evidence" && tab === "load");
+  // logs tab, the latency evidence with its representative slow turn, or the
+  // cost tab of a run that was never given a rate.
+  const unpriced = sel.cost(rep).length < 2;
+  const needCalls = tab === "calls" || (drawer === "evidence" && tab === "load") || (tab === "cost" && unpriced);
   useEffect(() => {
     if (!needCalls || calls !== undefined) return;
     fetch(API + `runs/${id}/calls.jsonl`)
@@ -2807,13 +2934,15 @@ function Report({ rep, id, refs, runs, prev, initialTab, initialDrawer, initialC
   const prevIndex = runs.find(r => r.id !== id && r.profile === rep.profile && r.scenario === rep.scenario &&
     new Date(r.started_at) < new Date(rep.started_at)) || null;
   const lines = rep.references || refs;
-  const g = glance(rep, prevIndex, prev);
+  const g = glance(rep, prevIndex, prev, estimate);
   const all = findings(rep, lines);
   const take = tab === "calls"
     ? (Array.isArray(calls) ? readCalls(calls) : calls === null ? EMPTY.calls : EMPTY.loading)
+    : tab === "cost" && estimate && estimate.rows.length >= 2 ? readCost(estimate.rows, estimate.rows)
     : (all.find(f => f.tab === tab) || all[0]);
   const v = view(tab, { rep, refs: lines, prev, point, setPoint, criterion, setCriterion, metric, setMetric, compare: compare && !!prev,
-    calls, callStep, setCallStep, callCohort, setCallCohort, query, setQuery, selectedCall, setSelectedCall, callLimit, setCallLimit });
+    calls, callStep, setCallStep, callCohort, setCallCohort, query, setQuery, selectedCall, setSelectedCall, callLimit, setCallLimit,
+    estimate, setTier, setRate, rateOverride });
   const steps = sel.steps(rep);
   const turns = steps.reduce((a, s) => a + (s.turns_total || 0), 0);
   const callCount = steps.reduce((a, s) => a + (s.calls_attempted || s.calls || 0), 0);
@@ -2919,7 +3048,7 @@ function Report({ rep, id, refs, runs, prev, initialTab, initialDrawer, initialC
           <button className="icon-button" onClick=${closeDrawer} aria-label="Close details">✕</button>
         </div>
         <div className="drawer-content">
-          ${drawer === "evidence" && html`<${Evidence} tab=${tab} rep=${rep} refs=${lines} id=${id} calls=${calls} step=${steps[Math.min(point, Math.max(steps.length - 1, 0))]} onOpenCall=${openCall}/>`}
+          ${drawer === "evidence" && html`<${Evidence} tab=${tab} rep=${rep} refs=${lines} id=${id} calls=${calls} step=${steps[Math.min(point, Math.max(steps.length - 1, 0))]} onOpenCall=${openCall} estimate=${estimate}/>`}
           ${drawer === "method" && html`<${Method} tab=${tab} refs=${lines}/>`}
           ${drawer === "findings" && html`<${Findings} items=${all} onPick=${f => { setTab(f.tab); setDrawer("evidence"); }}/>`}
         </div>
