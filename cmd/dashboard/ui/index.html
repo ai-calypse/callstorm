@@ -83,11 +83,45 @@
 <body>
 <div id="root"></div>
 
-<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
 <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js" crossorigin></script>
 <script>
 const { useState, useEffect } = React;
+
+// Report a failure to the server rather than to a console nobody is watching.
+function report(where, err) {
+  try {
+    fetch("/api/clienterror", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        where: where,
+        message: String((err && err.message) || err),
+        stack: String((err && err.stack) || ""),
+      }),
+    });
+  } catch (_) { /* reporting must never be the thing that breaks */ }
+}
+window.addEventListener("error", e => report("window", e.error || e.message));
+window.addEventListener("unhandledrejection", e => report("promise", e.reason));
+
+// A dashboard that renders and then vanishes tells its operator nothing. React
+// unmounts the whole tree when a render throws, so without this the symptom of
+// any bug is a blank page.
+class Boundary extends React.Component {
+  constructor(p) { super(p); this.state = { err: null }; }
+  static getDerivedStateFromError(err) { return { err: err }; }
+  componentDidCatch(err, info) { report("render", err); console.error(err, info); }
+  render() {
+    if (!this.state.err) return this.props.children;
+    return html`<div className="card">
+      <div className="eyebrow">The dashboard broke</div>
+      <h2>${String(this.state.err.message || this.state.err)}</h2>
+      <pre style=${{whiteSpace:"pre-wrap",fontSize:"11px",color:"var(--mute)",marginTop:"10px"}}>${String(this.state.err.stack || "")}</pre>
+    </div>`;
+  }
+}
 const html = htm.bind(React.createElement);
 
 const ms = n => (n || n === 0) ? Math.round(n) + "ms" : "-";
@@ -95,7 +129,7 @@ const pct = n => (n * 100).toFixed(n < 0.01 ? 1 : 1) + "%";
 const when = s => new Date(s).toLocaleString();
 
 function Pill({ v }) {
-  return html`<span class="pill ${v}">${v}</span>`;
+  return html`<span className="pill ${v}">${v}</span>`;
 }
 
 // Run history as a sparkline of worst p95 per run, oldest to newest. The whole
@@ -112,23 +146,23 @@ function Trend({ runs }) {
   const color = v => v === "fail" ? "var(--fail)" : v === "warn" ? "var(--warn)" : "var(--pass)";
 
   return html`
-    <div class="trend">
-      <div class="eyebrow">Worst p95 TTFA, last ${series.length} runs (oldest left)</div>
-      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">
-        <line x1=${PAD} y1=${H - 26} x2=${W - 12} y2=${H - 26} stroke="var(--rule)" stroke-width="1"/>
-        <text x="4" y=${y(max / 1.15) + 4} font-size="10" fill="var(--mute)">${Math.round(max / 1.15)}</text>
-        <polyline fill="none" stroke="var(--signal)" stroke-width="2" stroke-linejoin="round"
+    <div className="trend">
+      <div className="eyebrow">Worst p95 TTFA, last ${series.length} runs (oldest left)</div>
+      <svg viewBox="0 0 ${W} ${H}" style=${{width:"100%",height:"auto"}}>
+        <line x1=${PAD} y1=${H - 26} x2=${W - 12} y2=${H - 26} stroke="var(--rule)" strokeWidth="1"/>
+        <text x="4" y=${y(max / 1.15) + 4} fontSize="10" fill="var(--mute)">${Math.round(max / 1.15)}</text>
+        <polyline fill="none" stroke="var(--signal)" strokeWidth="2" strokeLinejoin="round"
           points=${series.map((r, i) => `${x(i)},${y(r.worst_p95_ms)}`).join(" ")}/>
         ${series.map((r, i) => html`
           <circle key=${r.id} cx=${x(i)} cy=${y(r.worst_p95_ms)} r="4.5"
-            fill=${color(r.verdict)} stroke="var(--surface)" stroke-width="2">
-            <title>${r.id}\n${Math.round(r.worst_p95_ms)}ms · ${r.verdict}</title>
+            fill=${color(r.verdict)} stroke="var(--surface)" strokeWidth="2">
+            <title>${r.id + "\n" + Math.round(r.worst_p95_ms) + "ms · " + r.verdict}</title>
           </circle>`)}
       </svg>
-      <div class="legend">
-        <span><i style="background:var(--pass)"></i>pass</span>
-        <span><i style="background:var(--warn)"></i>warn</span>
-        <span><i style="background:var(--fail)"></i>fail</span>
+      <div className="legend">
+        <span><i style=${{background:"var(--pass)"}}></i>pass</span>
+        <span><i style=${{background:"var(--warn)"}}></i>warn</span>
+        <span><i style=${{background:"var(--fail)"}}></i>fail</span>
       </div>
     </div>`;
 }
@@ -144,9 +178,9 @@ function ReportCard({ id }) {
       .then(setRep).catch(e => setErr(String(e)));
   }, [id]);
 
-  if (!id) return html`<div class="card empty">Pick a run.</div>`;
-  if (err) return html`<div class="card empty">Could not load ${id}: ${err}</div>`;
-  if (!rep) return html`<div class="card empty">Loading…</div>`;
+  if (!id) return html`<div className="card empty">Pick a run.</div>`;
+  if (err) return html`<div className="card empty">Could not load ${id}: ${err}</div>`;
+  if (!rep) return html`<div className="card empty">Loading…</div>`;
 
   const steps = rep.steps || [];
   const degraded = steps.filter(s => s.harness_degraded);
@@ -154,17 +188,17 @@ function ReportCard({ id }) {
   const anyBarge = steps.some(s => s.barge_in && s.barge_in.turns > 0);
 
   return html`
-    <div class="card">
-      <div class="eyebrow">Report card</div>
+    <div className="card">
+      <div className="eyebrow">Report card</div>
       <h2>${rep.profile} · ${rep.scenario}</h2>
-      <dl class="spec">
+      <dl className="spec">
         <div><dt>Run</dt><dd>${id}</dd></div>
         <div><dt>Started</dt><dd>${when(rep.started_at)}</dd></div>
         <div><dt>Duration</dt><dd>${Math.round(rep.duration_s)}s</dd></div>
         <div><dt>Target</dt><dd>${rep.target || "deepgram voice agent"}</dd></div>
       </dl>
 
-      <div class="tablewrap">
+      <div className="tablewrap">
         <table>
           <thead><tr>
             <th>Step</th><th>Conc</th><th>Setup</th><th>p50</th><th>p95</th><th>p99</th>
@@ -189,7 +223,7 @@ function ReportCard({ id }) {
       </div>
 
       ${degraded.length > 0 && html`
-        <div class="note">
+        <div className="note">
           <strong>Suspect.</strong> ${degraded.map(s => s.name).join(", ")} drifted past the 100ms
           pacing limit, so ${degraded.length > 1 ? "those steps measure" : "that step measures"} the
           load generator rather than the agent. The verdict grades the agent and should not be
@@ -198,10 +232,10 @@ function ReportCard({ id }) {
     </div>
 
     ${anyWER && html`
-      <div class="card">
-        <div class="eyebrow">Transcript accuracy</div>
+      <div className="card">
+        <div className="eyebrow">Transcript accuracy</div>
         <h2>What the agent heard</h2>
-        <div class="tablewrap">
+        <div className="tablewrap">
           <table>
             <thead><tr><th>Step</th><th>Mean</th><th>Worst turn</th><th>Errors</th><th>Words</th><th>S / D / I</th></tr></thead>
             <tbody>
@@ -220,10 +254,10 @@ function ReportCard({ id }) {
       </div>`}
 
     ${anyBarge && html`
-      <div class="card">
-        <div class="eyebrow">Interruption</div>
+      <div className="card">
+        <div className="eyebrow">Interruption</div>
         <h2>How fast it gave the floor back</h2>
-        <div class="tablewrap">
+        <div className="tablewrap">
           <table>
             <thead><tr><th>Step</th><th>Barge-ins</th><th>Yielded</th><th>p50</th><th>p95</th></tr></thead>
             <tbody>
@@ -254,27 +288,27 @@ function App() {
   }, []);
 
   return html`
-    <div class="wrap">
+    <div className="wrap">
       <header>
-        <span class="eyebrow">Callstorm</span>
+        <span className="eyebrow">Callstorm</span>
         <h1>Run history</h1>
-        <p class="sub">Every sweep this harness has produced, newest first. One run tells you how an
+        <p className="sub">Every sweep this harness has produced, newest first. One run tells you how an
           agent behaved once; the shape across runs is what says whether it is getting worse.</p>
       </header>
 
-      ${err && html`<div class="card empty">Could not load runs: ${err}</div>`}
+      ${err && html`<div className="card empty">Could not load runs: ${err}</div>`}
 
-      <div class="cols">
+      <div className="cols">
         <div>
           <${Trend} runs=${runs}/>
-          <div class="runs">
-            ${runs.length === 0 && !err && html`<div class="empty">No runs yet.</div>`}
+          <div className="runs">
+            ${runs.length === 0 && !err && html`<div className="empty">No runs yet.</div>`}
             ${runs.map(r => html`
-              <button key=${r.id} class="run" aria-current=${String(r.id === sel)}
+              <button key=${r.id} className="run" aria-current=${String(r.id === sel)}
                       onClick=${() => setSel(r.id)}>
-                <span class="id">${r.profile} · ${r.scenario}</span>
+                <span className="id">${r.profile} · ${r.scenario}</span>
                 <${Pill} v=${r.verdict}/>
-                <span class="meta">
+                <span className="meta">
                   ${when(r.started_at)} · peak ${r.peak_concurrency} · worst p95 ${ms(r.worst_p95_ms)}
                   ${r.harness_degraded ? " · harness suspect" : ""}
                   ${r.breakpoint ? ` · breaks at ${r.breakpoint}` : ""}
@@ -287,7 +321,7 @@ function App() {
     </div>`;
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(html`<${App}/>`);
+ReactDOM.createRoot(document.getElementById("root")).render(html`<${Boundary}><${App}/><//>`);
 </script>
 </body>
 </html>

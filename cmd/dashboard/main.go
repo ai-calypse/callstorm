@@ -40,6 +40,7 @@ func main() {
 	mux.HandleFunc("GET /api/runs", listRuns(*runsDir))
 	mux.HandleFunc("GET /api/runs/{id}", getRun(*runsDir))
 	mux.HandleFunc("GET /api/runs/{id}/calls", getCalls(*runsDir))
+	mux.HandleFunc("POST /api/clienterror", clientError)
 
 	pages, err := newFS()
 	if err != nil {
@@ -219,6 +220,25 @@ func readReport(path string) (*loadgen.Report, error) {
 		return nil, err
 	}
 	return &rep, nil
+}
+
+// clientError lets the page report a crash it could not otherwise show.
+//
+// A dashboard that renders and then goes blank tells its operator nothing, and
+// the one machine that can see the console belongs to whoever is looking at it.
+// Sending the failure to the server puts it in the same log as everything else.
+func clientError(w http.ResponseWriter, r *http.Request) {
+	var e struct {
+		Message string `json:"message"`
+		Stack   string `json:"stack"`
+		Where   string `json:"where"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&e); err != nil {
+		http.Error(w, "bad report", http.StatusBadRequest)
+		return
+	}
+	log.Printf("ui error in %s: %s\n%s", e.Where, e.Message, e.Stack)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func writeJSON(w http.ResponseWriter, v any) {
