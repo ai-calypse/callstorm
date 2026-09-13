@@ -375,6 +375,76 @@ round trips as exactly zero, and zero had been read as "no pong", dropping a
 third of a run's turns from the correction. Whether a pong came back is now
 recorded apart from its value.
 
+## What percentiles hide
+
+A step's percentiles answer how slow its slow turns were. Coval's and Hamming's
+guides on testing voice agents ask more of a load test than that, and most of
+it can be read from what a run already records:
+
+| figure | what it is | where it comes from |
+|---|---|---|
+| **Quality verdict** | Whether a step still did the job as well as the baseline, beside the verdict on speed. The first step it fails at is the quality breakpoint. | Scenario checks and the judge's task success, words misheard, talked-over turns, failed turns |
+| **Wait per turn** | The wait at each turn of the conversation, across a step's calls, with what the caller said on it. | The calls log |
+| **Wait bands** | A step's turns counted by the caller's wait: up to 800ms, to 1.2s, to 2s, and over. | The calls log |
+| **Repeated replies** | Replies that said again what the agent already said earlier in the same call. | The agent's words |
+| **Slow calls against done** | Whether judged calls with any wait past 1.2s did the job less often than the rest. | The judge's verdicts and the calls log |
+| **Leading silence** | How long a reply stays silent after its audio starts arriving, before the first sound a caller could hear. Audible TTFA adds it to TTFA. | The agent's audio, as it arrives |
+
+**Quality is scored apart from speed.** An agent that answers as fast as ever
+while it stops finishing the task passes a latency verdict. Each step is held to
+the baseline step, and in a matrix to the clean cohort's:
+
+- **Task success.** A scenario check's or the judge's pass rate dropping more
+  than 5 points warns and more than 10 fails, Hamming's gate for task completion
+  under load (load testing guide, May 2026).
+- **Hearing.** Words misheard rising more than 2 points warns, Hamming's
+  regression tolerance; a rise that also leaves the step above 15% fails, where
+  Hamming calls recognition poor.
+- **Interruptions.** Talked-over turns rising more than 5 points warns; above
+  10% of turns fails, Hamming's line for poor.
+- **Failed turns.** Held to Hamming's error-rate bands rather than the
+  baseline: more than 0.5% of turns warns, more than 1% fails.
+
+A rate is compared only with 30 checks on both sides, which is Callstorm's own
+floor, and each step lists what it compared. A pass that could compare only
+failed turns says little, and says so. A judge sampling four calls a step never
+reaches 30, so task success enters the verdict only when enough calls are judged.
+
+**The wait per turn is where a slow moment shows.** On the Deepgram suite the
+closing line, "Alright, that works. Thanks for sorting it out.", was the slowest
+turn in every scenario: p95 about 3.2s in four of them against about 1s on the
+other turns. Pooled into a step's p95, one slow turn in five did not stand out.
+
+**Leading silence is measured the way Coval's time-to-first-audio benchmark
+defines onset** (September 2026): the start of the first 10ms window, stepped 1ms
+at a time, whose RMS is above 0.01 of full scale. A provider can send its first
+byte quickly and still keep a caller waiting through silence; Coval measured one
+sending a median 225ms of it. Each reply is placed on its own playout, so a chunk
+that arrives late adds its gap too, as it would for a caller. Checked against the
+reference agent with `-lead-silence 225ms`:
+
+| step | silence p50 | silence p95 | audible TTFA p50 |
+|---|---|---|---|
+| 1 at once | 216ms | 216ms | 717ms |
+| 2 at once | 216ms | 216ms | 717ms |
+| 3 at once | 216ms | 245ms | 717ms |
+
+216ms is the answer the definition gives, not an error. The first window loud
+enough starts 9ms before the tone, once it holds a few samples of it. The 245ms
+turn is a chunk that arrived late on a busy machine, which a caller would have
+heard as silence.
+
+**Runs placed before these figures existed gain them from their calls logs**,
+except leading silence, which needs the audio:
+
+```bash
+./bin/callstorm -refresh runs/<run>.json        # one report
+./bin/callstorm -refresh runs/<directory>       # every report in it
+```
+
+Latency and its verdict are left as written. The analysis is rewritten after,
+when `GEMINI_API_KEY` is set, since it reads the figures that changed.
+
 ## Questions a run answers
 
 Every report on the dashboard opens with plain-language questions: the ones a
@@ -387,20 +457,25 @@ Each answer follows a fixed rule, so it can be checked against the report:
 | question | how it's answered |
 |---|---|
 | How many calls at the same time can it take before callers notice? | The first level where the slowest callers (p95) wait more than twice as long as at normal load, or fewer than 97 calls in 100 connect. The answer is the range between the last level that held and the first that didn't. |
+| Does it get worse at the job before it gets too slow? | The first level whose quality verdict fails, against the first whose speed verdict does. A speed failure with every busier level passing is not counted as the load. |
 | Does it slow down gradually or all of a sudden? | If one jump between neighbouring levels holds 60% or more of the total slowdown, it was sudden. When that jump spans a doubling of load, the answer says the test may have missed a steady climb in between. |
 | Do all callers get slower, or only some? | The typical caller (p50) against the slowest (p95), each as a multiple of normal. If the slowest grows at least 0.3 more and the typical stays under 1.2 times, only some calls are stuck. |
 | Do new kinds of problems show up when busy? | Every turn is split into answered normally, agent cut the caller off, no answer in time, other errors, and call never connected, and each kind is reported where it first appears. |
-| Where does the waiting time go? | A typical turn split into the network round trip, the agent noticing the caller stopped, and the agent thinking up its reply, and which part grew most with load. |
+| Where does the waiting time go? | A typical turn split into the network round trip, the agent noticing the caller stopped, the agent thinking up its reply, and, where measured, silence at the start of the reply; and which part grew most with load. |
+| Which moment in a call keeps callers waiting longest? | The turn of the conversation with the highest p95 at the heaviest level, when it is at least 1.5 times the middle of the other turns. Slow at normal load too means it comes from what is said on it. |
+| How often does a caller wait long enough to notice? | The share of turns past 1.2 seconds, where Coval says callers start repeating themselves; a rise of 2 points counts as load making it worse. |
 | Can it cope with a sudden rush as well as a slow build-up? | A spike step against a built-up step at the same load. Within 1.2 times counts as coping. |
 | After a rush, how long until it's back to normal? | Seconds from the start of the recovery step to the first call from which every later call's typical wait stays within 1.2 times normal, with none failing. |
 | Does it get slower the longer it runs? | The steady (soak) step split in half by start time; a 15% change in the typical wait counts. |
 | Does it still hear people correctly when busy? | Words misheard at each load, against the exact script the test caller spoke. A rise of 2 points counts. |
 | Does it still do its job when busy? | Each scenario node's assertion pass rate at each load, or the judge's pass rate when no node is checked. A drop of 10 points counts. |
+| Do the calls that kept people waiting go worse? | Judged calls with any wait past 1.2 seconds against the rest; a gap of 10 points counts. Needs 8 judged calls and both groups. |
 | Does it talk over people more when busy? | The share of turns where the agent spoke before the caller finished. A rise of 5 points counts. |
 | Does it talk longer or faster when busy? | Seconds of agent speech per turn, and words per minute. A 15% change counts. |
+| Does it repeat itself more when busy? | The share of replies repeating an earlier one in the same call; a rise of 2 points counts, and past 3% is Hamming's line for repeated questions. |
 | How much worse on a bad network connection? | From an impairment matrix: which network conditions broke it, and the worst step's wait as a multiple of the same step on a clean network. |
 | Does each turn cost more when busy? | Price per turn, or billed call time per turn without a rate. A 5% rise counts. |
-| Did the test itself keep up? | How far the test caller fell behind real time in each step (past 100ms a step is doubtful), and on distributed runs whether every call came back exactly once. |
+| Did the test itself keep up? | How far the test caller fell behind real time in each step (past 100ms a step is doubtful), on distributed runs whether every call came back exactly once, and how many turns the thinnest step's percentiles rest on: a p95 from fewer than 20 is its slowest turn, and a p99 needs 100. |
 | Would the same test give the same answer again? | Earlier runs with the same scenario and load plan fingerprints against the same agent. Within 10% on the slowest waits at normal and heaviest load counts as repeatable. |
 
 A run whose test machine fell behind real time opens with a caution that its
@@ -442,6 +517,16 @@ and listed as dropped, with the number, so an invented figure never reaches a
 reader looking like a measured one. Small counts written without a unit are
 exempt. Each analysis records the model, when it was written, and hashes of the
 instructions and the data it read.
+
+**It does not repeat itself, or the rest of the page.** Each insight has to be
+a different finding. One that cites evidence an earlier insight already cited,
+or reuses its title, is dropped and listed as a repeat. Its instructions leave
+out what the plain-language answers already say beside it -- the slowest turn,
+long waits, quality, whether the test kept up -- unless it connects them to
+something they cannot show. A suite's analysis keeps to findings across its
+scenarios, since each part carries its own. And an analysis whose data,
+instructions and model have not changed is not written again: asking twice
+would only put a second wording of the same answer on the page.
 
 `-insights-model` picks the model; the default is Gemini's generally available
 Flash model. An analysis that cannot be written is reported and never fails the
