@@ -413,6 +413,136 @@ and corrupt the measurement the event is reporting.
 `cmd/fakekafka` runs a real Kafka protocol implementation in-process, so the
 pipeline is runnable and testable without Docker or a JVM.
 
+## Network impairment
+
+```bash
+docker build --target impair -t callstorm-impair:dev .
+kind load docker-image callstorm-impair:dev --name callstorm
+kubectl apply -f deploy/k8s/60-impair-job.yaml
+```
+
+`-impairments profiles/impairments.json` runs the load profile once per network
+condition and reports a grid of load against network. One pod places every call
+itself and reshapes its own interface with `tc netem` between cohorts:
+
+| profile | loss | jitter | added delay |
+|---|---|---|---|
+| `clean` | 0% | 0ms | 0ms |
+| `light` | 1% | 20ms | +100ms |
+| `moderate` | 3% | 50ms | +100ms |
+| `severe` | 5% | 100ms | +200ms |
+
+**Clean always runs first.** An impaired cohort is scored against the clean
+cohort's baseline from minutes earlier, not its own: a severe network measured
+against a severe-network baseline passes, and says nothing about what the
+network cost. A file without a `clean` profile gets one; a `clean` that sets
+any impairment is refused.
+
+**Cohorts run one after another.** Side by side, the target would carry every
+cohort's calls at once and each cohort's latency would include load it did not
+place.
+
+**Every cohort records the command exactly as it ran, and the kernel's answer.**
+`tc qdisc show` is read back after each change, and a cohort whose interface
+does not show the netem it asked for is an error rather than a clean run with an
+impaired label.
+
+**Impairment is egress only, on the caller's side.** It is a bad connection at
+the customer's end. Delay on the uplink should land in *endpointing*: the agent
+hears the caller stop late, then replies at its usual speed.
+
+**Over a WebSocket target, every cell is a latency.** WebSocket is TCP, so a
+dropped packet is retransmitted rather than lost, and nothing in the grid says
+how a call sounded.
+
+**Measured against the in-cluster reference agent** (500ms injected TTFA, 300ms
+of it think/speak), with `scenarios/graph-ref.json`, c2 and c8:
+
+| cohort | network | p95 c2 | p95 c8 | where it went |
+|---|---|---|---|---|
+| clean | none | 507ms | 509ms | |
+| delay-100 | +100ms | 604ms (1.19x) | 607ms (1.19x) | the injected 100ms, to within 3ms |
+| loss-3 | 3% loss | 503ms (0.99x) | 508ms (1.00x) | nothing |
+| jitter-50 | +100ms ±50ms | 2719ms (5.36x) | 2833ms (5.57x) | a queue in the caller's send buffer |
+| light | +100ms ±20ms, 1% | 863ms (1.53x) | 794ms (1.50x) | endpointing +124ms at p50, think/speak +0 |
+| moderate | +100ms ±50ms, 3% | 3550ms (6.29x) | 3059ms (5.80x) | endpointing |
+| severe | +200ms ±100ms, 5% | 7056ms (12.49x) | 6589ms (12.49x) | endpointing |
+
+Delay lands where it should, in endpointing. The agent hears the caller stop
+late, then replies at its usual speed: think/speak held at 300ms in every cohort.
+
+**Jitter, not loss, makes the multi-second cells.** 3% loss alone moved nothing.
+The same 100ms delay with ±50ms of jitter added made p95 five times worse. netem
+draws each packet's delay independently, so jitter reorders packets. TCP read
+that reordering as congestion. `ss -tin` inside the calling pod during that
+cohort showed a congestion window of 2 to 5 packets and 18 to 72KB of audio
+unsent in the send buffer, 0.4 to 1.5 seconds of 24kHz speech. During the
+loss-only cohort the send queue was empty.
+
+The latency was not building up over the call: moderate's median TTFA was
+2.4s on turn one and 2.3s on turn five.
+
+**Treat the jittered rows as an upper bound.** Real paths rarely reorder one
+flow the way per-packet netem jitter does, so these rows overstate what a bad
+caller network does to a WebSocket agent. Delay-only and loss-only cohorts are
+the clean calibrations.
+
+The calibration run's JSON was lost when its pod exited before it was copied
+out; its terminal report is kept in `runs/impair-calib/`. The matrix run is in
+`runs/impair/`.
+
+The matrix refuses `-distributed` (the fleet's calls leave from pods this
+interface does not cover), `-kafka` and `-judge` (both key on step names, which
+repeat in every cohort).
+
+## Scenario graph
+
+A turn is a node. It can carry an `id`, an `expect` on the agent's reply, and
+branches that `goto` another node:
+
+```json
+{
+  "id": "number",
+  "say": "Sure, it's four four eight one two.",
+  "expect": { "said_any": ["replacement"], "not_said": ["refund"] },
+  "branch": [
+    { "if_agent_said": "order number", "say": "I just gave it to you.", "goto": "number" }
+  ]
+}
+```
+
+Every node is scored per step: visits whose reply met the assertion over visits
+to a node that has one. Completion can hold while one node collapses, and a
+call-level rate would average that node in with the ones that held.
+
+- **An assertion is a substring, like a branch.** A failed node is explained by
+  pointing at the transcript, and the first failing reply is kept as evidence.
+- **A visit with no reply fails.** A node that times out has collapsed.
+- **Unvisited nodes stay in the table with zero visits.** In a graph, a branch
+  that never fired is a finding.
+- **A graph that can loop must set `max_turns`.** A call that never ends is a
+  hung worker, not a result.
+- **The next node is chosen before the line is spoken**, from the agent's
+  previous reply, so a barge-in on the next node still arms against this turn.
+
+`scenarios/graph-ref.json` is the known-answer version. refagent's replies are
+fixed, so the branch, the jump and the rates are decided in advance: `open`
+100%, `number` 100% over two visits a call, `refund` 0%, and `close` unscored.
+Against a local refagent it reported exactly that.
+
+## Harness event integrity
+
+This checks Callstorm's pipeline, not the target's. Callstorm does not receive
+the target's webhooks.
+
+On a distributed run, every step counts calls dispatched, calls that came back,
+duplicates, calls that never came back, and results that arrived after their
+step closed. Delivery is at-least-once by design, so a duplicate is expected
+when a worker dies between publishing and committing. A duplicate is now dropped
+by `(step, seq)`; before this, it would have put one call's turns in a step twice
+and ended the step a call early. With `-kafka`, turn events published and
+dropped are recorded beside it.
+
 ## A real finding, already
 
 On one run against Deepgram the agent endpointed after a 300ms pause following
@@ -440,7 +570,8 @@ cmd/refagent         calibrated reference target
 cmd/collector        consumes turn events, reports consumer lag
 cmd/fakekafka        in-process Kafka broker for local runs
 internal/worker      one caller: websocket, turn state machine, audio pump
-internal/loadgen     load phases, per-step aggregation, verdicts, task-success join
+internal/loadgen     load phases, per-step aggregation, verdicts, task-success join, matrix, nodes
+internal/impair      netem profiles, tc commands and their readback
 internal/metrics     the clock: event log and metric derivation
 internal/audio       frame math, playout, call recorder
 internal/chart       sweep SVG
