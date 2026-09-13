@@ -175,6 +175,19 @@ type TurnMetric struct {
 	// told apart from a turn that never tried.
 	BargedIn bool `json:"barged_in,omitempty"`
 
+	// Node is the scenario node this turn spoke. In a graph the same node can
+	// be visited more than once, or not at all, so the turn number alone no
+	// longer says which part of the conversation a turn was.
+	Node string `json:"node,omitempty"`
+
+	// ExpectChecked marks a turn whose node carries an assertion; ExpectMet is
+	// whether the agent's reply satisfied it, and ExpectMiss says why not. A
+	// turn with no reply at all fails its assertion: a node that times out has
+	// collapsed, and scoring it as a pass would hide exactly that.
+	ExpectChecked bool   `json:"expect_checked,omitempty"`
+	ExpectMet     bool   `json:"expect_met,omitempty"`
+	ExpectMiss    string `json:"expect_miss,omitempty"`
+
 	Failed     bool   `json:"failed"`
 	FailReason string `json:"fail_reason,omitempty"`
 

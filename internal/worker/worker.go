@@ -168,22 +168,45 @@ func Run(ctx context.Context, cfg Config) (*Result, error) {
 		}
 	}
 
-	for i, t := range cfg.Scenario.Turns {
-		// A turn that barges in changes the turn before it: that reply has to
-		// be cut short so the interruption lands while the agent is talking.
-		var interruptAfter time.Duration
-		if i+1 < len(cfg.Scenario.Turns) {
-			interruptAfter = cfg.Scenario.Turns[i+1].BargeIn()
-		}
-		barging := t.BargeIn() > 0
+	// Walk the scenario graph. The node after this one is decided before this
+	// line is spoken -- the branch is chosen on the agent's previous reply -- so
+	// a barge-in on the next node can still arm against this turn's reply.
+	nodes := cfg.Scenario.Turns
+	limit := cfg.Scenario.TurnLimit()
+	for n, i := 0, 0; n < limit && i < len(nodes); n++ {
+		t := nodes[i]
 
-		say, matched := t.Choose(w.lastAgentText)
+		say, matched, jump := t.Choose(w.lastAgentText)
 		if matched != "" {
 			w.printf("  (branch: agent said %q)\n", matched)
 		}
+		next := i + 1
+		if jump != "" {
+			next = cfg.Scenario.Index(jump)
+		}
 
-		m := w.runTurn(ctx, i+1, utterances[say], say, interruptAfter, barging)
+		// A turn that barges in changes the turn before it: that reply has to
+		// be cut short so the interruption lands while the agent is talking.
+		var interruptAfter time.Duration
+		if next < len(nodes) && n+1 < limit {
+			interruptAfter = nodes[next].BargeIn()
+		}
+		barging := t.BargeIn() > 0
+
+		m := w.runTurn(ctx, n+1, utterances[say], say, interruptAfter, barging)
 		m.Branch = matched
+		m.Node = t.ID
+		if t.Expect != nil {
+			m.ExpectChecked = true
+			if m.AgentText == "" {
+				m.ExpectMiss = "no reply"
+				if m.FailReason != "" {
+					m.ExpectMiss += ": " + m.FailReason
+				}
+			} else {
+				m.ExpectMet, m.ExpectMiss = t.Expect.Check(m.AgentText)
+			}
+		}
 		m.Finalize()
 		turns = append(turns, m)
 		if cfg.OnTurn != nil {
@@ -192,6 +215,7 @@ func Run(ctx context.Context, cfg Config) (*Result, error) {
 		if m.Failed && m.FailReason != "turn timeout" {
 			break
 		}
+		i = next
 	}
 
 	w.log.Mark(metrics.CallEnd, 0, "")
