@@ -33,6 +33,23 @@ docker run -d --name callstorm-dashboard -p 8090:8090   -v "$PWD/runs:/runs:ro" 
 
 `go run ./cmd/dashboard` works for the same reason and needs no image.
 
+### Publishing it
+
+The run artifacts are committed, so the history needs no server to read them.
+
+```bash
+go run ./cmd/dashboard -runs runs -export dist
+```
+
+That writes `dist/` as plain files -- the same JSON the API serves, under the
+same paths the page already requests -- so it deploys anywhere static hosting
+works. `.github/workflows/pages.yml` publishes it to GitHub Pages on every push
+to main, and `vercel.json` builds it the same way. Fetches are relative, so the
+page works at a domain root and under a project subpath alike.
+
+The server is still the way to watch a run arriving live; the export is how
+someone else reads it afterwards.
+
 Callers used to be goroutines in one process, which meant scaling that binary
 to ten replicas would have run ten independent sweeps, each with its own
 baseline. Workers now take assignments from Kafka and publish results back.

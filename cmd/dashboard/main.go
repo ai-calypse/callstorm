@@ -33,13 +33,22 @@ func main() {
 	var (
 		runsDir = flag.String("runs", "runs", "directory of run artifacts")
 		addr    = flag.String("addr", ":8090", "listen address")
+		export  = flag.String("export", "", "write a static site to this directory and exit")
 	)
 	flag.Parse()
 
+	if *export != "" {
+		if err := exportStatic(*runsDir, *export); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/runs", listRuns(*runsDir))
-	mux.HandleFunc("GET /api/runs/{id}", getRun(*runsDir))
-	mux.HandleFunc("GET /api/runs/{id}/calls", getCalls(*runsDir))
+	// Paths carry .json so the very same requests work against a static
+	// export, where a file server has nothing but files to offer.
+	mux.HandleFunc("GET /api/runs.json", listRuns(*runsDir))
+	mux.HandleFunc("GET /api/runs/{id}.json", getRun(*runsDir))
 	mux.HandleFunc("POST /api/clienterror", clientError)
 
 	pages, err := newFS()
@@ -60,6 +69,78 @@ func newFS() (http.FileSystem, error) {
 		return nil, err
 	}
 	return http.FS(sub), nil
+}
+
+// exportStatic writes the dashboard as plain files.
+//
+// The run artifacts are already in the repository, so the history needs no
+// server to read them: the same requests the API answers can be answered by a
+// directory. That makes the dashboard publishable anywhere static hosting works,
+// while the server stays the way to watch runs arriving live.
+func exportStatic(runsDir, dst string) error {
+	if err := os.MkdirAll(filepath.Join(dst, "api", "runs"), 0o755); err != nil {
+		return err
+	}
+
+	page, err := ui.ReadFile("ui/index.html")
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(dst, "index.html"), page, 0o644); err != nil {
+		return err
+	}
+	// GitHub Pages otherwise runs the output through Jekyll, which drops files
+	// and directories whose names begin with an underscore.
+	if err := os.WriteFile(filepath.Join(dst, ".nojekyll"), nil, 0o644); err != nil {
+		return err
+	}
+
+	runs := collect(runsDir)
+	index, err := json.Marshal(runs)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(dst, "api", "runs.json"), index, 0o644); err != nil {
+		return err
+	}
+
+	for _, r := range runs {
+		src, err := resolve(runsDir, r.ID, ".json")
+		if err != nil {
+			continue
+		}
+		b, err := os.ReadFile(src)
+		if err != nil {
+			continue
+		}
+		if err := os.WriteFile(filepath.Join(dst, "api", "runs", r.ID+".json"), b, 0o644); err != nil {
+			return err
+		}
+	}
+
+	log.Printf("exported %d runs to %s", len(runs), dst)
+	return nil
+}
+
+// collect reads every load report in the run directory.
+func collect(dir string) []summary {
+	reports, _ := filepath.Glob(filepath.Join(dir, "*.json"))
+	nested, _ := filepath.Glob(filepath.Join(dir, "*", "*.json"))
+	reports = append(reports, nested...)
+
+	out := []summary{}
+	for _, p := range reports {
+		if strings.HasSuffix(p, "-judgements.json") {
+			continue
+		}
+		rep, err := readReport(p)
+		if err != nil || rep.Profile == "" {
+			continue
+		}
+		out = append(out, summarize(p, rep))
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].StartedAt.After(out[j].StartedAt) })
+	return out
 }
 
 // summary is one row of run history: enough to decide which run to open,
@@ -84,30 +165,7 @@ type summary struct {
 
 func listRuns(dir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		reports, err := filepath.Glob(filepath.Join(dir, "*.json"))
-		if err != nil {
-			httpError(w, err)
-			return
-		}
-		// Nested directories hold earlier runs too.
-		nested, _ := filepath.Glob(filepath.Join(dir, "*", "*.json"))
-		reports = append(reports, nested...)
-
-		out := []summary{}
-		for _, p := range reports {
-			// Sidecars are not reports.
-			if strings.HasSuffix(p, "-judgements.json") {
-				continue
-			}
-			rep, err := readReport(p)
-			if err != nil || rep.Profile == "" {
-				// A single-call artifact has no profile; it is not run history.
-				continue
-			}
-			out = append(out, summarize(p, rep))
-		}
-		sort.Slice(out, func(i, j int) bool { return out[i].StartedAt.After(out[j].StartedAt) })
-		writeJSON(w, out)
+		writeJSON(w, collect(dir))
 	}
 }
 
@@ -169,29 +227,6 @@ func getRun(dir string) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(b)
-	}
-}
-
-func getCalls(dir string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		p, err := resolve(dir, r.PathValue("id")+"-calls", ".jsonl")
-		if err != nil {
-			writeJSON(w, []any{})
-			return
-		}
-		b, err := os.ReadFile(p)
-		if err != nil {
-			writeJSON(w, []any{})
-			return
-		}
-		out := []json.RawMessage{}
-		for _, line := range strings.Split(string(b), "\n") {
-			if strings.TrimSpace(line) == "" {
-				continue
-			}
-			out = append(out, json.RawMessage(line))
-		}
-		writeJSON(w, out)
 	}
 }
 

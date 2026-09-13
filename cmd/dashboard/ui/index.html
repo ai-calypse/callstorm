@@ -78,6 +78,18 @@
   .legend { display:flex; gap:16px; flex-wrap:wrap; font-size:11px; color:var(--ink-2); margin-top:8px; }
   .legend i { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:6px; }
   a { color:var(--signal); }
+
+  .hero { padding-block:26px 4px; }
+  .thesis { margin:10px 0 0; font-family:"IBM Plex Serif", Georgia, serif; font-size:17px; line-height:1.55; color:var(--ink-2); max-width:70ch; }
+  .caps { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:1px 26px; margin-top:22px; }
+  .caps div { border-top:1px solid var(--rule); padding-block:9px 11px; }
+  .caps dt { font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--signal); }
+  .caps dd { margin:4px 0 0; font-size:12px; color:var(--ink-2); line-height:1.5; }
+  .foundation { margin-top:20px; border-left:3px solid var(--signal); padding:12px 14px; background:var(--surface); font-size:12.5px; color:var(--ink-2); line-height:1.6; max-width:76ch; }
+  .foundation b { color:var(--ink); }
+  .links { margin-top:16px; display:flex; gap:18px; flex-wrap:wrap; font-size:12px; }
+  .subhead { padding-block:26px 0; border-bottom:none; }
+  .subhead h1 { font-size:20px; }
 </style>
 </head>
 <body>
@@ -92,7 +104,7 @@ const { useState, useEffect } = React;
 // Report a failure to the server rather than to a console nobody is watching.
 function report(where, err) {
   try {
-    fetch("/api/clienterror", {
+    fetch("api/clienterror", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -174,7 +186,7 @@ function ReportCard({ id }) {
   useEffect(() => {
     if (!id) return;
     setRep(null); setErr(null);
-    fetch(`/api/runs/${id}`).then(r => r.ok ? r.json() : Promise.reject(r.status))
+    fetch(`api/runs/${id}.json`).then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(setRep).catch(e => setErr(String(e)));
   }, [id]);
 
@@ -282,18 +294,49 @@ function App() {
   const [err, setErr] = useState(null);
 
   useEffect(() => {
-    fetch("/api/runs").then(r => r.json())
+    fetch("api/runs.json").then(r => r.json())
       .then(rs => { setRuns(rs); if (rs.length) setSel(rs[0].id); })
       .catch(e => setErr(String(e)));
   }, []);
 
   return html`
     <div className="wrap">
-      <header>
-        <span className="eyebrow">Callstorm</span>
+      <header className="hero">
+        <span className="eyebrow">Load testing and observability for voice AI agents</span>
+        <h1>Callstorm</h1>
+        <p className="thesis">It places synthetic calls against a voice agent, speaks to it with real
+          text-to-speech, listens to what comes back, and stamps every instant on both sides &mdash;
+          to answer two questions rather than one: <b>at what concurrency does this agent stop
+          meeting its own baseline</b>, and <b>did it actually do its job</b>.</p>
+
+        <dl className="caps">
+          <div><dt>Latency</dt><dd>Time to first audio, split into endpointing and think+speak. Percentiles per step, and the breakpoint scored against the run's own baseline rather than a number someone else picked.</dd></div>
+          <div><dt>Accuracy</dt><dd>Word error rate against the caller's script. Callstorm generated that audio from known text, so the reference is ground truth rather than a second transcription.</dd></div>
+          <div><dt>Task success</dt><dd>An LLM judge scores plain-language criteria, and every verdict must quote the turn it was decided on &mdash; so it can be checked rather than trusted.</dd></div>
+          <div><dt>Interruption</dt><dd>The caller cuts in mid-reply and the run records how long the agent kept talking, calibrated against a known injected yield.</dd></div>
+          <div><dt>Personas</dt><dd>Pacing rather than costume: a caller who pauses mid-thought is what turn detection actually reacts to, and it catches endpointing tuned too tight.</dd></div>
+          <div><dt>Branching</dt><dd>The caller responds to what the agent said instead of reciting. Every branch is synthesized before the call, so no speech latency lands inside the measurement.</dd></div>
+          <div><dt>Scale</dt><dd>A dispatcher hands calls to a Kubernetes worker fleet over Kafka, autoscaled on queue depth and chaos-tested by killing pods mid-run.</dd></div>
+          <div><dt>Observability</dt><dd>Prometheus native histograms and Grafana while a run happens; these report cards afterwards.</dd></div>
+        </dl>
+
+        <p className="foundation">Two measurements are <b>calibrated against known answers</b>:
+          latency, worst error <b>3.3&nbsp;ms</b> across five concurrency levels, and barge-in yield,
+          <b>15&nbsp;ms</b> at three concurrent callers. That is the foundation. A harness whose
+          numbers have never been checked against something it already knows cannot be trusted about
+          anything else &mdash; which is also why a run reports its own pacing drift, and marks a step
+          suspect when this machine rather than the agent was the limit.</p>
+
+        <div className="links">
+          <a href="https://github.com/ai-calypse/callstorm">Source on GitHub</a>
+        </div>
+      </header>
+
+      <header className="subhead">
+        <span className="eyebrow">Every sweep, newest first</span>
         <h1>Run history</h1>
-        <p className="sub">Every sweep this harness has produced, newest first. One run tells you how an
-          agent behaved once; the shape across runs is what says whether it is getting worse.</p>
+        <p className="sub">One run tells you how an agent behaved once; the shape across runs is what
+          says whether it is getting worse.</p>
       </header>
 
       ${err && html`<div className="card empty">Could not load runs: ${err}</div>`}

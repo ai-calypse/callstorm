@@ -1,0 +1,6 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "go run ./cmd/dashboard -runs runs -export dist",
+  "outputDirectory": "dist",
+  "framework": null
+}
