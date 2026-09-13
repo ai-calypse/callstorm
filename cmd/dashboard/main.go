@@ -51,6 +51,9 @@ func main() {
 	// A wildcard has to be a whole path segment, so the extension is stripped
 	// in the handler rather than written into the pattern.
 	mux.HandleFunc("GET /api/runs/{id}", getRun(*runsDir))
+	// The calls file beside a report: every turn's words and instants, one
+	// call per line. The report summarises it; the transcript view reads it.
+	mux.HandleFunc("GET /api/runs/{id}/calls.jsonl", getCalls(*runsDir))
 	// The written analysis of a run, and of a suite of runs, for runs that have
 	// one. Both dashboards read these; neither writes them.
 	mux.HandleFunc("GET /api/runs/{id}/insights.json", getInsights(*runsDir, "id"))
@@ -136,6 +139,21 @@ func exportStatic(runsDir, dst string) error {
 			if err := copyInto(ins, filepath.Join(dst, "api", "runs", r.ID, "insights.json")); err != nil {
 				return err
 			}
+		}
+		// The calls file, at the same path the server answers, for runs that kept one.
+		calls, err := resolve(runsDir, r.ID+"-calls", ".jsonl")
+		if err != nil {
+			continue
+		}
+		c, err := os.ReadFile(calls)
+		if err != nil {
+			continue
+		}
+		if err := os.MkdirAll(filepath.Join(dst, "api", "runs", r.ID), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(dst, "api", "runs", r.ID, "calls.jsonl"), c, 0o644); err != nil {
+			return err
 		}
 	}
 	for _, s := range suitesOf(runs) {
@@ -299,6 +317,19 @@ func getRun(dir string) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(b)
+	}
+}
+
+// getCalls serves the calls file recorded beside a report, for runs that kept one.
+func getCalls(dir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		p, err := resolve(dir, r.PathValue("id")+"-calls", ".jsonl")
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/x-ndjson")
+		http.ServeFile(w, r, p)
 	}
 }
 

@@ -1,0 +1,53 @@
+{
+  "description": "Optional palette candidates transcribed from the user-provided design-system.zip reference. Not part of the core theme.",
+  "families": {
+    "Rose": {
+      "tint": "#f8e8ec",
+      "fill": "#f4c6d3",
+      "stroke": "#d094a6",
+      "ink": "#6a4751"
+    },
+    "Coral": {
+      "tint": "#f9e9e5",
+      "fill": "#fcc6b8",
+      "stroke": "#d29788",
+      "ink": "#6b4940"
+    },
+    "Butter": {
+      "tint": "#f8f4de",
+      "fill": "#f5e9b0",
+      "stroke": "#baac68",
+      "ink": "#5a5332"
+    },
+    "Mint": {
+      "tint": "#e2f1ea",
+      "fill": "#c0e9d6",
+      "stroke": "#7ab79c",
+      "ink": "#375b4c"
+    },
+    "Aqua": {
+      "tint": "#e0f1f1",
+      "fill": "#b9e4e6",
+      "stroke": "#6bb6ba",
+      "ink": "#2e5b5d"
+    },
+    "Sky": {
+      "tint": "#e1f0f6",
+      "fill": "#c2e4f4",
+      "stroke": "#74b1cd",
+      "ink": "#335868"
+    },
+    "Periwinkle": {
+      "tint": "#ebebf9",
+      "fill": "#cdcdf1",
+      "stroke": "#a2a2d6",
+      "ink": "#4f4f6d"
+    },
+    "Mauve": {
+      "tint": "#f6e8ef",
+      "fill": "#dfc1d0",
+      "stroke": "#ba90a7",
+      "ink": "#674759"
+    }
+  }
+}

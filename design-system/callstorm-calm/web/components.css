@@ -1,0 +1,59 @@
+/* Import theme.css before this file. Components are opt-in via cs-* classes. */
+.cs-app { margin: 0; color: var(--cs-ink); background: var(--cs-canvas); font: 400 1rem/1.6 var(--cs-font-sans); }
+.cs-app *, .cs-app *::before, .cs-app *::after { box-sizing: border-box; }
+.cs-app button, .cs-app input, .cs-app select, .cs-app textarea { font: inherit; }
+.cs-app button, .cs-app a { -webkit-tap-highlight-color: transparent; }
+.cs-page-title { font-size: var(--cs-type-page-size); line-height: var(--cs-type-page-line); letter-spacing: var(--cs-type-page-tracking); font-weight: 400; margin: 0 0 1rem; }
+.cs-section-title { font-size: var(--cs-type-section-size); line-height: var(--cs-type-section-line); letter-spacing: var(--cs-type-section-tracking); font-weight: 400; margin: 0 0 1rem; }
+.cs-eyebrow { font: 400 .75rem/1.5 var(--cs-font-mono); letter-spacing: .09375rem; color: var(--cs-text-secondary); text-transform: uppercase; }
+.cs-caption { font-size: .75rem; line-height: 1.5; color: var(--cs-text-caption); }
+.cs-secondary { color: var(--cs-text-secondary); }
+.cs-stack { display: flex; flex-direction: column; gap: var(--cs-space-16); }
+.cs-row { display: flex; align-items: center; gap: var(--cs-space-12); flex-wrap: wrap; }
+.cs-card { background: var(--cs-surface); border: 1px solid var(--cs-border); border-radius: var(--cs-radius-card); padding: var(--cs-space-24); }
+.cs-summary { background: var(--cs-summary); border: 1px solid var(--cs-summary-border); border-radius: var(--cs-radius-card); padding: var(--cs-space-24); }
+.cs-metric { font-size: var(--cs-type-metric-size); line-height: var(--cs-type-metric-line); letter-spacing: var(--cs-type-metric-tracking); font-weight: 400; font-variant-numeric: tabular-nums; }
+.cs-metric small { font-size: 1.25rem; letter-spacing: 0; }
+.cs-button { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-height: var(--cs-control-height); min-width: 2.75rem; padding: .625rem 1rem; border: 1px solid transparent; border-radius: var(--cs-radius-control); font-size: .875rem !important; font-weight: 400; cursor: pointer; line-height: 1.4; text-decoration: none; transition: background-color var(--cs-motion-fast) ease-out; }
+.cs-button-primary { background: var(--cs-action); color: var(--cs-on-action); }
+.cs-button-primary:hover:not(:disabled) { background: var(--cs-action-hover); }
+.cs-button-secondary { background: transparent; border-color: var(--cs-border-strong); color: var(--cs-ink); }
+.cs-button-secondary:hover:not(:disabled) { background: var(--cs-selection); }
+.cs-button-text { background: transparent; color: var(--cs-action); }
+.cs-button-text:hover:not(:disabled) { text-decoration: underline; }
+.cs-button:disabled { cursor: not-allowed; background: var(--cs-disabled-surface); color: var(--cs-disabled-text); border-color: transparent; }
+.cs-app :is(button, a, input, select, textarea, summary):focus-visible { outline: 3px solid var(--cs-focus); outline-offset: 3px; }
+.cs-label { display: block; font-size: .875rem; color: var(--cs-ink); margin-bottom: .5rem; }
+.cs-input { display: block; width: 100%; min-height: var(--cs-control-height); padding: .625rem .875rem; background: var(--cs-surface); border: 1px solid var(--cs-border-strong); border-radius: var(--cs-radius-control); color: var(--cs-ink); font-size: 1rem; }
+.cs-input::placeholder { color: var(--cs-text-secondary); }
+.cs-input[aria-invalid="true"] { border-color: var(--cs-danger-text); }
+.cs-input:disabled { background: var(--cs-disabled-surface); color: var(--cs-disabled-text); }
+.cs-error { margin: .5rem 0 0; font-size: .875rem; color: var(--cs-danger-text); }
+.cs-badge { display: inline-flex; align-items: center; gap: .375rem; padding: .25rem .5rem; border-radius: var(--cs-radius-small); font-size: .75rem; line-height: 1.5; color: var(--cs-selection-text); background: var(--cs-selection); }
+.cs-badge-success { background: var(--cs-success-surface); color: var(--cs-success-text); }
+.cs-badge-warning { background: var(--cs-warning-surface); color: var(--cs-warning-text); }
+.cs-badge-danger { background: var(--cs-danger-surface); color: var(--cs-danger-text); }
+.cs-tabs { display: flex; gap: var(--cs-space-24); border-bottom: 1px solid var(--cs-border); overflow-x: auto; }
+.cs-tab { display: inline-flex; align-items: center; gap: .5rem; flex-shrink: 0; min-height: var(--cs-control-height); padding: .5rem 0 .75rem; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--cs-text-secondary); font-size: .875rem !important; cursor: pointer; }
+.cs-tab[aria-selected="true"] { border-bottom-color: var(--cs-action); color: var(--cs-ink); }
+.cs-tab-icon { width: 1.625rem; height: 1.625rem; display: inline-grid; place-items: center; border-radius: var(--cs-radius-control); color: var(--cs-ink); background: var(--cs-lavender); }
+.cs-insight { display: grid; grid-template-columns: minmax(0, 1fr) 17.5rem; border: 1px solid var(--cs-border); background: var(--cs-surface); border-radius: var(--cs-radius-card); overflow: hidden; }
+.cs-insight-main { padding: var(--cs-space-24); min-width: 0; }
+.cs-insight-aside { padding: var(--cs-space-24); border-left: 1px solid var(--cs-border); background: var(--cs-surface-detail); }
+.cs-insight-aside h3 { font-size: var(--cs-type-insight-size); line-height: 1.2; font-weight: 400; letter-spacing: var(--cs-type-insight-tracking); margin: .75rem 0; }
+.cs-observation { padding: var(--cs-space-16); background: var(--cs-warning-surface); color: var(--cs-warning-text); border-radius: var(--cs-radius-nested); }
+.cs-list { padding: 0; margin: 0; list-style: none; }
+.cs-list-item { padding: var(--cs-space-16) 0; border-bottom: 1px solid var(--cs-border); }
+.cs-list-item:last-child { border-bottom: 0; }
+.cs-link { color: var(--cs-action); text-decoration: underline; text-underline-offset: 3px; }
+.cs-dialog { border: 1px solid var(--cs-border); background: var(--cs-surface-detail); color: var(--cs-ink); border-radius: var(--cs-radius-dialog); padding: var(--cs-space-24); width: min(37.5rem, calc(100% - 2rem)); max-height: calc(100dvh - 2rem); box-shadow: 0 1rem 5rem #29302020; }
+.cs-dialog::backdrop { background: #22282045; }
+.cs-notice { padding: var(--cs-space-16); border-radius: var(--cs-radius-nested); background: var(--cs-info-surface); color: var(--cs-info-text); }
+@media (max-width: 759px) {
+  .cs-page-title { font-size: 1.75rem; letter-spacing: -.05rem; }
+  .cs-insight { grid-template-columns: 1fr; }
+  .cs-insight-aside { border-left: 0; border-top: 1px solid var(--cs-border); }
+  .cs-card, .cs-summary, .cs-insight-main, .cs-insight-aside { padding: var(--cs-space-20); }
+  .cs-button, .cs-tab, .cs-input { min-height: 3rem; }
+}
+@media (prefers-reduced-motion: reduce) { .cs-app *, .cs-app *::before, .cs-app *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
