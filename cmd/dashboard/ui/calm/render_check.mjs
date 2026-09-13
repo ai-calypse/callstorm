@@ -37,7 +37,7 @@ globalThis.React = React;
 globalThis.ReactDOM = { createRoot: () => ({ render() {} }) };
 globalThis.fetch = async () => { throw new Error("fetch during render"); };
 
-const mod = new Function(src + "\n;return { Report, Evidence, Method, Findings, RunList, Trend, Sidebar, Glossary, About, Appendix, TABS, glance, findings };")();
+const mod = new Function(src + "\n;return { Report, Evidence, Method, Findings, RunList, Trend, Sidebar, Glossary, About, Appendix, TABS, glance, findings, groupRuns };")();
 const render = (C, props) => ReactDOMServer.renderToStaticMarkup(React.createElement(C, props));
 
 let bad = 0;
@@ -370,6 +370,40 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
   const side = render(mod.Sidebar, { count: 3, target: "ws://agent.example:8080/v1", who: "Yaksh Gandhi", onOverview() {}, onRuns() {}, onAbout() {} });
   has(side, "sidebar nav counts runs", "Evaluation runs");
   has(side, "sidebar workspace host", "agent.example:8080");
+}
+
+// Suites: several runs shown as one test, in the history and above the report.
+{
+  const suite = "deepgram-full-test";
+  const parts = [
+    { id: "s1", suite, profile: "sweep-deepgram-30", scenario: "refund-escalation", started_at: "2026-09-13T16:44:00Z", verdict: "pass", steps: 5, peak_concurrency: 40, worst_p95_ms: 1200, judged: 20, passed: 19, target: "t" },
+    { id: "s2", suite, profile: "sweep-deepgram-30", scenario: "refund-bargein", started_at: "2026-09-13T17:10:00Z", verdict: "fail", steps: 5, peak_concurrency: 40, worst_p95_ms: 3100, breakpoint: "c40 at 40 concurrent", judged: 20, passed: 16, target: "t" },
+    { id: "s3", suite, profile: "impair-ref", scenario: "refund-escalation", started_at: "2026-09-13T17:40:00Z", verdict: "pass", steps: 2, peak_concurrency: 8, worst_p95_ms: 600, cohorts: 4, network_breaks: ["severe at c2"], harness_degraded: true, target: "t" },
+  ];
+  const withSuite = [parts[2], parts[1], parts[0], ...index];
+  const list = render(mod.RunList, { runs: withSuite, sel: "s2", onPick() {} });
+  has(list, "suite folded into one history entry", `Suite · ${suite}`);
+  check("suite entry appears once", (list.match(/Suite · deepgram-full-test/g) || []).length === 1);
+  has(list, "suite carries the worst verdict", 'class="run-suite selected"');
+  has(list, "suite sums judged counts", "judged 35/40");
+  has(list, "suite counts parts that found a limit", "2 found a limit");
+  has(list, "parts listed in run order", "Part 1 · sweep-deepgram-30 · refund-escalation");
+  has(list, "network part listed", "Part 3 · impair-ref");
+  const groups = mod.groupRuns(withSuite);
+  check(`history has ${groups.length} entries for ${withSuite.length} runs`, groups.length === withSuite.length - 2);
+
+  const rep = { ...run, id: "s2", profile: "sweep-deepgram-30", scenario: "refund-bargein", started_at: "2026-09-13T17:10:00Z" };
+  const page = render(mod.Report, { rep, id: "s2", refs: REFS, runs: withSuite, prev: null, onOpenRuns() {}, onPick() {} });
+  has(page, "suite strip above the report", `SUITE · ${suite}`);
+  has(page, "suite strip counts parts", "3 parts, one test");
+  has(page, "suite strip names the limits found", "refund-bargein on sweep-deepgram-30 at c40 at 40 concurrent");
+  has(page, "suite strip names the network limit", "impair-ref at severe at c2");
+  has(page, "open part marked", "2 · open");
+  has(page, "suspect part flagged in the strip", "⚠ harness suspect");
+  has(page, "suite reading names the suspect part", "1 of 3 parts drifted past the 100ms pacing limit");
+  has(list, "suite entry counts suspect parts", "1 harness suspect");
+  has(page, "run picker names the part", "Suite part 2 of 3");
+  check("no suite strip on a plain run", !page1(run, "run", "load").includes("SUITE ·"));
 }
 
 // The reference sections the original page opens with, kept on the page.

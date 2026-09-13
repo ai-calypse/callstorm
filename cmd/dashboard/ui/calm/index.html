@@ -670,6 +670,36 @@ function readIntegrity(d, te) {
 }
 
 
+function qWhereWait(rep, L) {
+  const q = { id: "wait", group: "What causes the wait", ask: "Where does the waiting time go?" };
+  const rows = L.filter(s => s.think_speak && s.think_speak.n > 0);
+  if (rows.length === 0) return { ...q, missing: "The agent under test never reported what it heard, so the wait can't be split into its parts." };
+  const parts = s => {
+    const net = s.transport_rtt && s.transport_rtt.n > 0 ? s.transport_rtt.p50_ms : 0;
+    const notice = s.agent_endpointing && s.agent_endpointing.n > 0 ? s.agent_endpointing.p50_ms : (s.endpointing && s.endpointing.p50_ms) || 0;
+    return [Math.max(net, 0), Math.max(notice, 0), Math.max(s.think_speak.p50_ms, 0)];
+  };
+  const NAMES = ["the network", "the agent noticing you stopped", "the agent thinking up its reply"];
+  const SEG = [
+    { name: "the network, out to the agent and back", color: "color-mix(in srgb, var(--signal) 25%, var(--surface))" },
+    { name: "the agent noticing you stopped talking", color: "color-mix(in srgb, var(--signal) 55%, var(--surface))" },
+    { name: "the agent thinking up and starting its reply", color: "var(--signal)" },
+  ];
+  const chart = html`<${StackBars} rows=${rows.map(s => ({ label: `${s.concurrency} at once`, values: parts(s) }))}
+      segments=${SEG} valueFmt=${ms} totalFmt=${ms}/>`;
+  const how = "Each bar is a typical turn at that load, split three ways. The network part comes from pinging the agent during every call; a run with no pings counts it inside noticing you stopped.";
+  const a = parts(rows[0]), b = parts(rows[rows.length - 1]);
+  const grew = b.map((v, i) => v - a[i]);
+  const k = grew.indexOf(Math.max(...grew));
+  const biggest = a.indexOf(Math.max(...a));
+  if (rows.length < 2 || grew[k] < 0.15 * (a[0] + a[1] + a[2])) {
+    return { ...q, how, chart, short: `Mostly ${NAMES[biggest]}, and that held as it got busier.`,
+      answer: html`<b>Mostly ${NAMES[biggest]}.</b> A typical turn spent ${ms(a[0])} on the network, ${ms(a[1])} on the agent noticing you stopped, and ${ms(a[2])} on it thinking up its reply, and that split held as it got busier.` };
+  }
+  return { ...q, how, chart, short: `The extra wait under load is ${NAMES[k]}.`,
+    answer: html`<b>The extra wait under load is ${NAMES[k]}.</b> From ${rows[0].concurrency} to ${atOnce(rows[rows.length - 1].concurrency)}, that part grew by ${ms(grew[k])}, more than either of the other two.` };
+}
+
 // ---- Selections the readings are built from ---------------------------------
 // The same filters, in one place, so the chart, the takeaway, the findings list
 // and the evidence drawer can never disagree about which steps count.
@@ -2506,6 +2536,70 @@ function Trend({ runs }) {
     </div>`;
 }
 
+// A suite: several runs that count as one load test. The history shows a
+// suite as one entry, placed where its newest part sits, with the worst
+// part's verdict and its judged counts summed; the report page shows every
+// part above whichever part is open.
+const worstVerdict = rs => rs.reduce((a, r) => (r.verdict === "fail" || a === "fail" ? "fail" : r.verdict === "warn" || a === "warn" ? "warn" : "pass"), "pass");
+function groupRuns(runs) {
+  const out = [], seen = new Set();
+  for (const r of runs) {
+    if (!r.suite) { out.push({ kind: "run", run: r }); continue; }
+    if (seen.has(r.suite)) continue;
+    seen.add(r.suite);
+    const parts = runs.filter(x => x.suite === r.suite).slice().sort((a, b) => new Date(a.started_at) - new Date(b.started_at));
+    out.push({ kind: "suite", suite: r.suite, newest: r, parts, verdict: worstVerdict(parts),
+      judged: parts.reduce((a, p) => a + (p.judged || 0), 0), passed: parts.reduce((a, p) => a + (p.passed || 0), 0) });
+  }
+  return out;
+}
+const suiteParts = (runs, r) => (r && r.suite ? runs.filter(x => x.suite === r.suite).slice().sort((a, b) => new Date(a.started_at) - new Date(b.started_at)) : []);
+
+function SuiteStrip({ suite, parts, selected, onPick, insights }) {
+  const broke = parts.filter(p => p.breakpoint || (p.network_breaks && p.network_breaks.length));
+  const suspect = parts.filter(p => p.harness_degraded);
+  const judged = parts.reduce((a, p) => a + (p.judged || 0), 0), passed = parts.reduce((a, p) => a + (p.passed || 0), 0);
+  const sweeps = parts.filter(p => !p.cohorts), matrices = parts.filter(p => p.cohorts > 0);
+  return html`
+    <section className="suite" aria-label="Suite">
+      <div className="suite-head">
+        <div>
+          <span className="eyebrow">SUITE · ${suite}</span>
+          <h2>${parts.length} ${parts.length === 1 ? "part" : "parts"}, one test</h2>
+        </div>
+        <div className="suite-verdict">
+          <${Badge} v=${worstVerdict(parts)}/>
+          <span className="quiet">${sweeps.length ? `${sweeps.length} load sweep${sweeps.length === 1 ? "" : "s"}` : ""}${sweeps.length && matrices.length ? " · " : ""}${matrices.length ? `${matrices.length} on impaired networks` : ""}${judged ? ` · judged ${passed}/${judged}` : ""}</span>
+        </div>
+      </div>
+      <div className="tablewrap">
+        <table className="parts">
+          <thead><tr><th>Part</th><th>Scenario</th><th>Profile</th><th>Started</th><th>Peak</th><th>Worst p95</th><th>Breaks at</th><th>Judged</th><th>Verdict</th></tr></thead>
+          <tbody>
+            ${parts.map((p, i) => html`
+              <tr key=${p.id} className=${p.id === selected ? "selected" : ""} aria-current=${p.id === selected ? "true" : "false"}>
+                <td><button className="text-button part" onClick=${() => onPick(p.id)}>${i + 1}${p.id === selected ? " · open" : " ↗"}</button></td>
+                <td>${p.scenario}</td>
+                <td>${p.profile}${p.cohorts > 0 ? ` · ${p.cohorts} networks` : ""}</td>
+                <td>${when(p.started_at)}</td>
+                <td>${p.peak_concurrency}</td>
+                <td>${ms(p.worst_p95_ms)}</td>
+                <td>${[p.breakpoint, ...(p.network_breaks || [])].filter(Boolean).join("; ") || "held"}</td>
+                <td>${p.judged > 0 ? `${p.passed || 0}/${p.judged}` : "—"}</td>
+                <td><${Badge} v=${p.verdict}/>${p.harness_degraded ? html`<span className="quote">⚠ harness suspect</span>` : ""}</td>
+              </tr>`)}
+          </tbody>
+        </table>
+      </div>
+      <p className="lede">${broke.length === 0
+        ? `No part of this suite found a limit${judged ? `, and the graded conversations met every criterion ${passed} of ${judged} times` : ""}.`
+        : `${broke.length} of ${parts.length} parts found a limit: ${broke.map(p => `${p.scenario} on ${p.profile} at ${[p.breakpoint, ...(p.network_breaks || [])].filter(Boolean).join("; ")}`).join("; ")}.`}
+        ${suspect.length > 0 ? ` ${suspect.length === parts.length ? "Every part" : `${suspect.length} of ${parts.length} parts`} drifted past the 100ms pacing limit, so ${suspect.length === 1 ? "its" : "their"} latency describes the load generator as much as the agent: ${suspect.map(p => p.scenario).join(", ")}.` : ""}
+        ${" "}Each part is a run of its own; the report below is the part marked open, and the parts arrive as the suite runs.</p>
+      <${Insights} data=${insights} kind="suite" subject=${suite}/>
+    </section>`;
+}
+
 const runFlags = r => [
   r.harness_degraded && "harness suspect",
   r.breakpoint && `breaks at ${r.breakpoint}`,
@@ -2517,19 +2611,34 @@ const runFlags = r => [
   r.network_breaks && r.network_breaks.length > 0 && `network breaks it: ${r.network_breaks.join(", ")}`,
 ].filter(Boolean);
 
+function RunRow({ r, selected, onPick, part }) {
+  return html`
+    <button className=${"run-row" + (r.id === selected ? " selected" : "") + (part ? " part" : "")} onClick=${() => onPick(r.id)} aria-current=${r.id === selected ? "true" : "false"}>
+      <span>
+        <span className="run-title">${part ? `Part ${part} · ` : ""}${r.profile} · ${r.scenario} <${Badge} v=${r.verdict}/></span>
+        <small>${when(r.started_at)} · ${r.id} · ${r.steps} steps · peak ${r.peak_concurrency} · worst p95 ${ms(r.worst_p95_ms)}${r.wer_mean > 0 ? ` · WER ${pct(r.wer_mean)}` : ""}</small>
+        ${runFlags(r).length > 0 && html`<small className="run-flags">${runFlags(r).join(" · ")}</small>`}
+      </span>
+      <span className="run-open">${r.id === selected ? "✓ Selected" : "Open ↗"}</span>
+    </button>`;
+}
+
 function RunList({ runs, sel: selected, onPick }) {
   if (runs.length === 0) return html`<p className="quiet">No runs yet. Place one with <code>callstorm</code> and it appears here.</p>`;
   return html`
     <div className="runlist">
-      ${runs.map(r => html`
-        <button key=${r.id} className=${"run-row" + (r.id === selected ? " selected" : "")} onClick=${() => onPick(r.id)} aria-current=${r.id === selected ? "true" : "false"}>
-          <span>
-            <span className="run-title">${r.profile} · ${r.scenario} <${Badge} v=${r.verdict}/></span>
-            <small>${when(r.started_at)} · ${r.id} · ${r.steps} steps · peak ${r.peak_concurrency} · worst p95 ${ms(r.worst_p95_ms)}${r.wer_mean > 0 ? ` · WER ${pct(r.wer_mean)}` : ""}</small>
-            ${runFlags(r).length > 0 && html`<small className="run-flags">${runFlags(r).join(" · ")}</small>`}
-          </span>
-          <span className="run-open">${r.id === selected ? "✓ Selected" : "Open ↗"}</span>
-        </button>`)}
+      ${groupRuns(runs).map(e => e.kind === "run"
+        ? html`<${RunRow} key=${e.run.id} r=${e.run} selected=${selected} onPick=${onPick}/>`
+        : html`
+          <div key=${"suite-" + e.suite} className=${"run-suite" + (e.parts.some(p => p.id === selected) ? " selected" : "")}>
+            <div className="suite-row">
+              <span>
+                <span className="run-title">Suite · ${e.suite} <${Badge} v=${e.verdict}/></span>
+                <small>${e.parts.length} ${e.parts.length === 1 ? "part" : "parts"} · newest ${when(e.newest.started_at)}${e.judged ? ` · judged ${e.passed}/${e.judged}` : ""}${e.parts.some(p => p.breakpoint || (p.network_breaks && p.network_breaks.length)) ? ` · ${e.parts.filter(p => p.breakpoint || (p.network_breaks && p.network_breaks.length)).length} found a limit` : ""}${e.parts.some(p => p.harness_degraded) ? ` · ${e.parts.filter(p => p.harness_degraded).length} harness suspect` : ""}</small>
+              </span>
+            </div>
+            ${e.parts.map((p, i) => html`<${RunRow} key=${p.id} r=${p} selected=${selected} onPick=${onPick} part=${i + 1}/>`)}
+          </div>`)}
     </div>`;
 }
 
@@ -2672,6 +2781,12 @@ function Report({ rep, id, refs, runs, prev, initialTab, initialDrawer, initialC
   const setTab = t => { setTabRaw(t); setPoint(0); };
   const closeDrawer = React.useCallback(() => setDrawer(null), []);
 
+  // Pricing a run the harness did not price: the tier and rate the reader
+  // chose, and the other parts' calls files when the run is part of a suite.
+  const [tier, setTier] = useState("standard");
+  const [rateOverride, setRate] = useState(null);
+  const [suiteCalls, setSuiteCalls] = useState({});
+
   // The calls file is read the first time something needs a turn: the call
   // logs tab, or the latency evidence with its representative slow turn.
   const needCalls = tab === "calls" || (drawer === "evidence" && tab === "load");
@@ -2715,12 +2830,14 @@ function Report({ rep, id, refs, runs, prev, initialTab, initialDrawer, initialC
       <div className="context-row">
         <button className="run-picker" onClick=${onOpenRuns} aria-haspopup="dialog">
           <span className="run-dot"></span>
-          <span>${latest ? "Latest run" : "Run"} · ${id}</span>
+          <span>${parts.length ? `Suite part ${parts.findIndex(p => p.id === id) + 1} of ${parts.length}` : latest ? "Latest run" : "Run"} · ${id}</span>
           <span className="chevron">⌄</span>
         </button>
         <span className="run-meta">${when(rep.started_at)} · ${steps.length} steps · ${callCount} calls · ${turns} turns · ${Math.round(rep.duration_s)}s</span>
         <span className="sample-note">Measured data · synthetic callers</span>
       </div>
+
+      ${parts.length > 0 && html`<${SuiteStrip} suite=${me.suite} parts=${parts} selected=${id} onPick=${onPick} insights=${suiteInsights}/>`}
 
       <section className="summary" aria-label="Evaluation summary">
         <div className="summary-intro">
@@ -2807,7 +2924,7 @@ function Report({ rep, id, refs, runs, prev, initialTab, initialDrawer, initialC
 
 // Loads the selected report and the previous run of the same profile and
 // scenario, then hands both to the report.
-function ReportLoader({ id, refs, runs, onOpenRuns }) {
+function ReportLoader({ id, refs, runs, onOpenRuns, onPick }) {
   const [rep, setRep] = useState(null);
   const [prev, setPrev] = useState(null);
   const [err, setErr] = useState(null);
@@ -2856,7 +2973,7 @@ function ReportLoader({ id, refs, runs, onOpenRuns }) {
       <h2>Loading ${id}…</h2>
     </div>`;
   }
-  return html`<${Report} rep=${rep} id=${id} refs=${refs} runs=${runs} prev=${prev} onOpenRuns=${onOpenRuns}/>`;
+  return html`<${Report} rep=${rep} id=${id} refs=${refs} runs=${runs} prev=${prev} onOpenRuns=${onOpenRuns} onPick=${onPick}/>`;
 }
 
 function Sidebar({ count, target, onOverview, onRuns, onAbout, who }) {
@@ -2922,11 +3039,11 @@ function App() {
 
   return html`
     <${Frag}>
-      <${Sidebar} count=${runs.length} target=${current && current.target} who="Yaksh Gandhi"
+      <${Sidebar} count=${groupRuns(runs).length} target=${current && current.target} who="Yaksh Gandhi"
         onOverview=${top} onRuns=${() => setRunsOpen(true)} onAbout=${about}/>
       <div className="app">
         <header className="topbar">
-          <div>Voice agents <span className="crumb">/</span> <strong>${current ? `${current.profile} · ${current.scenario}` : "no run selected"}</strong></div>
+          <div>Voice agents <span className="crumb">/</span> <strong>${current ? `${current.suite ? `${current.suite} · ` : ""}${current.profile} · ${current.scenario}` : "no run selected"}</strong></div>
           <span className="demo">
             <span></span> ${err ? "API unreachable" : updated ? `Live · ${runs.length} runs · ${updated.toLocaleTimeString()}` : "Loading runs"}
             <button className="text-button refresh" onClick=${load} disabled=${loading}>${loading ? "…" : "Refresh"}</button>
@@ -2944,7 +3061,7 @@ function App() {
               <h2>No runs yet</h2>
               <p className="quiet">Place one with <code>callstorm</code> and it appears here.</p>
             </div>`}
-          <${ReportLoader} id=${selected} refs=${refs} runs=${runs} onOpenRuns=${() => setRunsOpen(true)}/>
+          <${ReportLoader} id=${selected} refs=${refs} runs=${runs} onOpenRuns=${() => setRunsOpen(true)} onPick=${id => { setSelected(id); top(); }}/>
           <div className="reference">
             <${Glossary}/>
             <${About}/>

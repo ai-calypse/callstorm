@@ -471,3 +471,20 @@ dialog::backdrop { background: #22282045; backdrop-filter: blur(3px); }
 .eventlog { font-size: 12px; }
 .eventlog td { text-align: left; white-space: normal; font-family: var(--cs-font-mono); padding: 4px 10px 4px 0; }
 .eventlog td:first-child { white-space: nowrap; color: var(--cs-text-caption); }
+/* ---- Suites: several runs that count as one test ------------------------ */
+.suite { margin: 0 0 22px; padding: 20px 24px; background: var(--cs-surface); border: 1px solid var(--cs-border); border-radius: var(--cs-radius-card); }
+.suite-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.suite-head h2 { margin: 6px 0 0; }
+.suite-verdict { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 6px; }
+.parts tr.selected td { background: var(--cs-selection); }
+.parts td:first-child { padding-left: 6px; }
+.parts .part { font-size: 14px; color: var(--cs-action); }
+.parts td:nth-child(2), .parts td:nth-child(3), .parts td:nth-child(7) { white-space: normal; text-align: left; min-width: 12ch; }
+.run-suite { margin-top: 10px; padding: 12px 12px 4px; border: 1px solid var(--cs-border); border-radius: 10px; background: var(--cs-surface-detail); }
+.run-suite.selected { border-color: var(--cs-olive); }
+.suite-row { padding: 4px 5px 8px; font-size: 14px; }
+.suite-row small { display: block; color: var(--cs-text-caption); margin-top: 6px; font-size: 12px; line-height: 1.5; }
+.run-row.part { margin: 8px 0; }
+.reasoning { display: block; margin-top: 4px; font-size: 12px; line-height: 1.5; color: var(--cs-text-caption); font-style: italic; }
+.cs-badge.ungraded { background: var(--cs-canvas); color: var(--cs-text-caption); border: 1px solid var(--cs-border); }
+
