@@ -1,0 +1,247 @@
+{
+  "profile": "tier1-local",
+  "scenario": "refund-escalation",
+  "target": "ws://127.0.0.1:8123/v1/agent/converse",
+  "baseline": "baseline",
+  "started_at": "2026-09-13T01:08:07.2560344-04:00",
+  "duration_s": 278.5357955,
+  "steps": [
+    {
+      "name": "baseline",
+      "concurrency": 1,
+      "calls": 3,
+      "calls_attempted": 3,
+      "calls_connected": 3,
+      "turns_total": 15,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 15,
+        "p50_ms": 709.5,
+        "p95_ms": 762.6,
+        "p99_ms": 762.6,
+        "max_ms": 762.6
+      },
+      "endpointing": {
+        "n": 15,
+        "p50_ms": 301.9,
+        "p95_ms": 324.7,
+        "p99_ms": 324.7,
+        "max_ms": 324.7
+      },
+      "think_speak": {
+        "n": 15,
+        "p50_ms": 403.1,
+        "p95_ms": 460.8,
+        "p99_ms": 460.8,
+        "max_ms": 460.8
+      },
+      "turn_latency": {
+        "n": 15,
+        "p50_ms": 3709.5,
+        "p95_ms": 3762.6,
+        "p99_ms": 3762.6,
+        "max_ms": 3762.6
+      },
+      "worst_harness_drift_ms": 101.6,
+      "conversation": {
+        "talk_ratio": 0.389,
+        "agent_wpm": 100,
+        "caller_wpm": 180.8,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 0,
+        "dead_air_seconds": 0,
+        "agent_speech_seconds": 45,
+        "caller_speech_seconds": 70.7,
+        "turns": 15
+      },
+      "cost": {
+        "agent_minutes": 2.107,
+        "rate_per_minute": 0.06,
+        "usd": 0.1264,
+        "usd_per_call": 0.0421,
+        "usd_per_turn": 0.0084
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 0,
+        "mean": 0,
+        "worst": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "ref_words": 0
+      },
+      "harness_degraded": true,
+      "p95_ratio": 1,
+      "verdict": "pass"
+    },
+    {
+      "name": "c5",
+      "concurrency": 5,
+      "calls": 10,
+      "calls_attempted": 10,
+      "calls_connected": 10,
+      "turns_total": 50,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 50,
+        "p50_ms": 705.3,
+        "p95_ms": 722.7,
+        "p99_ms": 731.6,
+        "max_ms": 731.6
+      },
+      "endpointing": {
+        "n": 50,
+        "p50_ms": 301.6,
+        "p95_ms": 308.6,
+        "p99_ms": 315.2,
+        "max_ms": 315.2
+      },
+      "think_speak": {
+        "n": 50,
+        "p50_ms": 403,
+        "p95_ms": 420.9,
+        "p99_ms": 430.6,
+        "max_ms": 430.6
+      },
+      "turn_latency": {
+        "n": 50,
+        "p50_ms": 3705.3,
+        "p95_ms": 3724,
+        "p99_ms": 3731.6,
+        "max_ms": 3731.6
+      },
+      "worst_harness_drift_ms": 685.5,
+      "conversation": {
+        "talk_ratio": 0.389,
+        "agent_wpm": 100,
+        "caller_wpm": 180.8,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 0,
+        "dead_air_seconds": 0,
+        "agent_speech_seconds": 150,
+        "caller_speech_seconds": 235.6,
+        "turns": 50
+      },
+      "cost": {
+        "agent_minutes": 7.018,
+        "rate_per_minute": 0.06,
+        "usd": 0.4211,
+        "usd_per_call": 0.0421,
+        "usd_per_turn": 0.0084
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 0,
+        "mean": 0,
+        "worst": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "ref_words": 0
+      },
+      "harness_degraded": true,
+      "p95_ratio": 0.95,
+      "verdict": "pass"
+    },
+    {
+      "name": "c15",
+      "concurrency": 15,
+      "calls": 15,
+      "calls_attempted": 15,
+      "calls_connected": 15,
+      "turns_total": 75,
+      "turns_failed": 0,
+      "turns_yielded": 0,
+      "setup_success": 1,
+      "ttfa": {
+        "n": 75,
+        "p50_ms": 1004.4,
+        "p95_ms": 1027.9,
+        "p99_ms": 1039.6,
+        "max_ms": 1039.6
+      },
+      "endpointing": {
+        "n": 75,
+        "p50_ms": 302,
+        "p95_ms": 317,
+        "p99_ms": 324.1,
+        "max_ms": 324.1
+      },
+      "think_speak": {
+        "n": 75,
+        "p50_ms": 702.2,
+        "p95_ms": 725,
+        "p99_ms": 738.3,
+        "max_ms": 738.3
+      },
+      "turn_latency": {
+        "n": 75,
+        "p50_ms": 4004.4,
+        "p95_ms": 4145.7,
+        "p99_ms": 4179.3,
+        "max_ms": 4179.3
+      },
+      "worst_harness_drift_ms": 132.3,
+      "conversation": {
+        "talk_ratio": 0.39,
+        "agent_wpm": 99.5,
+        "caller_wpm": 180.8,
+        "interruptions": 0,
+        "interruption_rate": 0,
+        "interruption_score": 5,
+        "dead_air_turns": 0,
+        "dead_air_seconds": 0,
+        "agent_speech_seconds": 226.1,
+        "caller_speech_seconds": 353.4,
+        "turns": 75
+      },
+      "cost": {
+        "agent_minutes": 10.917,
+        "rate_per_minute": 0.06,
+        "usd": 0.655,
+        "usd_per_call": 0.0437,
+        "usd_per_turn": 0.0087
+      },
+      "barge_in": {
+        "turns": 0,
+        "yielded": 0,
+        "yield_p50_ms": 0,
+        "yield_p95_ms": 0,
+        "worst_ms": 0
+      },
+      "wer": {
+        "turns": 0,
+        "mean": 0,
+        "worst": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "ref_words": 0
+      },
+      "harness_degraded": true,
+      "p95_ratio": 1.35,
+      "verdict": "pass"
+    }
+  ]
+}

@@ -193,6 +193,101 @@ function Trend({ runs }) {
     </div>`;
 }
 
+// Component share: how p95 TTFA divides between noticing the caller stopped
+// and producing a reply, one bar per step.
+//
+// A single TTFA number cannot tell an endpointing problem from an inference
+// problem, and the two have different fixes. The stack makes the growing half
+// obvious: a bar whose left segment stays put while the right one stretches is
+// an LLM or TTS queue, not a VAD.
+function ComponentShare({ steps }) {
+  const rows = steps.filter(s =>
+    s.endpointing && s.endpointing.n > 0 && s.think_speak && s.think_speak.n > 0 &&
+    s.endpointing.p95_ms + s.think_speak.p95_ms > 0);
+  if (rows.length < 2) return null;
+
+  const W = 640, ROW = 30, LEFT = 64, RIGHT = 78;
+  const H = rows.length * ROW + 16;
+  const max = Math.max(...rows.map(s => s.endpointing.p95_ms + s.think_speak.p95_ms)) * 1.02;
+  const w = v => Math.max((v / max) * (W - LEFT - RIGHT), 0);
+  const base = rows[0].think_speak.p95_ms / (rows[0].endpointing.p95_ms + rows[0].think_speak.p95_ms);
+
+  return html`
+    <div className="card">
+      <div className="eyebrow">Which half saturates first</div>
+      <h2>p95 TTFA, split into endpointing and think/speak</h2>
+      <svg viewBox="0 0 ${W} ${H}" style=${{width:"100%",height:"auto",marginTop:"12px"}}>
+        ${rows.map((s, i) => {
+          const ep = s.endpointing.p95_ms, ts = s.think_speak.p95_ms;
+          const share = ts / (ep + ts);
+          const y = i * ROW + 6;
+          const shift = (share - base) * 100;
+          return html`
+            <g key=${s.name}>
+              <text x="0" y=${y + 14} fontSize="11" fill="var(--ink-2)">${s.name}</text>
+              <rect x=${LEFT} y=${y} width=${w(ep)} height="18" fill="var(--signal)" opacity="0.34"/>
+              <rect x=${LEFT + w(ep)} y=${y} width=${w(ts)} height="18" fill="var(--signal)"/>
+              <text x=${W - RIGHT + 8} y=${y + 13} fontSize="11" fill="var(--ink-2)">
+                ${Math.round(share * 100)}% think${i > 0 && Math.abs(shift) >= 5
+                  ? (shift > 0 ? " ▲" : " ▼") + Math.abs(Math.round(shift)) : ""}
+              </text>
+              <title>${s.name + "\n" + Math.round(ep) + "ms endpointing + " + Math.round(ts) + "ms think/speak"}</title>
+            </g>`;
+        })}
+      </svg>
+      <div className="legend">
+        <span><i style=${{background:"var(--signal)",opacity:0.34}}></i>endpointing — noticing the caller stopped</span>
+        <span><i style=${{background:"var(--signal)"}}></i>think/speak — LLM plus TTS</span>
+      </div>
+    </div>`;
+}
+
+// Cost per turn against concurrency.
+//
+// Voice agents bill by the minute, so latency is a price as well as an
+// experience: every second the caller waits is a second of billed session. A
+// step whose cost per turn climbs is an agent getting more expensive under
+// exactly the load it was bought to handle, which no latency percentile states
+// in the units a budget is written in.
+function CostChart({ steps }) {
+  const rows = steps.filter(s => s.cost && s.cost.usd_per_turn > 0);
+  if (rows.length < 2) return null;
+
+  const W = 640, H = 150, PAD = 44;
+  const max = Math.max(...rows.map(s => s.cost.usd_per_turn)) * 1.2;
+  const x = i => PAD + (i * (W - PAD - 40)) / Math.max(rows.length - 1, 1);
+  const y = v => H - 28 - (v / max) * (H - 50);
+  const first = rows[0].cost.usd_per_turn;
+  const last = rows[rows.length - 1].cost.usd_per_turn;
+
+  return html`
+    <div className="card">
+      <div className="eyebrow">What the latency costs</div>
+      <h2>Dollars per turn as concurrency rises</h2>
+      <svg viewBox="0 0 ${W} ${H}" style=${{width:"100%",height:"auto",marginTop:"8px"}}>
+        <line x1=${PAD} y1=${H - 28} x2=${W - 40} y2=${H - 28} stroke="var(--rule)" strokeWidth="1"/>
+        <text x="2" y=${y(max / 1.2) + 4} fontSize="10" fill="var(--mute)">$${(max / 1.2).toFixed(4)}</text>
+        <polyline fill="none" stroke="var(--signal)" strokeWidth="2" strokeLinejoin="round"
+          points=${rows.map((s, i) => `${x(i)},${y(s.cost.usd_per_turn)}`).join(" ")}/>
+        ${rows.map((s, i) => html`
+          <g key=${s.name}>
+            <circle cx=${x(i)} cy=${y(s.cost.usd_per_turn)} r="4"
+              fill="var(--signal)" stroke="var(--surface)" strokeWidth="2">
+              <title>${s.name + "\n$" + s.cost.usd_per_turn.toFixed(4) + " per turn at " + s.concurrency + " concurrent"}</title>
+            </circle>
+            <text x=${x(i)} y=${H - 12} fontSize="10" fill="var(--mute)" textAnchor="middle">${s.concurrency}</text>
+          </g>`)}
+      </svg>
+      <div className="note">
+        A turn cost <b>$${first.toFixed(4)}</b> at ${rows[0].concurrency} concurrent and
+        <b>$${last.toFixed(4)}</b> at ${rows[rows.length - 1].concurrency}
+        — ${last > first ? `${((last / first - 1) * 100).toFixed(0)}% more for the same conversation`
+                         : "no more than it did at rest"}.
+        Priced at $${rows[0].cost.rate_per_minute.toFixed(4)} per agent-minute.
+      </div>
+    </div>`;
+}
+
 function ReportCard({ id }) {
   const [rep, setRep] = useState(null);
   const [err, setErr] = useState(null);
@@ -212,6 +307,7 @@ function ReportCard({ id }) {
   const degraded = steps.filter(s => s.harness_degraded);
   const anyWER = steps.some(s => s.wer && s.wer.turns > 0);
   const anyBarge = steps.some(s => s.barge_in && s.barge_in.turns > 0);
+  const conv = steps.filter(s => s.conversation && s.conversation.turns > 0);
 
   return html`
     <div className="card">
@@ -256,6 +352,45 @@ function ReportCard({ id }) {
           believed here.
         </div>`}
     </div>
+
+    ${conv.length > 0 && html`
+      <div className="card">
+        <div className="eyebrow">Conversation quality</div>
+        <h2>How the calls sounded</h2>
+        <div className="tablewrap">
+          <table>
+            <thead><tr>
+              <th>Step</th><th>Agent's share</th><th>Agent pace</th><th>Caller pace</th>
+              <th>Interruptions</th><th>Score /5</th><th>Dead air</th>
+            </tr></thead>
+            <tbody>
+              ${conv.map(s => html`
+                <tr key=${s.name}>
+                  <td>${s.name}</td>
+                  <td>${pct(s.conversation.talk_ratio)}${s.conversation.talk_ratio >= 0.8 ? " ⚠" : ""}</td>
+                  <td>${Math.round(s.conversation.agent_wpm)} wpm${s.conversation.agent_wpm > 190 ? " ⚠" : ""}</td>
+                  <td>${Math.round(s.conversation.caller_wpm)} wpm</td>
+                  <td>${s.conversation.interruptions} of ${s.conversation.turns}</td>
+                  <td>${s.conversation.interruption_score.toFixed(2)}</td>
+                  <td>${s.conversation.dead_air_turns > 0
+                        ? `${s.conversation.dead_air_turns} turns · ${Math.round(s.conversation.dead_air_seconds)}s`
+                        : "none"}</td>
+                </tr>`)}
+            </tbody>
+          </table>
+        </div>
+        <div className="note">
+          Pace is words over that speaker's own speaking time, not wall clock, so a slow agent is
+          not flattered by the caller's pauses. ⚠ marks the published breakdown thresholds: an
+          agent holding <b>80%</b> or more of the floor is lecturing rather than conversing, and
+          above <b>190 wpm</b> is faster than comfortable listening. Dead air counts turns where
+          the line stayed silent more than two seconds after the caller finished — the point at
+          which a person says "hello?".
+        </div>
+      </div>`}
+
+    <${ComponentShare} steps=${steps}/>
+    <${CostChart} steps=${steps}/>
 
     ${anyWER && html`
       <div className="card">
