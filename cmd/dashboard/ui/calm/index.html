@@ -1131,8 +1131,6 @@ function Timeline({ rep }) {
         <svg viewBox="0 0 ${W} ${H}" role="img" aria-label=${"Median TTFA per call over " + fmtClock(total) + ", " + steps.map(s => `${s.name} ${s.timeline.length} calls`).join(", ")}>
           ${steps.map((s, i) => {
             const a = x(wall(s.started_at)), b = x(wall(s.ended_at) || wall(s.started_at));
-            const back = s.phase && s.phase.kind === "recovery" && s.phase.back_to_normal
-              ? x(wall(s.started_at) + (s.phase.back_to_normal_after_s || 0) * 1000) : null;
             // Labels clip to their own band and alternate between two rows, so
             // a short step beside a long one still reads.
             const clip = `tl-${i}`;
@@ -1140,10 +1138,16 @@ function Timeline({ rep }) {
               <clipPath id=${clip}><rect x=${a} y="0" width=${Math.max(b - a, 2)} height=${H}/></clipPath>
               <rect x=${a} y=${TOP - 24} width=${Math.max(b - a, 2)} height=${BASE - TOP + 24} fill=${i % 2 ? "var(--cs-surface-detail)" : "var(--cs-canvas)"}/>
               <text clipPath=${`url(#${clip})`} x=${a + 3} y=${i % 2 ? TOP - 3 : TOP - 14} fontSize="9.5" fill="var(--cs-text-secondary)">${s.name}${s.phase && s.phase.kind && s.phase.kind !== "ramp" ? ` · ${s.phase.kind}` : ""}</text>
-              ${back !== null && html`<g>
-                <line x1=${back} y1=${TOP} x2=${back} y2=${BASE} stroke="var(--cs-olive)" strokeWidth="1.5" strokeDasharray="4 3"/>
-                <text x=${back + 4} y=${BASE - 6} fontSize="10" fill="var(--cs-success-text)">back to normal · ${s.phase.back_to_normal_after_s > 0 ? fmtClock(s.phase.back_to_normal_after_s) : "from the first call"}</text>
-              </g>`}
+            </g>`;
+          })}
+          ${steps.map(s => {
+            // Drawn after every band so the label is never painted under the
+            // band that follows a short recovery step.
+            if (!(s.phase && s.phase.kind === "recovery" && s.phase.back_to_normal)) return null;
+            const back = x(wall(s.started_at) + (s.phase.back_to_normal_after_s || 0) * 1000);
+            return html`<g key=${"back-" + s.name}>
+              <line x1=${back} y1=${TOP} x2=${back} y2=${BASE} stroke="var(--cs-olive)" strokeWidth="1.5" strokeDasharray="4 3"/>
+              <text x=${back + 4} y=${BASE - 6} fontSize="10" fill="var(--cs-success-text)">back to normal · ${s.phase.back_to_normal_after_s > 0 ? fmtClock(s.phase.back_to_normal_after_s) : "from the first call"}</text>
             </g>`;
           })}
           ${fail > 0 && html`<g>
