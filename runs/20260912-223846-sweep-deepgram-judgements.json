@@ -1,0 +1,132 @@
+[
+  {
+    "step": "baseline",
+    "request_id": "01a098a1-aae3-77b0-811a-5330a2aff275",
+    "outcomes": [
+      {
+        "criterion": "The agent asks the caller for an order number before discussing the specific order",
+        "met": true,
+        "evidence": "turn 1: \"agent:  Can you please provide me with your order number?\""
+      },
+      {
+        "criterion": "The agent offers a replacement shipment before a refund is ever mentioned",
+        "met": true,
+        "evidence": "turn 2: \"agent:  Thank you. I’ll arrange a replacement shipment for your wireless headphones.\""
+      },
+      {
+        "criterion": "The agent issues a refund after the caller turns down the replacement",
+        "met": true,
+        "evidence": "turn 3: \"agent:  I can process a refund for you. Confirming the refund now.\""
+      },
+      {
+        "criterion": "The agent tells the caller how long the refund takes to reach their card",
+        "met": true,
+        "evidence": "turn 4: \"agent:  The refund takes five to seven business days to reach your card.\""
+      }
+    ]
+  },
+  {
+    "step": "c5",
+    "request_id": "01a098a3-5254-7c20-8f92-2dc393b9743a",
+    "outcomes": [
+      {
+        "criterion": "The agent asks the caller for an order number before discussing the specific order",
+        "met": true,
+        "evidence": "turn 1: \"Can I have your order number, please?\""
+      },
+      {
+        "criterion": "The agent offers a replacement shipment before a refund is ever mentioned",
+        "met": true,
+        "evidence": "turn 2: \"I'll arrange a replacement shipment for your wireless headphones.\""
+      },
+      {
+        "criterion": "The agent issues a refund after the caller turns down the replacement",
+        "met": true,
+        "evidence": "turn 3: \"I can process that refund for you.\""
+      },
+      {
+        "criterion": "The agent tells the caller how long the refund takes to reach their card",
+        "met": true,
+        "evidence": "turn 4: \"It takes five to seven business days to reach your card.\""
+      }
+    ]
+  },
+  {
+    "step": "c10",
+    "request_id": "01a098a4-3200-7441-b6bf-fe49b1945d53",
+    "outcomes": [
+      {
+        "criterion": "The agent asks the caller for an order number before discussing the specific order",
+        "met": true,
+        "evidence": "turn 1: \"agent:  Could you please provide me with your order number?\""
+      },
+      {
+        "criterion": "The agent offers a replacement shipment before a refund is ever mentioned",
+        "met": true,
+        "evidence": "turn 2: \"agent:  Thank you. I’ll arrange a replacement shipment for your headphones.\""
+      },
+      {
+        "criterion": "The agent issues a refund after the caller turns down the replacement",
+        "met": true,
+        "evidence": "turn 3: \"agent:  I can process that refund for you.\""
+      },
+      {
+        "criterion": "The agent tells the caller how long the refund takes to reach their card",
+        "met": true,
+        "evidence": "turn 4: \"agent:  It takes five to seven business days to reach your card.\""
+      }
+    ]
+  },
+  {
+    "step": "c20",
+    "request_id": "01a098a5-071d-7213-852f-0de648120b3f",
+    "outcomes": [
+      {
+        "criterion": "The agent asks the caller for an order number before discussing the specific order",
+        "met": true,
+        "evidence": "turn 1: \"agent:  Can I have your order number, please?\""
+      },
+      {
+        "criterion": "The agent offers a replacement shipment before a refund is ever mentioned",
+        "met": true,
+        "evidence": "turn 2: \"agent:  I'll arrange a replacement shipment for those headphones.\""
+      },
+      {
+        "criterion": "The agent issues a refund after the caller turns down the replacement",
+        "met": true,
+        "evidence": "turn 3: \"agent:  I can process a refund for you.\""
+      },
+      {
+        "criterion": "The agent tells the caller how long the refund takes to reach their card",
+        "met": true,
+        "evidence": "turn 4: \"agent:  It takes five to seven business days to reach your card.\""
+      }
+    ]
+  },
+  {
+    "step": "c40",
+    "request_id": "01a098a5-e7cc-7761-8355-0236d85f1f8a",
+    "outcomes": [
+      {
+        "criterion": "The agent asks the caller for an order number before discussing the specific order",
+        "met": true,
+        "evidence": "turn 1: \"Can I have your order number, please?\""
+      },
+      {
+        "criterion": "The agent offers a replacement shipment before a refund is ever mentioned",
+        "met": true,
+        "evidence": "turn 2: \"Thank you. I’ll arrange a replacement shipment for you now.\""
+      },
+      {
+        "criterion": "The agent issues a refund after the caller turns down the replacement",
+        "met": true,
+        "evidence": "turn 3: \"I can process a refund for you.\""
+      },
+      {
+        "criterion": "The agent tells the caller how long the refund takes to reach their card",
+        "met": true,
+        "evidence": "turn 4: \"It takes five to seven business days to reach your card.\""
+      }
+    ]
+  }
+]
