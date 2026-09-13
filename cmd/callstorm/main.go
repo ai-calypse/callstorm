@@ -486,6 +486,7 @@ func printLoadReport(rep *loadgen.Report, jsonPath, csvPath, svgPath, callsPath 
 		}
 	}
 
+	printTransport(rep)
 	printReferences(rep)
 	printPhases(rep)
 	printConversation(rep)
@@ -993,6 +994,31 @@ func msf(f float64) string {
 	return fmt.Sprintf("%.0fms", f)
 }
 
+// printTransport separates what the caller waited through from what the agent
+// took. Each call pings the agent over its own connection, and subtracting that
+// round trip from TTFA leaves an estimate of the agent's share: the same agent
+// tested from two places gets two observed TTFAs and one agent TTFA. Think/speak
+// needs no correction, since both of its instants arrive over the same downlink.
+func printTransport(rep *loadgen.Report) {
+	measured := false
+	for _, s := range rep.Steps {
+		if s.AgentTTFA.N > 0 {
+			measured = true
+		}
+	}
+	if !measured {
+		return
+	}
+	fmt.Printf("\nnetwork      observed TTFA, the round trip measured on each call's connection, and the agent's share\n")
+	fmt.Printf("%-12s %-13s %-13s %-10s %-11s %-11s %s\n",
+		"step", "observed p50", "observed p95", "rtt p50", "agent p50", "agent p95", "corrected")
+	for _, s := range rep.Steps {
+		fmt.Printf("%-12s %-13s %-13s %-10s %-11s %-11s %d of %d turns\n", s.Name,
+			msf(s.TTFA.P50Ms), msf(s.TTFA.P95Ms), msf(s.TransportRTT.P50Ms),
+			msf(s.AgentTTFA.P50Ms), msf(s.AgentTTFA.P95Ms), s.AgentTTFA.N, s.TTFA.N)
+	}
+}
+
 // printReferences reports every step on two clocks and reads the published
 // reference lines against the clock each was defined on.
 //
@@ -1185,6 +1211,22 @@ func printMatrix(rep *loadgen.Report) {
 			fmt.Printf(" %-15s", cell)
 		}
 		fmt.Printf(" %s\n", dash(c.Breakpoint))
+
+		// The same cohort with each turn's round trip taken out. On a network
+		// that only adds delay, this row should match the clean one.
+		corrected := false
+		for _, s := range c.Steps {
+			if s.AgentTTFA.N > 0 {
+				corrected = true
+			}
+		}
+		if corrected {
+			fmt.Printf("%-10s %-24s", "", "  agent p95, rtt removed")
+			for _, s := range c.Steps {
+				fmt.Printf(" %-15s", msf(s.AgentTTFA.P95Ms))
+			}
+			fmt.Println()
+		}
 	}
 	fmt.Printf("\n%-10s applied to %s, egress only; verdicts scored against the clean baseline\n", "tc", m.Device)
 	for _, c := range m.Cohorts {

@@ -301,6 +301,9 @@ const GLOSSARY = [
   ["Think / speak",
    "The second half: the language model composing a reply plus the voice generating audio for it.",
    "This is the half that queues under load. If it grows while endpointing holds, the agent ran out of compute, not patience."],
+  ["Agent TTFA",
+   "TTFA with the network round trip taken out: every call pings the agent over its own connection, and that round trip is subtracted turn by turn.",
+   "Observed TTFA moves when the test moves. This is the share the agent owns, so it is the figure to compare between runs placed from different places."],
   ["Talk ratio",
    "The agent's share of the speaking, counted in seconds of audio rather than lines of text.",
    "Published work puts half of voice agents at 0.80 or above. That is an agent delivering a monologue at a customer."],
@@ -1230,6 +1233,84 @@ function readTaskSuccess(j) {
   };
 }
 
+// What the agent contributed: observed TTFA with the network round trip taken
+// out.
+//
+// Observed TTFA is what the caller waited through, and it includes the network
+// between wherever this test ran and the agent's edge. Move the test and the
+// number moves, with no change to the agent. Every call pings the agent over its
+// own connection; a ping is answered by the server's WebSocket layer rather than
+// the agent, so its round trip is the network's share, and subtracting it turn
+// by turn leaves an estimate of the agent's. The verdict stays on the observed
+// figure, which is what a caller in that place actually experiences.
+function AgentLatency({ steps }) {
+  const rows = steps.filter(s => s.ttfa && s.ttfa.n > 0);
+  if (rows.length === 0) return null;
+  const corrected = rows.filter(s => s.agent_ttfa && s.agent_ttfa.n > 0);
+  if (corrected.length === 0) {
+    const pinged = rows.some(s => "transport_rtt" in s);
+    return html`
+      <div className="card">
+        <div className="eyebrow">What the agent contributed</div>
+        <h2>${pinged ? "The network could not be taken out" : "Not separated from the network"}</h2>
+        <div className="note">
+          ${pinged
+            ? html`<span>Every call pinged the agent over its own connection and no pong came back, so this run's TTFA cannot be corrected for the network. The observed figures include the round trip between the test and the agent's edge.</span>`
+            : html`<span>This run predates round-trip measurement, so its TTFA includes the network between the test and the agent's edge with no way to take it out. Runs placed from this version onward ping the agent on every call.</span>`}
+        </div>
+      </div>`;
+  }
+
+  return html`
+    <div className="card">
+      <div className="eyebrow">What the agent contributed</div>
+      <h2>The wait, with the network taken out</h2>
+      <div className="read-why" style=${{marginTop:"8px",maxWidth:"78ch"}}>
+        Observed TTFA is what the caller waited through, and it includes the network between wherever this test ran and the agent. Every call pings the agent over its own connection, and the round trip it measures is subtracted turn by turn to estimate the agent's own share.
+      </div>
+      <div className="tablewrap">
+        <table>
+          <thead><tr>
+            <th>Step</th><th>Observed p50</th><th>Observed p95</th><th>Round trip p50</th>
+            <th>Agent p50</th><th>Agent p95</th><th>Corrected</th>
+          </tr></thead>
+          <tbody>
+            ${rows.map(s => html`
+              <tr key=${s.name}>
+                <td>${s.name}</td>
+                <td>${ms(s.ttfa.p50_ms)}</td>
+                <td>${ms(s.ttfa.p95_ms)}</td>
+                <td>${s.transport_rtt && s.transport_rtt.n > 0 ? ms(s.transport_rtt.p50_ms) : "-"}</td>
+                <td>${s.agent_ttfa && s.agent_ttfa.n > 0 ? ms(s.agent_ttfa.p50_ms) : "-"}</td>
+                <td>${s.agent_ttfa && s.agent_ttfa.n > 0 ? ms(s.agent_ttfa.p95_ms) : "-"}</td>
+                <td>${s.agent_ttfa ? s.agent_ttfa.n : 0} of ${s.ttfa.n} turns</td>
+              </tr>`)}
+          </tbody>
+        </table>
+      </div>
+      <div className="note">
+        The correction is an estimate. A ping travels the same connection as the audio, so it waits in the same queues, and its pong is read by the same code that times the agent's reply, so the harness's own delay cancels too. It cannot see inside the agent: speech recognition, the model and the voice stay together in the agent's share. Think/speak needs no correction, because both of its instants arrive over the same connection.
+      </div>
+      <${Reading} ...${readAgentLatency(corrected)}/>
+    </div>`;
+}
+
+function readAgentLatency(rows) {
+  const peak = rows.reduce((a, s) => (s.ttfa.p50_ms > a.ttfa.p50_ms ? s : a), rows[0]);
+  const rtt = peak.transport_rtt && peak.transport_rtt.n > 0 ? peak.transport_rtt.p50_ms : 0;
+  const share = peak.ttfa.p50_ms > 0 ? rtt / peak.ttfa.p50_ms : 0;
+  const big = share >= 0.2;
+  return {
+    verdict: big
+      ? html`<b>The network is ${Math.round(share * 100)}% of the wait.</b> At ${peak.name} the caller usually waited ${ms(peak.ttfa.p50_ms)}, the round trip to the agent was ${ms(rtt)}, and the agent's own share was ${ms(peak.agent_ttfa.p50_ms)}.`
+      : html`<b>The wait is the agent's.</b> At ${peak.name} the round trip was ${ms(rtt)} of a typical ${ms(peak.ttfa.p50_ms)} wait, leaving ${ms(peak.agent_ttfa.p50_ms)} as the agent's own share.`,
+    why: html`A latency measured from one place includes the path from that place. The same agent tested from a laptop on hotel Wi-Fi and from a server beside its edge gets two observed TTFAs and one agent TTFA, which is what makes the agent figure comparable between runs placed from different machines. The observed figure is still the one a caller in that place experiences, so it is the one the verdict is scored on.`,
+    act: big
+      ? html`<b>Do not tune the agent for this share.</b> Run the test closer to the agent, or quote the agent figure beside the observed one. No endpointing threshold or model choice moves a round trip.`
+      : html`Tune the agent, not the path: nearly all of this wait happens inside it. The split further down says whether it goes on noticing the caller stopped or on composing the reply.`,
+  };
+}
+
 // The impairment heatmap: every cohort crossed with every step.
 //
 // Load runs along one axis and the caller's network along the other, so a
@@ -1241,6 +1322,7 @@ const HEAT_METRICS = [
   ["p50", "p50 TTFA", s => s.ttfa && s.ttfa.p50_ms, v => ms(v)],
   ["p90", "p90 TTFA", s => s.ttfa && s.ttfa.p90_ms, v => ms(v)],
   ["p95", "p95 TTFA", s => s.ttfa && s.ttfa.p95_ms, v => ms(v)],
+  ["agent_p95", "agent p95", s => s.agent_ttfa && s.agent_ttfa.p95_ms, v => ms(v)],
   ["vs_clean", "p95 × clean", s => s.vs_clean, v => v.toFixed(2) + "×"],
 ];
 
@@ -1561,6 +1643,8 @@ const APPENDIX = [
   ["Endpointing", "t(agent's transcript of the caller arrives) − t(caller's last frame finishes)", "The last transcript before the agent's first audio. Absent when the target sends none."],
   ["Think / speak", "t(agent's first audio) − t(agent's transcript of the caller)", "Endpointing + think/speak = TTFA whenever both exist."],
   ["Turn latency", "t(agent's audio finishes playing) − t(caller's last frame finishes)", "Playout end comes from audio duration, not arrival: voices stream faster than realtime."],
+  ["Round trip", "t(pong received) − t(ping sent), a WebSocket ping on the call's own connection once a second", "Per turn: the median of pings sent between the caller starting to speak and the agent's first audio, or the latest before it. No pong means no sample; a pong faster than the clock resolves is a real sample of zero."],
+  ["Agent TTFA", "TTFA − that turn's round trip; agent endpointing = endpointing − that turn's round trip", "Only turns with a measured round trip. An estimate: the network's share comes out, the agent's internals stay together. The verdict uses observed TTFA."],
   ["Percentile", "value at rank ⌈p ÷ 100 × n⌉ of the step's values sorted ascending", "Nearest rank over one step's turns, never pooled across steps. p50, p90, p95, p99."],
   ["Setup success", "calls that reached a conversation ÷ calls attempted", "Per step."],
   ["Verdict", "r = step p95 TTFA ÷ baseline step p95 TTFA. Pass r ≤ 1.5, warn r ≤ 2, fail r > 2 or setup < 97%", "In an impairment matrix every cohort's r uses the clean cohort's baseline step."],
@@ -1592,7 +1676,7 @@ const BOUNDARIES = [
   ["LLM TTFT", "Model request sent", "First output token", "Inside think/speak. Not separable from outside the agent."],
   ["Tool latency", "Tool request sent", "Tool result available", "Inside think/speak. Not separable today."],
   ["TTS first-byte", "Speakable text sent to TTS", "First audio bytes received", "Inside think/speak. Not separable from outside the agent."],
-  ["TTFA", "A defined turn boundary", "First playable/audible audio", "Callstorm's TTFA, with the boundary set at the true end of speech. It ends when the first audio byte arrives, not when it plays."],
+  ["TTFA", "A defined turn boundary", "First playable/audible audio", "Callstorm's TTFA, with the boundary set at the true end of speech. It ends when the first audio byte arrives, not when it plays. Agent TTFA subtracts the measured round trip to the agent's edge."],
   ["End-to-end response", "User finishes speaking", "Agent begins speaking", "Callstorm's TTFA is this row, ended at arrival rather than at audible start."],
   ["Interruption stop time", "Caller begins barge-in", "Agent audio stops", "Callstorm's barge-in yield, ended when the agent's audio stops arriving."],
 ];
@@ -1702,6 +1786,7 @@ function ReportCard({ id, refs }) {
       ${steps.length > 0 && html`<${Reading} ...${readLatency(steps, rep)}/>`}
     </div>
 
+    <${AgentLatency} steps=${steps}/>
     <${ImpairmentHeatmap} rep=${rep}/>
     <${ReferenceLines} steps=${steps} refs=${rep.references || refs}/>
     <${PhaseTable} steps=${steps}/>

@@ -299,6 +299,56 @@ onto what Callstorm measures: which of endpointing, transcript finalization,
 model time to first token, tool latency and first TTS byte each Callstorm
 number spans. From outside the agent the wait splits in two and no further.
 
+## What the agent contributed, and what the network did
+
+Observed TTFA is what the caller waited through, and it includes the network
+between wherever the test runs and the agent's edge. The same agent tested from
+two places gets two TTFAs. So every call also pings the agent once a second over
+its own connection, and each turn's round trip is subtracted to estimate the
+agent's own share:
+
+- **Agent TTFA** is TTFA minus that turn's round trip, and **agent endpointing**
+  is corrected the same way.
+- **Think/speak needs no correction.** Both of its instants arrive over the same
+  connection, so the network cancels out of it.
+- **The harness is not subtracted separately.** The clock starts when the
+  caller's last frame is actually written, and the pong is read by the same
+  goroutine that stamps the agent's reply, so the harness's lag is already
+  inside the round trip.
+- **The verdict still uses observed TTFA**, because that is what a caller in
+  that place experiences.
+
+A ping is answered by the server's WebSocket layer, not the agent, so the round
+trip stops at the agent's edge. Everything behind the edge stays in the agent's
+share -- speech recognition, the model, the voice, the provider's own internal
+hops -- and none of it can be separated from outside.
+
+Checked against the reference agent in kind (500ms injected, 300ms of it
+think/speak), at 2 concurrent callers; 8 concurrent matched to within a few
+milliseconds except under jitter:
+
+| cohort | observed p50 | round trip p50 | agent p50 | agent endpointing p50 |
+|---|---|---|---|---|
+| clean | 503ms | 0.7ms | 502ms | 201ms |
+| delay-100 | 603ms | 101ms | 502ms | 201ms |
+| loss-3 | 503ms | 0.6ms | 502ms | 201ms |
+| jitter-50 | 2157ms | 1531ms | 664ms | 370ms |
+
+**Delay is removed exactly.** 100ms was added to the network, 101ms measured,
+and the agent's share is back at clean's 502ms.
+
+**Jitter is removed only in part.** The median round trip took about 1.5s off a
+2.2s wait but left the agent's share 160 to 200ms high at the median and 700 to
+830ms high at p95. Most likely the queue jitter builds in the send buffer
+changes from moment to moment, and the pings sample it at different instants
+from the audio they stand in for. On a line that queues, agent TTFA is much
+closer to the truth than observed TTFA, and still an overestimate.
+
+Checking this locally found a bug. On Windows, Go's clock measured some loopback
+round trips as exactly zero, and zero had been read as "no pong", dropping a
+third of a run's turns from the correction. Whether a pong came back is now
+recorded apart from its value.
+
 ## Why there is a reference agent
 
 `cmd/refagent` speaks the Deepgram Voice Agent wire protocol but has no STT, no

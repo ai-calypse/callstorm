@@ -218,6 +218,15 @@ collect:
 		m.TurnLatency = playoutEnd - callerEnd
 	}
 
+	// The round trip measured while this turn ran, from the caller starting to
+	// speak to the agent's first audio. It is what lets the report separate the
+	// agent's share of the wait from the network's; see pingLoop.
+	end := firstAudio
+	if end == 0 {
+		end = w.log.Since()
+	}
+	m.TransportRTT, m.TransportRTTMeasured = w.rtt.median(callerStart, end)
+
 	if m.AgentText != "" {
 		w.lastAgentText = m.AgentText
 	}

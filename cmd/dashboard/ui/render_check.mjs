@@ -46,7 +46,7 @@ globalThis.fetch = async (url) => ({
   json: async () => (url.includes("/runs/") ? run : index),
 });
 
-const mod = new Function(src + "\n;return { App, ReportCard, ComponentShare, CostChart, ReferenceLines, placeRef, PhaseTable, TaskSuccessCard, ImpairmentHeatmap, NodeScores, IntegrityCard, Appendix };")();
+const mod = new Function(src + "\n;return { App, ReportCard, ComponentShare, CostChart, ReferenceLines, placeRef, PhaseTable, TaskSuccessCard, ImpairmentHeatmap, NodeScores, IntegrityCard, Appendix, AgentLatency };")();
 
 // useEffect does not run during renderToString, so the components are driven
 // directly with the data the fetch would have produced. That is the point:
@@ -445,6 +445,7 @@ for (const [name, needle] of [
   ["a run with no pipeline says there was nothing to check", "No pipeline to check"],
   ["and that it is not the target's webhooks", "not the target&#x27;s webhooks"],
   ["a run before node scoring says so", "predates per-node scoring"],
+  ["a run before round-trip measurement says so", "predates round-trip measurement"],
   ["the appendix mounts in the report", "How every number is computed"],
   ["the appendix gives the percentile formula", "⌈p ÷ 100 × n⌉"],
   ["the appendix maps published boundaries onto Callstorm's clocks", "ASR finalization"],
@@ -491,6 +492,7 @@ for (const [name, needle] of [
   ["the kernel's readback", "qdisc netem 8001"],
   ["a failed cell is marked", "✕"],
   ["breaks-at column", ">c8<"],
+  ["offers agent p95 as a cell value", "agent p95"],
   ["names the finding", "The network breaks it before load does"],
   ["says loss arrives as delay over TCP", "not as damaged audio"],
   ["places the delay in endpointing", "The network lands in endpointing"],
@@ -576,6 +578,63 @@ for (const [name, needle] of [
   console.log(`${zero ? "ok  " : "FAIL"}  the graph's known answer held in every cohort`);
 }
 
+// Agent TTFA: the observed wait with the measured round trip taken out. The
+// fixture is arithmetic -- 100ms of round trip on a 640ms turn leaves 540ms, a
+// 16% share, so exactly one verdict is right -- and a run where no pong came
+// back says so rather than showing a corrected figure it does not have.
+const agentHtml = ReactDOMServer.renderToStaticMarkup(React.createElement(mod.AgentLatency, { steps: [
+  { name: "c2", concurrency: 2, ttfa: { n: 20, p50_ms: 600, p95_ms: 650 },
+    transport_rtt: { n: 20, p50_ms: 100, p95_ms: 110 }, agent_ttfa: { n: 20, p50_ms: 500, p95_ms: 545 } },
+  { name: "c8", concurrency: 8, ttfa: { n: 40, p50_ms: 640, p95_ms: 700 },
+    transport_rtt: { n: 30, p50_ms: 100, p95_ms: 120 }, agent_ttfa: { n: 30, p50_ms: 540, p95_ms: 590 } },
+] }));
+const noPong = ReactDOMServer.renderToStaticMarkup(React.createElement(mod.AgentLatency, { steps: [
+  { name: "c2", concurrency: 2, ttfa: { n: 10, p50_ms: 600, p95_ms: 650 },
+    transport_rtt: { n: 0, p50_ms: 0, p95_ms: 0 }, agent_ttfa: { n: 0, p50_ms: 0, p95_ms: 0 } },
+] }));
+for (const [name, html, needle] of [
+  ["agent card", agentHtml, "The wait, with the network taken out"],
+  ["shows the agent's share", agentHtml, "540ms"],
+  ["shows how much of the step was corrected", agentHtml, "30 of 40 turns"],
+  ["a small network share leaves the wait with the agent", agentHtml, "The wait is the agent"],
+  ["says the correction is an estimate", agentHtml, "The correction is an estimate"],
+  ["a run whose server answered no pings says so", noPong, "no pong came back"],
+]) {
+  const ok = html.includes(needle);
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
+}
+{
+  const both = agentHtml.includes("of the wait.</b>");
+  if (both) bad++;
+  console.log(`${!both ? "ok  " : "FAIL"}  does not also call the network a large share`);
+}
+
+// The known answer for agent TTFA, from a real run in kind: the reference agent
+// injects 500ms, and netem adds 100ms of delay to the calling pod. Observed TTFA
+// has to rise by the delay, and agent TTFA has to stay where the clean cohort
+// had it -- otherwise the correction is wrong, whatever the card says.
+const rttRun = JSON.parse(fs.readFileSync("testdata/run-rtt.json", "utf8"));
+{
+  const cohort = name => rttRun.matrix.cohorts.find(c => c.impairment.name === name);
+  const clean = cohort("clean"), delay = cohort("delay-100");
+  const pairs = delay.steps.map((s, i) => [s, clean.steps[i]]);
+  const rose = pairs.every(([s, base]) => s.ttfa.p50_ms - base.ttfa.p50_ms > 90);
+  const held = pairs.every(([s, base]) => Math.abs(s.agent_ttfa.p50_ms - base.agent_ttfa.p50_ms) < 10);
+  const ok = rose && held;
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  100ms of delay raises observed TTFA and leaves agent TTFA where clean had it`);
+}
+seeded = 0;
+current = rttRun;
+const rttCard = ReactDOMServer.renderToStaticMarkup(
+  React.createElement(mod2.ReportCard, { refs: REFS, id: "run-rtt" }));
+{
+  const ok = rttCard.includes("The wait, with the network taken out") && rttCard.includes("30 of 30 turns");
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  the real run's agent card renders inside the report`);
+}
+
 // The readings are prose with numbers spliced into it, and both ways of
 // getting that wrong are silent. htm drops whitespace spanning a newline
 // exactly as JSX does, so a value on its own line arrives glued to the word
@@ -585,7 +644,7 @@ for (const [name, needle] of [
 // Every reading rendered above, scanned together: a glue bug in one card is
 // the same bug in all of them, and a check that only looks at the first is how
 // the last one ships broken.
-const ALL = [card, legacy, refsHtml, drifted, stuck, nojudge, task, thinHtml, phasedCard, judgedCard, heat, nodes, dup, lost, matrixCard].join(String.fromCharCode(10));
+const ALL = [card, legacy, refsHtml, drifted, stuck, nojudge, task, thinHtml, phasedCard, judgedCard, heat, nodes, dup, lost, matrixCard, agentHtml, noPong, rttCard].join(String.fromCharCode(10));
 const prose = [...ALL.matchAll(/<div class="read[^"]*">([\s\S]*?)<\/div>/g)]
   // Inline tags are dropped rather than spaced out: <b> and <code> sit inside
   // sentences, so replacing them with a space would invent gaps the reader

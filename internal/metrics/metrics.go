@@ -153,6 +153,19 @@ type TurnMetric struct {
 	// asking anyone to take realtime pacing on faith.
 	PacingDrift time.Duration `json:"-"`
 
+	// TransportRTT is the round trip to the agent's edge, measured by WebSocket
+	// ping on this call's own connection while the turn ran. It is the share of
+	// TTFA the agent does not own: the caller's audio travelling out and the
+	// reply travelling back.
+	TransportRTT time.Duration `json:"-"`
+
+	// TransportRTTMeasured says a pong came back, so TransportRTT is a reading
+	// rather than an absence. It is kept apart from the value because zero is a
+	// real reading: a local run on Windows measured loopback round trips of
+	// exactly zero, below what the clock resolves, and reading those as "no
+	// pong" dropped a third of the run's turns from the correction.
+	TransportRTTMeasured bool `json:"transport_rtt_measured,omitempty"`
+
 	// CallerYielded records that the caller stopped mid-sentence because the
 	// agent started talking over them, which is what a real caller does.
 	CallerYielded bool `json:"caller_yielded,omitempty"`
@@ -202,6 +215,12 @@ type TurnMetric struct {
 
 	// BargeInYieldMs is the millisecond mirror of BargeInYield.
 	BargeInYieldMs float64 `json:"barge_in_yield_ms,omitempty"`
+
+	// TransportRTTMs is the millisecond mirror of TransportRTT. It is always
+	// written, even at zero: a round trip too short for the clock to resolve
+	// reads exactly zero, and omitting the field left a turn marked measured
+	// with no number. TransportRTTMeasured says whether the zero is a reading.
+	TransportRTTMs float64 `json:"transport_rtt_ms"`
 }
 
 // Finalize populates the millisecond mirrors from the duration fields.
@@ -220,6 +239,7 @@ func (t *TurnMetric) Finalize() {
 	t.TurnLatencyMs = ms(t.TurnLatency)
 	t.PacingDriftMs = ms(t.PacingDrift)
 	t.BargeInYieldMs = ms(t.BargeInYield)
+	t.TransportRTTMs = ms(t.TransportRTT)
 }
 
 // Rehydrate restores the duration fields from their millisecond mirrors.
@@ -244,6 +264,7 @@ func (t *TurnMetric) Rehydrate() {
 	t.TurnLatency = d(t.TurnLatencyMs)
 	t.PacingDrift = d(t.PacingDriftMs)
 	t.BargeInYield = d(t.BargeInYieldMs)
+	t.TransportRTT = d(t.TransportRTTMs)
 }
 
 // Percentile returns the nearest-rank pth percentile of ds.

@@ -106,6 +106,9 @@ type worker struct {
 	// greeting. Branching reads it to decide the caller's next line, which is
 	// the difference between a caller who responds and one who recites.
 	lastAgentText string
+
+	// rtt is this call's round-trip samples; see pingLoop.
+	rtt rttLog
 }
 
 // Run places one call and returns its measurements.
@@ -159,6 +162,7 @@ func Run(ctx context.Context, cfg Config) (*Result, error) {
 	defer stopPump()
 	go w.pump.run(pumpCtx)
 	go w.readLoop(ctx)
+	go w.pingLoop(pumpCtx)
 
 	var turns []metrics.TurnMetric
 

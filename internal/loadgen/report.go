@@ -80,6 +80,17 @@ type StepReport struct {
 	ThinkSpeak  Summary `json:"think_speak"`
 	TurnLatency Summary `json:"turn_latency"`
 
+	// TransportRTT is the round trip to the agent's edge measured during this
+	// step's turns. AgentTTFA and AgentEndpointing are TTFA and endpointing with
+	// each turn's own round trip subtracted: an estimate of the share of the
+	// wait the agent owns. The observed figures above are what the caller
+	// experienced, and stay the ones the verdict is scored on. A turn with no
+	// pong counts in the observed figures and not here, so AgentTTFA.N below
+	// TTFA.N says how much of the step could be corrected.
+	TransportRTT     Summary `json:"transport_rtt"`
+	AgentTTFA        Summary `json:"agent_ttfa"`
+	AgentEndpointing Summary `json:"agent_endpointing"`
+
 	WorstDriftMs float64 `json:"worst_harness_drift_ms"`
 
 	// Conversation is how the calls sounded: pace, share of the talking,
@@ -239,6 +250,7 @@ func buildStepReportAt(step Step, outcomes []callOutcome, ratePerMinute float64)
 	r := StepReport{Step: step, Errors: map[string]int{}}
 
 	var ttfa, endpointing, thinkSpeak, turnLatency []time.Duration
+	var agentTTFA, agentEndpointing, rtts []time.Duration
 	var worstDrift time.Duration
 
 	var (
@@ -315,6 +327,19 @@ func buildStepReportAt(step Step, outcomes []callOutcome, ratePerMinute float64)
 			if t.TurnLatency > 0 {
 				turnLatency = append(turnLatency, t.TurnLatency)
 			}
+
+			// Only a turn with a measured round trip is corrected. A turn with
+			// no pong is still what the caller waited through, so it stays in
+			// the observed figures and is simply not estimated here.
+			if t.TransportRTTMeasured {
+				rtts = append(rtts, t.TransportRTT)
+				if t.TTFA > 0 {
+					agentTTFA = append(agentTTFA, t.TTFA-t.TransportRTT)
+				}
+				if t.Endpointing > 0 {
+					agentEndpointing = append(agentEndpointing, t.Endpointing-t.TransportRTT)
+				}
+			}
 		}
 	}
 
@@ -325,6 +350,9 @@ func buildStepReportAt(step Step, outcomes []callOutcome, ratePerMinute float64)
 	r.Endpointing = summarize(endpointing)
 	r.ThinkSpeak = summarize(thinkSpeak)
 	r.TurnLatency = summarize(turnLatency)
+	r.TransportRTT = summarize(rtts)
+	r.AgentTTFA = summarize(agentTTFA)
+	r.AgentEndpointing = summarize(agentEndpointing)
 	r.WorstDriftMs = math.Round(float64(worstDrift.Microseconds())/1000*10) / 10
 	r.HarnessDegraded = math.Abs(r.WorstDriftMs) > MaxHealthyDriftMs
 
