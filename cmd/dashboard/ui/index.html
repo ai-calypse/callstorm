@@ -73,6 +73,46 @@
   .tablewrap { overflow-x:auto; }
 
   .note { margin-top:14px; padding:10px 12px; border-left:3px solid var(--warn); background:var(--sunk); font-size:12px; color:var(--ink-2); }
+
+  /* A reading: what this card's numbers actually say, and what to do about it.
+     Distinct from .note, which is a caveat -- this is the finding. */
+  .read { margin-top:16px; border-top:1px solid var(--rule); padding-top:14px; }
+  .read-verdict { font-family:"IBM Plex Serif", Georgia, serif; font-size:15px; line-height:1.45;
+                  color:var(--ink); letter-spacing:-.005em; max-width:70ch; }
+  .read-verdict b { color:var(--signal); font-weight:600; }
+  .read-why { margin-top:9px; font-size:12px; line-height:1.6; color:var(--ink-2); max-width:76ch; }
+  .read-do { margin-top:9px; font-size:12px; line-height:1.55; color:var(--ink-2); max-width:76ch;
+             border-left:3px solid var(--signal); padding:7px 0 7px 11px; background:var(--sunk); }
+  .read-do b, .read-why b { color:var(--ink); }
+  .read-do code, .read-why code { font-size:11.5px; background:var(--ground); padding:1px 4px; border-radius:2px; }
+
+  /* Anatomy of a turn: two proportional segments, sized by the run's own
+     numbers, so the diagram is a measurement rather than an illustration. */
+  .atrack { display:flex; margin-top:16px; height:42px; border-radius:2px; overflow:hidden; }
+  .aseg { display:flex; flex-direction:column; justify-content:center; gap:2px; padding:0 10px;
+          min-width:0; overflow:hidden; font-size:11px; color:#fff; white-space:nowrap; }
+  .aseg b { font-size:13px; font-variant-numeric:tabular-nums; }
+  .aseg.ep { background:color-mix(in srgb, var(--signal) 42%, var(--surface)); color:var(--ink); }
+  .aseg.ts { background:var(--signal); color:#06232A; }
+  @media (prefers-color-scheme: dark) { .aseg.ts { color:#04181D; } }
+  .amarks { display:flex; margin-top:6px; font-size:10px; color:var(--mute); line-height:1.35; }
+  .amarks > * { min-width:0; padding-right:8px; }
+  .amarks .between { display:flex; justify-content:space-between; gap:10px; }
+  .amarks .between span:last-child { text-align:right; }
+  .ahalves { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:1px 24px; margin-top:16px; }
+  .ahalves div { border-top:1px solid var(--rule); padding-block:9px 11px; }
+  .ahalves dt { font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--signal); }
+  .ahalves dd { margin:4px 0 0; font-size:12px; color:var(--ink-2); line-height:1.55; }
+  .ahalves dd em { font-style:normal; color:var(--ink); }
+
+  /* The glossary: every number on this page, in plain words, before anyone
+     scrolls into a table of them. */
+  .gloss { margin-top:16px; }
+  .gloss table { margin-top:0; }
+  .gloss td:first-child { font-weight:500; color:var(--ink); white-space:nowrap; vertical-align:top; }
+  .gloss td:nth-child(2) { text-align:left; white-space:normal; color:var(--ink-2); line-height:1.55; min-width:22ch; }
+  .gloss td:last-child { text-align:left; white-space:normal; color:var(--mute); line-height:1.5; }
+  .gloss .good { color:var(--pass); }
   .empty { color:var(--mute); padding:40px 0; text-align:center; }
   .trend { margin-top:10px; }
   .legend { display:flex; gap:16px; flex-wrap:wrap; font-size:11px; color:var(--ink-2); margin-top:8px; }
@@ -193,6 +233,201 @@ function Trend({ runs }) {
     </div>`;
 }
 
+// A reading has three parts, always in this order: what the numbers say, why
+// that is what they say, and what to do about it. A dashboard that shows a
+// chart and stops has handed its reader a research project.
+function Reading({ verdict, why, act }) {
+  // A reading is prose with values spliced through it, so htm hands back an
+  // array of children rather than one element. React wants keys on any array,
+  // and warns on stderr without rendering anything differently -- which is the
+  // shape of every bug this dashboard has shipped. Keyed here once, so no
+  // reading has to remember to wrap itself.
+  const keyed = v => Array.isArray(v)
+    ? v.map((c, i) => React.createElement(React.Fragment, { key: i }, c))
+    : v;
+  return html`
+    <div className="read">
+      <div className="read-verdict">${keyed(verdict)}</div>
+      ${why && html`<div className="read-why">${keyed(why)}</div>`}
+      ${act && html`<div className="read-do">${keyed(act)}</div>`}
+    </div>`;
+}
+
+// Every number on the page, in plain words, before anyone meets it in a table.
+// Assume the reader has never load-tested a voice agent: the column that
+// matters is not the definition but what the number catches that no other
+// number does.
+const GLOSSARY = [
+  ["p50 / p95 TTFA",
+   "Time to first audio: you stop talking, and this is how long the line stays dead before the agent says anything. p50 is the middle turn; p95 is the turn worse than 95% of the rest.",
+   "p50 is the call you usually get. p95 is the call that makes someone hang up, and it is always worse than the average suggests."],
+  ["Endpointing",
+   "The first half of that wait: how long the agent took to notice you had stopped, before it began working on a reply.",
+   "It is a silence threshold, not computation. If this is the big half, a faster model changes nothing."],
+  ["Think / speak",
+   "The second half: the language model composing a reply plus the voice generating audio for it.",
+   "This is the half that queues under load. If it grows while endpointing holds, the agent ran out of compute, not patience."],
+  ["Talk ratio",
+   "The agent's share of the speaking, counted in seconds of audio rather than lines of text.",
+   "Published work puts half of voice agents at 0.80 or above. That is an agent delivering a monologue at a customer."],
+  ["Words per minute",
+   "Pace, measured over each side's own speaking time rather than the clock, so pauses do not flatter a slow agent.",
+   "Above roughly 190 is faster than a person can comfortably follow on a phone line."],
+  ["Interruption score",
+   "0 to 5, as 5 x (1 - interruptions / turns). 5 means the agent never talked over the caller.",
+   "The same formula the commercial platforms publish, so a run here can be read beside one from them."],
+  ["Dead air",
+   "Turns where the line stayed silent more than two seconds after the caller finished.",
+   "A percentile says how slow the slow turns were. This says how often the call sounded broken, which is the thing a caller actually notices."],
+  ["Word error rate",
+   "How much of what the caller said the agent misheard, against the exact script the caller was given.",
+   "The one failure no timing can show: an agent can answer in 300ms, fluently, to a question nobody asked."],
+  ["Barge-in yield",
+   "When the caller cuts in, how long the agent keeps talking before it stops.",
+   "An agent that never stops has taken the floor from the person paying for the call."],
+  ["Cost per turn",
+   "Billable agent-minutes for the step, divided by the turns in it.",
+   "Voice agents bill by the minute, so latency is a price. Verbosity is the same bill in a different disguise."],
+  ["Pacing drift",
+   "How far the caller's audio drifted from real time. This measures the test rig, not the agent.",
+   "Every other number is only worth reading while this stays near zero. A run that hides it is asking to be trusted."],
+];
+
+function Glossary() {
+  const [open, setOpen] = useState(false);
+  return html`
+    <div className="card">
+      <div className="eyebrow">Start here</div>
+      <h2>What each number catches</h2>
+      <div className="read-why" style=${{marginTop:"8px",maxWidth:"78ch"}}>
+        Latency percentiles say how long a caller waited. They say nothing about whether the agent
+        lectured, raced, talked over the caller, misheard them, or left the line dead. Each row
+        below is a failure the row above it cannot see.
+      </div>
+      <div className="tablewrap gloss">
+        <table>
+          <thead><tr><th>Term</th><th>What it means</th><th>What it catches</th></tr></thead>
+          <tbody>
+            ${(open ? GLOSSARY : GLOSSARY.slice(0, 4)).map(([t, m, c]) => html`
+              <tr key=${t}><td>${t}</td><td>${m}</td><td>${c}</td></tr>`)}
+          </tbody>
+        </table>
+      </div>
+      <button className="run" style=${{border:"1px solid var(--rule)",marginTop:"10px",borderRadius:"2px",
+              display:"block",width:"auto",padding:"7px 12px",fontSize:"11px",color:"var(--signal)"}}
+              onClick=${() => setOpen(!open)}>
+        ${open ? "Show fewer" : `Show all ${GLOSSARY.length} terms`}
+      </button>
+    </div>`;
+}
+
+// Anatomy of one turn, drawn to the run's own median so the picture is a
+// measurement rather than an illustration. The split point is the thing being
+// taught: TTFA is two different problems wearing one number.
+function TurnAnatomy({ ep, ts }) {
+  const total = ep + ts;
+  if (total <= 0) return null;
+  return html`
+    <div>
+      <div className="atrack">
+        <div className="aseg ep" style=${{flex: Math.max(ep, total * 0.14)}}>
+          <span>endpointing</span><b>${ms(ep)}</b>
+        </div>
+        <div className="aseg ts" style=${{flex: Math.max(ts, total * 0.14)}}>
+          <span>think / speak</span><b>${ms(ts)}</b>
+        </div>
+      </div>
+      <div className="amarks">
+        <div style=${{flex: Math.max(ep, total * 0.14)}}>↑ you stop talking</div>
+        <div className="between" style=${{flex: Math.max(ts, total * 0.14)}}>
+          <span>↑ agent's transcript of you</span><span>↑ its first audio</span>
+        </div>
+      </div>
+      <div className="ahalves">
+        <div>
+          <dt>Endpointing</dt>
+          <dd>The agent is listening to silence and deciding whether you paused or finished.
+              Nothing is being computed yet. <em>It is a configured threshold</em>, so it barely
+              moves from turn to turn.</dd>
+        </div>
+        <div>
+          <dt>Think / speak</dt>
+          <dd>The language model composes a reply and the voice renders it.
+              <em>This is real work</em>, so it varies with what you said and queues when the
+              service is busy.</dd>
+        </div>
+      </div>
+    </div>`;
+}
+
+// readSplit turns the two halves into the sentence a reader wants: which half
+// is the problem, how it is known, and which knob it corresponds to.
+//
+// The tell is not size but behaviour. A configured silence threshold holds its
+// value while load rises; compute does not. So the reading is driven by what
+// moved between the first step and the worst one, not by which half is bigger
+// at rest -- an agent can have a large, perfectly healthy endpointing setting.
+function readSplit(rows) {
+  const base = rows[0], peak = rows[rows.length - 1];
+  const ep = peak.endpointing.p95_ms, ts = peak.think_speak.p95_ms;
+  const share = ts / (ep + ts);
+
+  if (rows.length < 2) {
+    return {
+      verdict: html`At ${base.concurrency} concurrent, <b>${Math.round(share * 100)}% of the wait
+        is think/speak</b> and the rest is the agent noticing you stopped.`,
+      why: html`One step cannot show which half gives way under load, because nothing was varied.
+        The split itself is still worth knowing: it says where the time goes at rest.`,
+      act: html`Run a profile with more than one concurrency step to find out which half grows.`,
+    };
+  }
+
+  const epGrew = ep - base.endpointing.p95_ms;
+  const tsGrew = ts - base.think_speak.p95_ms;
+  const pct = (d, b) => (b > 0 ? Math.round((d / b) * 100) : 0);
+  const epPct = pct(epGrew, base.endpointing.p95_ms), tsPct = pct(tsGrew, base.think_speak.p95_ms);
+  const span = `${base.concurrency} to ${peak.concurrency} concurrent`;
+
+  // Under 15% is noise on a sample this size, not a trend worth a fix.
+  const moved = Math.max(Math.abs(epPct), Math.abs(tsPct)) >= 15;
+  if (!moved) {
+    return {
+      verdict: html`Neither half gave way. From ${span} the wait held its shape:
+        endpointing ${epPct >= 0 ? "+" : ""}${epPct}%, think/speak ${tsPct >= 0 ? "+" : ""}${tsPct}%.`,
+      why: html`Both halves growing together, or neither growing, means this load never reached
+        whatever this agent's limit is. The breakpoint is above the concurrency tested here.`,
+      act: html`Push the profile higher. A sweep that never breaks has found a floor, not a ceiling.`,
+    };
+  }
+
+  const thinkWon = tsGrew >= epGrew;
+  return {
+    verdict: thinkWon
+      ? html`<b>Think/speak is the half that saturates.</b> From ${span} it
+             grew ${ms(tsGrew)} (${tsPct >= 0 ? "+" : ""}${tsPct}%) while endpointing
+             moved ${ms(epGrew)} (${epPct >= 0 ? "+" : ""}${epPct}%).`
+      : html`<b>Endpointing is the half that saturates.</b> From ${span} it
+             grew ${ms(epGrew)} (${epPct >= 0 ? "+" : ""}${epPct}%) while think/speak
+             moved ${ms(tsGrew)} (${tsPct >= 0 ? "+" : ""}${tsPct}%).`,
+    why: thinkWon
+      ? html`That is the signature of compute queueing. Endpointing is a silence threshold: it is
+             a timer, so it holds its value no matter how busy the service is. Think/speak is the
+             language model and the voice doing real work, so it is what lengthens when there is
+             more of that work than capacity for it.`
+      : html`That is unusual, and worth checking before acting on. Endpointing is a configured
+             timer, so it should not care how busy the service is. When it stretches under load
+             the delay is usually transport — audio arriving late — rather than the threshold
+             itself, which would make this a network finding rather than an agent one.`,
+    act: thinkWon
+      ? html`<b>Fix the reply, not the listening.</b> A smaller or faster model, a shorter system
+             prompt, or streaming the voice so audio starts before the sentence is finished. Tuning
+             the silence threshold buys nothing here: it was never the part that grew.`
+      : html`<b>Check the transport before the settings.</b> Compare this against a local
+             reference agent at the same concurrency. If endpointing stays flat there, the
+             stretch is the network between you and the agent, not the agent.`,
+  };
+}
+
 // Component share: how p95 TTFA divides between noticing the caller stopped
 // and producing a reply, one bar per step.
 //
@@ -229,7 +464,13 @@ function ComponentShare({ steps }) {
   return html`
     <div className="card">
       <div className="eyebrow">Which half saturates first</div>
-      <h2>p95 TTFA, split into endpointing and think/speak</h2>
+      <h2>Anatomy of the wait</h2>
+      <div className="read-why" style=${{marginTop:"8px"}}>
+        The pause before an agent answers is two different problems wearing one number. Drawn to
+        this run's own median turn:
+      </div>
+      <${TurnAnatomy} ep=${rows[0].endpointing.p50_ms} ts=${rows[0].think_speak.p50_ms}/>
+      <h2 style=${{marginTop:"26px"}}>Which half moves under load</h2>
       <svg viewBox="0 0 ${W} ${H}" style=${{width:"100%",height:"auto",marginTop:"12px"}}>
         ${rows.map((s, i) => {
           const ep = s.endpointing.p95_ms, ts = s.think_speak.p95_ms;
@@ -253,6 +494,7 @@ function ComponentShare({ steps }) {
         <span><i style=${{background:"var(--signal)",opacity:0.34}}></i>endpointing — noticing the caller stopped</span>
         <span><i style=${{background:"var(--signal)"}}></i>think/speak — LLM plus TTS</span>
       </div>
+      <${Reading} ...${readSplit(rows)}/>
     </div>`;
 }
 
@@ -311,14 +553,162 @@ function CostChart({ steps }) {
             <text x=${x(i)} y=${H - 12} fontSize="10" fill="var(--mute)" textAnchor="middle">${s.concurrency}</text>
           </g>`)}
       </svg>
-      <div className="note">
-        A turn cost <b>$${first.toFixed(4)}</b> at ${rows[0].concurrency} concurrent and
-        <b>$${last.toFixed(4)}</b> at ${rows[rows.length - 1].concurrency}
-        — ${last > first ? `${((last / first - 1) * 100).toFixed(0)}% more for the same conversation`
-                         : "no more than it did at rest"}.
-        Priced at $${rows[0].cost.rate_per_minute.toFixed(4)} per agent-minute.
-      </div>
+      <${Reading} ...${readCost(rows, steps)}/>
     </div>`;
+}
+
+// readLatency explains the headline table: what a percentile is, what the
+// verdict compared against, and whether the run found a limit at all.
+function readLatency(steps, rep) {
+  const base = steps.find(s => s.name === rep.baseline) || steps[0];
+  const worst = steps.reduce((a, s) => (s.ttfa.p95_ms > a.ttfa.p95_ms ? s : a), steps[0]);
+  const bp = steps.find(s => s.verdict === "fail");
+  const ratio = base.ttfa.p95_ms > 0 ? worst.ttfa.p95_ms / base.ttfa.p95_ms : 0;
+
+  return {
+    verdict: bp
+      ? html`<b>It broke at ${bp.concurrency} concurrent calls.</b> p95 reached ${ms(bp.ttfa.p95_ms)},
+             ${bp.p95_ratio ? bp.p95_ratio.toFixed(2) : "?"}× the ${ms(base.ttfa.p95_ms)} it managed
+             at ${base.concurrency}.`
+      : html`<b>Nothing broke.</b> The worst step, ${worst.name} at ${worst.concurrency} concurrent,
+             held p95 at ${ms(worst.ttfa.p95_ms)} — ${ratio.toFixed(2)}× the baseline's ${ms(base.ttfa.p95_ms)}, inside the 2× line.`,
+    why: html`p95 means 95 of every 100 turns were faster than this and 5 were slower. It is used
+      instead of an average because averages hide the calls that lose customers: one turn in twenty
+      is a call every hour on a busy line. The verdict compares each step against the baseline
+      rather than a fixed target, because a latency that is generous for one agent is unreachable
+      for another — <b>warn</b> past 1.5× the baseline, <b>fail</b> past 2×, or whenever call setup
+      drops below 97%.`,
+    act: bp
+      ? html`That concurrency is this agent's ceiling under this scenario. Size capacity below it,
+             or take the split below to find which half gave way first.`
+      : html`This sweep found a floor, not a ceiling. Raise the profile's concurrency until a step
+             fails, otherwise the number you can quote is "at least this", not "this".`,
+  };
+}
+
+function readConversation(conv, steps) {
+  // conv holds steps, not summaries: the conversation figures hang off each
+  // one. Reading talk_ratio straight off the step yields NaN and prints it.
+  const c = conv[conv.length - 1].conversation;
+  const first = conv[0].conversation;
+  const problems = [];
+  if (c.talk_ratio >= 0.8) problems.push("lecturing");
+  if (c.agent_wpm > 190) problems.push("rushing");
+  if (c.dead_air_turns > 0) problems.push("dead air");
+  if (c.interruption_score < 4.5) problems.push("interrupting");
+
+  const pace = c.caller_wpm > 0 ? c.agent_wpm / c.caller_wpm : 1;
+  return {
+    verdict: problems.length === 0
+      ? html`<b>It sounded like a conversation.</b> The agent held ${pct(c.talk_ratio)} of the
+             speaking at ${Math.round(c.agent_wpm)} words a minute, never talked over the caller,
+             and left no silence longer than two seconds.`
+      : html`<b>It sounded off: ${problems.join(", ")}.</b> The agent held ${pct(c.talk_ratio)} of
+             the floor at ${Math.round(c.agent_wpm)} wpm${c.dead_air_turns > 0
+               ? html`, and ${c.dead_air_turns} turns left the line silent past two seconds` : ""}.`,
+    why: html`None of this is visible in a latency chart. An agent can answer every turn in 300ms
+      and still be unbearable: ${pct(c.talk_ratio)} of the talking means the caller
+      got ${pct(1 - c.talk_ratio)} of it, and at ${Math.round(c.agent_wpm)} wpm against the
+      caller's ${Math.round(c.caller_wpm)}, the agent speaks ${pace >= 1.08
+        ? `${((pace - 1) * 100).toFixed(0)}% faster than` : pace <= 0.92
+        ? `${((1 - pace) * 100).toFixed(0)}% slower than` : "at about the same pace as"} the
+      person it is talking to. Dead air is counted separately from latency on purpose: a p95
+      says how slow the slow turns were, this says how many of them sounded like a dropped call.
+      ${conv.length > 1 && Math.abs(c.talk_ratio - first.talk_ratio) >= 0.03
+        ? html` The ratio also moved from ${pct(first.talk_ratio)} at the lightest step, which
+                means load changed how the agent spoke, not just how fast.`
+        : conv.length > 1 ? html` The ratio held steady across every concurrency step.` : ""}`,
+    act: problems.length === 0
+      ? html`Nothing to fix here. If you want a harder test, add a scenario where the caller
+             interrupts — <code>scenarios/barge-in.json</code> — since an agent only reveals
+             whether it will yield the floor when something takes it.`
+      : html`<b>These are prompt and voice settings, not capacity.</b>
+             ${c.talk_ratio >= 0.8 ? "Cap reply length in the system prompt. " : ""}
+             ${c.agent_wpm > 190 ? "Slow the voice: most providers expose a speaking-rate setting. " : ""}
+             ${c.dead_air_turns > 0 ? "Dead air with healthy latency usually means a turn failed silently rather than slowly — check the failing turns above. " : ""}
+             ${c.interruption_score < 4.5 ? "Lengthen the silence threshold so the agent stops cutting people off." : ""}`,
+  };
+}
+
+function readCost(rows, steps) {
+  const first = rows[0], last = rows[rows.length - 1];
+  const rise = first.cost.usd_per_turn > 0
+    ? last.cost.usd_per_turn / first.cost.usd_per_turn - 1 : 0;
+  const total = steps.reduce((a, s) => a + ((s.cost && s.cost.usd) || 0), 0);
+  const turns = steps.reduce((a, s) => a + (s.turns_total || 0), 0);
+  // A thousand calls a day is a small deployment, and it makes a fraction of a
+  // cent per turn legible as money.
+  const perCall = last.cost.usd_per_call;
+
+  return {
+    verdict: rise >= 0.05
+      ? html`<b>The same conversation costs ${(rise * 100).toFixed(0)}% more under load.</b>
+             $${first.cost.usd_per_turn.toFixed(4)} a turn at ${first.concurrency} concurrent,
+             $${last.cost.usd_per_turn.toFixed(4)} at ${last.concurrency}.`
+      : html`<b>Load did not change the price.</b> A turn cost
+             $${first.cost.usd_per_turn.toFixed(4)} at ${first.concurrency} concurrent and
+             $${last.cost.usd_per_turn.toFixed(4)} at ${last.concurrency}.`,
+    why: html`Voice agents bill for the time the session is open, so every second the caller spends
+      waiting is a second you pay for. That makes latency a line item and verbosity another one:
+      an agent that answers in 300ms and then talks for fifteen seconds is expensive in a way no
+      percentile shows. This run billed ${steps.reduce((a, s) => a + ((s.cost && s.cost.agent_minutes) || 0), 0).toFixed(1)} agent-minutes
+      across ${turns} turns at $${last.cost.rate_per_minute.toFixed(4)} a minute, or
+      $${total.toFixed(2)} in total.`,
+    act: html`At $${perCall.toFixed(4)} a call, <b>1,000 calls a day is about
+      $${(perCall * 1000 * 30).toFixed(0)} a month</b>${rise >= 0.05
+        ? html`, and that is the busy-hour price — the ${(rise * 100).toFixed(0)}% you see here is
+               what the extra latency costs, so shortening replies pays twice.` : "."}${" "}Substitute your own volume; the per-call figure is the one to multiply.`,
+  };
+}
+
+function readWER(rows) {
+  const worst = rows.reduce((a, s) => (s.wer.mean > a.wer.mean ? s : a), rows[0]);
+  const clean = worst.wer.mean <= 0.05;
+  const w = worst.wer;
+  return {
+    verdict: clean
+      ? html`<b>It heard the caller.</b> The worst step misheard ${pct(w.mean)} of the words —
+             ${w.substitutions + w.deletions + w.insertions} errors across ${w.ref_words} spoken.`
+      : html`<b>It misheard ${pct(w.mean)} of what was said</b> at ${worst.name} — ${w.substitutions + w.deletions + w.insertions} errors
+             across ${w.ref_words} words.`,
+    why: html`The caller's lines were generated from a known script, so this compares against what
+      was actually spoken rather than one transcript against another. ${w.substitutions} of
+      the errors are substitutions, which are the dangerous kind: a deletion usually produces a
+      confused agent, but a substitution produces a confident one answering a different question.
+      On an earlier run here the caller read order "four four eight one two", the agent heard
+      "four four eight two", thanked them for it, and carried on toward refunding an order that
+      was never named. Every timing number on that call looked healthy.`,
+    act: clean
+      ? html`Under 5% is the usual bar for usable recognition, so the transcript is not what is
+             costing you tasks. Run with <code>-judge</code> to see whether the failures are in the
+             agent's reasoning instead.`
+      : html`<b>Fix the listening before the reasoning.</b> Try a stronger speech model, or supply
+             domain keywords if the provider supports them — order numbers, product names and
+             spelled-out digits are where these errors concentrate.`,
+  };
+}
+
+function readBarge(rows) {
+  const turns = rows.reduce((a, s) => a + s.barge_in.turns, 0);
+  const yielded = rows.reduce((a, s) => a + s.barge_in.yielded, 0);
+  const never = turns - yielded;
+  const worst = rows.reduce((a, s) => Math.max(a, s.barge_in.yield_p95_ms), 0);
+  return {
+    verdict: never > 0
+      ? html`<b>The agent kept talking ${never} of the ${turns} times it was interrupted.</b>`
+      : html`<b>It stopped every time it was interrupted</b>, within ${ms(worst)} at worst.`,
+    why: html`A real caller interrupts — to correct a wrong order number, to say they already tried
+      that. Callstorm measures this by starting the next caller line while the agent is still
+      speaking and timing how long the agent's audio keeps coming. A zero here is not a good
+      score: it means the agent was never observed to stop at all, which is why it is reported as
+      a failure rather than as instant.`,
+    act: never > 0
+      ? html`<b>This is the worst failure on the page.</b> An agent that will not yield has taken
+             the floor from the person paying for the call. Check that barge-in is enabled at all,
+             and that the caller's audio is reaching the agent while it speaks.`
+      : html`Under about 500ms reads as a person stopping mid-sentence. Above a second the caller
+             will start talking over it again, and both sides end up repeating themselves.`,
+  };
 }
 
 function ReportCard({ id }) {
@@ -343,6 +733,8 @@ function ReportCard({ id }) {
   const conv = steps.filter(s => s.conversation && s.conversation.turns > 0);
 
   return html`
+    <${Glossary}/>
+
     <div className="card">
       <div className="eyebrow">Report card</div>
       <h2>${rep.profile} · ${rep.scenario}</h2>
@@ -384,6 +776,8 @@ function ReportCard({ id }) {
           load generator rather than the agent. The verdict grades the agent and should not be
           believed here.
         </div>`}
+
+      ${steps.length > 0 && html`<${Reading} ...${readLatency(steps, rep)}/>`}
     </div>
 
     ${conv.length === 0 && steps.length > 0 && html`
@@ -431,6 +825,7 @@ function ReportCard({ id }) {
           the line stayed silent more than two seconds after the caller finished — the point at
           which a person says "hello?".
         </div>
+        <${Reading} ...${readConversation(conv, steps)}/>
       </div>`}
 
     <${ComponentShare} steps=${steps}/>
@@ -456,6 +851,7 @@ function ReportCard({ id }) {
             </tbody>
           </table>
         </div>
+        <${Reading} ...${readWER(steps.filter(s => s.wer && s.wer.turns > 0))}/>
       </div>`}
 
     ${anyBarge && html`
@@ -478,6 +874,7 @@ function ReportCard({ id }) {
             </tbody>
           </table>
         </div>
+        <${Reading} ...${readBarge(steps.filter(s => s.barge_in && s.barge_in.turns > 0))}/>
       </div>`}`;
 }
 
