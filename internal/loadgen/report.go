@@ -215,6 +215,11 @@ type Report struct {
 	ScenarioHash string `json:"scenario_hash,omitempty"`
 	ProfileHash  string `json:"profile_hash,omitempty"`
 
+	// Suite names the load test this run was one part of. A test that covers
+	// several scenarios, or a sweep and a network matrix, is several runs --
+	// each keeps its own baseline -- and this is what reads them as one.
+	Suite string `json:"suite,omitempty"`
+
 	// Calls is every conversation the run produced, kept out of the report
 	// card and written alongside it. The report card answers how fast the
 	// agent was; these are what it actually said, which is what a judge -- or

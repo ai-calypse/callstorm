@@ -197,6 +197,10 @@ type summary struct {
 	// that asked exactly the same question.
 	ScenarioHash string `json:"scenario_hash,omitempty"`
 	ProfileHash  string `json:"profile_hash,omitempty"`
+
+	// Suite names the load test this run was one part of, so the history can
+	// show a test that spans several runs as one entry.
+	Suite string `json:"suite,omitempty"`
 }
 
 func listRuns(dir string) http.HandlerFunc {
@@ -251,6 +255,7 @@ func summarize(path string, rep *loadgen.Report) summary {
 	}
 	s.Drifted = len(rep.Drifted())
 	s.ScenarioHash, s.ProfileHash = rep.ScenarioHash, rep.ProfileHash
+	s.Suite = rep.Suite
 	if rep.Matrix != nil {
 		s.Cohorts = len(rep.Matrix.Cohorts)
 		for _, c := range rep.Matrix.Cohorts[1:] {

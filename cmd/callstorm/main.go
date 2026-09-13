@@ -60,6 +60,7 @@ type opts struct {
 	judgeModel     string
 	impairments    string
 	impairDev      string
+	suite          string
 }
 
 func main() {
@@ -92,6 +93,8 @@ func main() {
 	flag.StringVar(&o.impairments, "impairments", "",
 		"file of netem profiles; runs the load profile once per profile, clean first (Linux, needs NET_ADMIN)")
 	flag.StringVar(&o.impairDev, "impair-dev", "eth0", "interface the impairment is applied to")
+	flag.StringVar(&o.suite, "suite", "",
+		"name of the load test this run is part of; runs sharing it read as one test")
 	flag.Parse()
 
 	if err := run(o); err != nil {
@@ -284,6 +287,7 @@ func runLoad(ctx context.Context, o opts, sc *scenario.Scenario, apiKey string) 
 	rep.References = loadgen.References()
 	rep.ScenarioHash = loadgen.Fingerprint(sc)
 	rep.ProfileHash = loadgen.Fingerprint(profile)
+	rep.Suite = o.suite
 
 	if producer != nil {
 		produced, dropped := producer.Flush(ctx)

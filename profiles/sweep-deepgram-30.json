@@ -1,0 +1,11 @@
+{
+  "name": "sweep-deepgram-30",
+  "baseline": "baseline",
+  "steps": [
+    { "name": "baseline", "concurrency": 1,  "calls": 30 },
+    { "name": "c5",       "concurrency": 5,  "calls": 30 },
+    { "name": "c10",      "concurrency": 10, "calls": 30 },
+    { "name": "c20",      "concurrency": 20, "calls": 40 },
+    { "name": "c40",      "concurrency": 40, "calls": 80 }
+  ]
+}

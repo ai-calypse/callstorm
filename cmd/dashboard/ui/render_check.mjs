@@ -671,7 +671,44 @@ for (const [name, html, needle] of [
 // Every reading rendered above, scanned together: a glue bug in one card is
 // the same bug in all of them, and a check that only looks at the first is how
 // the last one ships broken.
-const ALL = [card, legacy, refsHtml, drifted, stuck, nojudge, task, thinHtml, phasedCard, judgedCard, heat, nodes, dup, lost, matrixCard, agentHtml, noPong, rttCard].join(String.fromCharCode(10));
+// A load test made of several runs. Parts sharing a suite fold into one history
+// entry where the newest part sits, with the worst verdict of any part; a run
+// with no suite stays its own entry. Built with the real hooks: the suite card
+// keeps which part is open in state, and the stub above would seed it a report.
+globalThis.React = React;
+const modS = new Function(src + "\n;return { groupRuns, SuiteCard };")();
+const part = (pid, scenario, started, extra) => Object.assign({
+  id: pid, profile: "sweep-deepgram-30", scenario, target: "", started_at: started, duration_s: 600, steps: 5,
+  verdict: "pass", peak_concurrency: 40, baseline_p95_ms: 900, worst_p95_ms: 1300, wer_mean: 0,
+  harness_degraded: false, suite: "deepgram-full-test",
+}, extra);
+const history = [
+  part("p3", "refund-escalation", "2026-09-13T17:30:00Z", { profile: "impair-ref", cohorts: 4, peak_concurrency: 8, network_breaks: ["moderate at c2", "severe at c2"] }),
+  part("solo", "refund-escalation", "2026-09-13T17:20:00Z", { suite: undefined }),
+  part("p2", "refund-bargein", "2026-09-13T17:00:00Z", { verdict: "fail", breakpoint: "c40 at 40 concurrent", judged: 20, passed: 15, harness_degraded: true }),
+  part("p1", "refund-escalation", "2026-09-13T16:44:00Z", { judged: 20, passed: 18 }),
+];
+const entries = modS.groupRuns(history);
+const suite = entries[0];
+const suiteHtml = ReactDOMServer.renderToStaticMarkup(
+  React.createElement(modS.SuiteCard, { group: suite, refs: REFS, runs: history }));
+for (const [name, ok] of [
+  ["suite parts fold into one entry, a run without a suite stays its own", entries.length === 2 && suite.kind === "suite" && entries[1].id === "solo"],
+  ["suite parts in the order they ran", suite.parts.map(p => p.id).join() === "p1,p2,p3"],
+  ["suite verdict is its worst part's", suite.verdict === "fail"],
+  ["suite sums judged calls across parts", suite.judged === 40 && suite.passed === 33],
+  ["suite counts its bad-network parts and scenarios", suite.network === 1 && suite.scenarios.length === 2],
+  ["suite card names every part", ["load sweep", "bad networks · 4 conditions", "refund-bargein"].every(s => suiteHtml.includes(s))],
+  ["suite card names what broke a bad-network part", suiteHtml.includes("held; on bad networks: moderate at c2, severe at c2")],
+  ["suite reading counts broken parts", suiteHtml.includes("2 of 3 parts broke somewhere")],
+  ["suite reading flags a part the test machine could not keep up with", suiteHtml.includes("Treat refund-bargein as rough")],
+  ["suite card opens its first part below the overview", suiteHtml.includes("Part 1 of 3 · load sweep · refund-escalation")],
+]) {
+  if (!ok) bad++;
+  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
+}
+
+const ALL = [card, legacy, refsHtml, drifted, stuck, nojudge, task, thinHtml, phasedCard, judgedCard, heat, nodes, dup, lost, matrixCard, agentHtml, noPong, rttCard, suiteHtml].join(String.fromCharCode(10));
 const prose = [...ALL.matchAll(/<div class="read[^"]*">([\s\S]*?)<\/div>/g)]
   // Inline tags are dropped rather than spaced out: <b> and <code> sit inside
   // sentences, so replacing them with a space would invent gaps the reader

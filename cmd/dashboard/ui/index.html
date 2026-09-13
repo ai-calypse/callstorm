@@ -51,6 +51,11 @@
   .run[aria-current="true"] { background:var(--surface); box-shadow:inset 3px 0 0 var(--signal); }
   .run .id { font-size:12px; color:var(--ink); }
   .run .meta { grid-column:1/-1; font-size:11px; color:var(--mute); font-variant-numeric:tabular-nums; }
+  .suite tr.on td { background:color-mix(in srgb, var(--signal) 7%, transparent); }
+  .suite td.wrap { white-space:normal; min-width:18ch; }
+  button.open { font:inherit; font-size:11px; color:var(--ink); background:none; border:1px solid var(--rule); border-radius:2px; padding:2px 8px; cursor:pointer; }
+  button.open[aria-pressed="true"] { color:var(--mute); cursor:default; }
+  .partlabel { margin:26px 0 10px; }
 
   .pill { font-size:10px; letter-spacing:.07em; text-transform:uppercase; padding:2px 7px; border-radius:2px; align-self:start; }
   .pass { color:var(--pass); background:var(--pass-bg); }
@@ -2596,6 +2601,110 @@ function ReportCard({ id, refs, runs }) {
     <${Appendix} refs=${rep.references || refs}/>`;
 }
 
+// ---- A load test made of several runs
+//
+// A test that covers every scenario, and every scenario again on bad networks,
+// is several runs. Each keeps its own baseline: a scenario scored against
+// another scenario's calls would be graded on its script rather than on the
+// agent. The suite name is what reads them as one test.
+
+const VERDICT_RANK = { pass: 0, warn: 1, fail: 2 };
+
+// groupRuns folds runs that share a suite into one history entry. The entry
+// sits where its newest part sits, so the newest test is still listed first.
+function groupRuns(runs) {
+  const out = [], bySuite = {};
+  for (const r of runs) {
+    if (!r.suite) { out.push({ ...r, kind: "run" }); continue; }
+    if (!bySuite[r.suite]) {
+      bySuite[r.suite] = { kind: "suite", id: "suite:" + r.suite, suite: r.suite, parts: [] };
+      out.push(bySuite[r.suite]);
+    }
+    bySuite[r.suite].parts.push(r);
+  }
+  for (const g of Object.values(bySuite)) {
+    g.parts.sort((a, b) => new Date(a.started_at) - new Date(b.started_at));
+    g.started_at = g.parts[0].started_at;
+    g.verdict = g.parts.reduce((v, p) => ((VERDICT_RANK[p.verdict] || 0) > VERDICT_RANK[v] ? p.verdict : v), "pass");
+    g.scenarios = [...new Set(g.parts.map(p => p.scenario))];
+    g.network = g.parts.filter(p => p.cohorts > 0).length;
+    g.peak_concurrency = Math.max(...g.parts.map(p => p.peak_concurrency || 0));
+    g.worst_p95_ms = Math.max(...g.parts.map(p => p.worst_p95_ms || 0));
+    g.judged = g.parts.reduce((n, p) => n + (p.judged || 0), 0);
+    g.passed = g.parts.reduce((n, p) => n + (p.passed || 0), 0);
+    g.harness_degraded = g.parts.some(p => p.harness_degraded);
+  }
+  return out;
+}
+
+const partKind = p => (p.cohorts > 0 ? `bad networks · ${p.cohorts} conditions` : "load sweep");
+
+// A bad-network part's own verdict describes its clean cohort, so the
+// conditions that broke it are named beside it rather than hidden behind a pass.
+const partBreaks = p => {
+  const net = p.network_breaks && p.network_breaks.length ? `; on bad networks: ${p.network_breaks.join(", ")}` : "";
+  return (p.breakpoint || "held") + net;
+};
+
+function readSuite(g) {
+  const n = g.parts.length, s = g.scenarios.length;
+  const broke = g.parts.filter(p => p.verdict === "fail" || (p.network_breaks && p.network_breaks.length));
+  const verdict = broke.length === 0
+    ? `Every part held its own baseline: ${n} ${n === 1 ? "part" : "parts"} across ${s} ${s === 1 ? "scenario" : "scenarios"}.`
+    : `${broke.length} of ${n} parts broke somewhere: ${broke.map(p => `${p.scenario} (${partKind(p)})`).join(", ")}.`;
+  const why = "Each part is scored against its own baseline, and each bad-network part against its own clean cohort, so no scenario is graded on another scenario's calls.";
+  const suspect = g.parts.filter(p => p.harness_degraded);
+  const act = suspect.length > 0
+    ? `Treat ${suspect.map(p => p.scenario).join(", ")} as rough: the test machine fell behind real time during ${suspect.length === 1 ? "that part" : "those parts"}.`
+    : broke.length > 0 ? "Open the parts that broke first; each part's report says where the time went." : "Open any part below for its full report.";
+  return { verdict, why, act };
+}
+
+function SuiteCard({ group, refs, runs }) {
+  const [open, setOpen] = useState(null);
+  const shown = group.parts.some(p => p.id === open) ? open : group.parts[0].id;
+  const at = group.parts.findIndex(p => p.id === shown);
+  const sweeps = group.parts.length - group.network;
+  return html`
+    <div className="card suite">
+      <div className="eyebrow">Load test · ${group.parts.length} parts</div>
+      <h2>${group.suite}</h2>
+      <dl className="spec">
+        <div><dt>Started</dt><dd>${when(group.started_at)}</dd></div>
+        <div><dt>Parts</dt><dd>${sweeps} load ${sweeps === 1 ? "sweep" : "sweeps"}, ${group.network} bad-network ${group.network === 1 ? "run" : "runs"}</dd></div>
+        <div><dt>Scenarios</dt><dd>${group.scenarios.join(", ")}</dd></div>
+        <div><dt>Target</dt><dd>${group.parts[0].target || "deepgram voice agent"}</dd></div>
+      </dl>
+      <div className="tablewrap">
+        <table>
+          <thead><tr>
+            <th>#</th><th>Part</th><th>Scenario</th><th>Peak</th><th>Base p95</th><th>Worst p95</th>
+            <th>Breaks</th><th>Judged</th><th>Verdict</th><th></th>
+          </tr></thead>
+          <tbody>
+            ${group.parts.map((p, i) => html`
+              <tr key=${p.id} className=${p.id === shown ? "on" : ""}>
+                <td>${i + 1}</td>
+                <td>${partKind(p)}</td>
+                <td>${p.scenario}${p.harness_degraded ? " ⚠" : ""}</td>
+                <td>${p.peak_concurrency}</td>
+                <td>${ms(p.baseline_p95_ms)}</td>
+                <td>${ms(p.worst_p95_ms)}</td>
+                <td className="wrap">${partBreaks(p)}</td>
+                <td>${p.judged > 0 ? `${p.passed}/${p.judged}` : "-"}</td>
+                <td><${Pill} v=${p.verdict}/></td>
+                <td><button className="open" aria-pressed=${String(p.id === shown)} onClick=${() => setOpen(p.id)}>${p.id === shown ? "shown" : "open"}</button></td>
+              </tr>`)}
+          </tbody>
+        </table>
+      </div>
+      <div className="note">⚠ marks a part whose test machine fell behind real time. A part still running appears here once its report is written.</div>
+      <${Reading} ...${readSuite(group)}/>
+    </div>
+    <div className="partlabel eyebrow">Part ${at + 1} of ${group.parts.length} · ${partKind(group.parts[at])} · ${group.parts[at].scenario}</div>
+    <${ReportCard} id=${shown} refs=${refs} runs=${runs}/>`;
+}
+
 function App() {
   const [runs, setRuns] = useState([]);
   const [sel, setSel] = useState(null);
@@ -2605,9 +2714,12 @@ function App() {
   useEffect(() => {
     fetch("api/references.json").then(r => (r.ok ? r.json() : [])).then(setRefs).catch(() => setRefs([]));
     fetch("api/runs.json").then(r => r.json())
-      .then(rs => { setRuns(rs); if (rs.length) setSel(rs[0].id); })
+      .then(rs => { setRuns(rs); const first = groupRuns(rs)[0]; if (first) setSel(first.id); })
       .catch(e => setErr(String(e)));
   }, []);
+
+  const entries = groupRuns(runs);
+  const selGroup = entries.find(e => e.kind === "suite" && e.id === sel);
 
   return html`
     <div className="wrap">
@@ -2662,7 +2774,18 @@ function App() {
           <${Trend} runs=${runs}/>
           <div className="runs">
             ${runs.length === 0 && !err && html`<div className="empty">No runs yet.</div>`}
-            ${runs.map(r => html`
+            ${entries.map(r => r.kind === "suite" ? html`
+              <button key=${r.id} className="run" aria-current=${String(r.id === sel)}
+                      onClick=${() => setSel(r.id)}>
+                <span className="id">load test · ${r.suite}</span>
+                <${Pill} v=${r.verdict}/>
+                <span className="meta">
+                  ${when(r.started_at)} · ${r.parts.length} parts across ${r.scenarios.length} scenarios · peak ${r.peak_concurrency} · worst p95 ${ms(r.worst_p95_ms)}
+                  ${r.network > 0 ? ` · ${r.network} on bad networks` : ""}
+                  ${r.judged > 0 ? ` · judged ${r.passed}/${r.judged}` : ""}
+                  ${r.harness_degraded ? " · harness suspect in a part" : ""}
+                </span>
+              </button>` : html`
               <button key=${r.id} className="run" aria-current=${String(r.id === sel)}
                       onClick=${() => setSel(r.id)}>
                 <span className="id">${r.profile} · ${r.scenario}</span>
@@ -2679,7 +2802,9 @@ function App() {
               </button>`)}
           </div>
         </div>
-        <div><${ReportCard} id=${sel} refs=${refs} runs=${runs}/></div>
+        <div>${selGroup
+          ? html`<${SuiteCard} group=${selGroup} refs=${refs} runs=${runs}/>`
+          : html`<${ReportCard} id=${sel} refs=${refs} runs=${runs}/>`}</div>
       </div>
     </div>`;
 }
