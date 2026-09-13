@@ -1,0 +1,7 @@
+{
+  "profiles": [
+    { "name": "delay-100",  "delay_ms": 100 },
+    { "name": "jitter-50",  "delay_ms": 100, "jitter_ms": 50 },
+    { "name": "loss-3",     "loss_pct": 3 }
+  ]
+}

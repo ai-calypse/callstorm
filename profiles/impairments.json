@@ -1,0 +1,8 @@
+{
+  "profiles": [
+    { "name": "clean" },
+    { "name": "light",    "loss_pct": 1, "jitter_ms": 20,  "delay_ms": 100 },
+    { "name": "moderate", "loss_pct": 3, "jitter_ms": 50,  "delay_ms": 100 },
+    { "name": "severe",   "loss_pct": 5, "jitter_ms": 100, "delay_ms": 200 }
+  ]
+}

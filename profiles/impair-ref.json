@@ -1,0 +1,8 @@
+{
+  "name": "impair-ref",
+  "baseline": "c2",
+  "steps": [
+    { "name": "c2", "concurrency": 2, "calls": 6 },
+    { "name": "c8", "concurrency": 8, "calls": 16 }
+  ]
+}
