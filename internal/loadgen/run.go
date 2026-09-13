@@ -68,6 +68,7 @@ func Run(ctx context.Context, cfg Config) (*Report, error) {
 
 		outcomes := runStep(ctx, cfg, step)
 		sr := buildStepReportAt(step, outcomes, cfg.RatePerMinute)
+		sr.Nodes = summarizeNodes(outcomes, cfg.Scenario.NodeIDs())
 		rep.Steps = append(rep.Steps, sr)
 
 		for _, o := range outcomes {

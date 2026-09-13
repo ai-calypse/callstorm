@@ -27,8 +27,12 @@ const (
 
 // Summary is the percentile spread of one metric over one step.
 type Summary struct {
-	N      int     `json:"n"`
-	P50Ms  float64 `json:"p50_ms"`
+	N     int     `json:"n"`
+	P50Ms float64 `json:"p50_ms"`
+
+	// P90Ms sits between the usual turn and the tail, and is offered on the
+	// impairment heatmap beside p50 and p95.
+	P90Ms  float64 `json:"p90_ms"`
 	P95Ms  float64 `json:"p95_ms"`
 	P99Ms  float64 `json:"p99_ms"`
 	MaxMs  float64 `json:"max_ms"`
@@ -46,6 +50,7 @@ func summarize(ds []time.Duration) Summary {
 	return Summary{
 		N:      len(ds),
 		P50Ms:  ms(metrics.Percentile(ds, 50)),
+		P90Ms:  ms(metrics.Percentile(ds, 90)),
 		P95Ms:  ms(p95),
 		P99Ms:  ms(metrics.Percentile(ds, 99)),
 		MaxMs:  ms(metrics.Percentile(ds, 100)),
@@ -110,6 +115,14 @@ type StepReport struct {
 	P95Ratio float64 `json:"p95_ratio"`
 	Verdict  string  `json:"verdict"`
 
+	// VsClean is this step's p95 TTFA over the same step in the clean cohort
+	// of an impairment matrix: what the network cost, with the load held equal.
+	// Zero outside a matrix.
+	VsClean float64 `json:"vs_clean,omitempty"`
+
+	// Nodes is the pass rate of each scenario node's assertion over this step.
+	Nodes []NodeStats `json:"nodes,omitempty"`
+
 	Errors map[string]int `json:"errors,omitempty"`
 }
 
@@ -166,6 +179,15 @@ type Report struct {
 	// verdicts in the same document.
 	Judge *TaskSuccess `json:"judge,omitempty"`
 
+	// Matrix is present when the run crossed its profile with network
+	// impairment. Steps above are then the clean cohort, so every card that
+	// reads a plain run reads the same-session control.
+	Matrix *Matrix `json:"matrix,omitempty"`
+
+	// Integrity is whether the harness's own event pipeline delivered what it
+	// sent. Absent when the run used no pipeline to check.
+	Integrity *Integrity `json:"integrity,omitempty"`
+
 	// Calls is every conversation the run produced, kept out of the report
 	// card and written alongside it. The report card answers how fast the
 	// agent was; these are what it actually said, which is what a judge -- or
@@ -181,6 +203,11 @@ type CallRecord struct {
 	// Worker names the pod that placed the call, empty when the run was not
 	// distributed. It is what lets a chaos run show which calls moved.
 	Worker string `json:"worker,omitempty"`
+
+	// Cohort names the impairment profile the call was placed under, empty
+	// outside a matrix. Step names repeat across cohorts, so without it a call
+	// cannot be traced back to the network it ran on.
+	Cohort string `json:"cohort,omitempty"`
 
 	Turns []metrics.TurnMetric `json:"turns"`
 }
@@ -343,16 +370,27 @@ func buildStepReportAt(step Step, outcomes []callOutcome, ratePerMinute float64)
 // score fills in each step's degradation ratio and verdict, relative to the
 // baseline step.
 func (rep *Report) score() {
-	var base time.Duration
+	rep.scoreAgainst(rep.baselineP95())
+}
+
+// baselineP95 is the p95 TTFA of the run's own baseline step.
+func (rep *Report) baselineP95() time.Duration {
 	for _, s := range rep.Steps {
 		if s.Name == rep.Baseline {
-			base = s.TTFA.p95Raw
-			break
+			return s.TTFA.p95Raw
 		}
 	}
+	return 0
+}
 
+// scoreAgainst fills in each step's ratio and verdict against a given p95. An
+// impaired cohort is scored against the clean cohort's baseline rather than its
+// own, so its verdicts say what the network cost and not merely what load did
+// on an already degraded line.
+func (rep *Report) scoreAgainst(base time.Duration) {
 	for i := range rep.Steps {
 		s := &rep.Steps[i]
+		s.P95Ratio = 0
 		switch {
 		case s.CallsAttempted > 0 && s.SetupSuccess < minSetupSuccess:
 			s.Verdict = "fail"

@@ -10,6 +10,13 @@ import (
 	"github.com/yakshgandhi/callstorm/internal/bus"
 )
 
+// fleet is the part of a dispatcher a step needs: hand out a call, and collect
+// whatever has come back.
+type fleet interface {
+	Assign(ctx context.Context, a bus.Assignment) error
+	Results(ctx context.Context) ([]bus.CallResult, error)
+}
+
 // RunDistributed executes a profile across a fleet of workers instead of
 // goroutines in this process.
 //
@@ -35,6 +42,7 @@ func RunDistributed(ctx context.Context, cfg Config, d *bus.Dispatcher, runID st
 		Baseline:  cfg.Profile.Baseline,
 		StartedAt: time.Now(),
 	}
+	dispatch := &DispatchIntegrity{}
 
 	for _, step := range cfg.Profile.Steps {
 		if step.HoldSeconds > 0 {
@@ -50,12 +58,14 @@ func RunDistributed(ctx context.Context, cfg Config, d *bus.Dispatcher, runID st
 		fmt.Fprintf(cfg.Out, "\n%-12s %-9s concurrency %-4d calls %-4d ",
 			step.Name, step.Phase(), step.Concurrency, step.Calls)
 
-		outcomes, workers, err := dispatchStep(ctx, cfg, d, runID, step)
+		outcomes, workers, sd, err := dispatchStep(ctx, cfg, d, runID, step)
 		if err != nil {
 			return nil, err
 		}
+		dispatch.add(sd)
 
 		sr := buildStepReportAt(step, outcomes, cfg.RatePerMinute)
+		sr.Nodes = summarizeNodes(outcomes, cfg.Scenario.NodeIDs())
 		rep.Steps = append(rep.Steps, sr)
 
 		for _, o := range outcomes {
@@ -78,6 +88,7 @@ func RunDistributed(ctx context.Context, cfg Config, d *bus.Dispatcher, runID st
 	}
 
 	rep.Duration = time.Since(rep.StartedAt).Seconds()
+	rep.Integrity = &Integrity{Dispatch: dispatch}
 	rep.score()
 	fmt.Fprintln(cfg.Out)
 	return rep, nil
@@ -85,13 +96,14 @@ func RunDistributed(ctx context.Context, cfg Config, d *bus.Dispatcher, runID st
 
 // dispatchStep holds step.Concurrency calls in flight until step.Calls have
 // been placed and answered for.
-func dispatchStep(ctx context.Context, cfg Config, d *bus.Dispatcher, runID string, step Step) ([]callOutcome, map[string]int, error) {
+func dispatchStep(ctx context.Context, cfg Config, d fleet, runID string, step Step) ([]callOutcome, map[string]int, StepDispatch, error) {
 	var (
 		outcomes   []callOutcome
 		workers    = map[string]int{}
 		dispatched int
 		received   int
 		inFlight   int
+		sd         = StepDispatch{Step: step.Name}
 
 		// When each assignment went out, so a result can be placed in the
 		// order the run intended rather than the order it came back. Ordering
@@ -99,6 +111,11 @@ func dispatchStep(ctx context.Context, cfg Config, d *bus.Dispatcher, runID stri
 		// is exactly the shape drift detection looks for -- and would find it
 		// in every run.
 		sentAt = map[int]time.Time{}
+
+		// Which calls have already come back. Delivery is at-least-once, so the
+		// same call can report twice; counting both would place one call's
+		// turns in the step twice and end the step a call early.
+		answered = map[int]bool{}
 	)
 
 	// A worker that dies between taking a call and reporting it would otherwise
@@ -119,25 +136,32 @@ func dispatchStep(ctx context.Context, cfg Config, d *bus.Dispatcher, runID stri
 				TurnTimeoutMs: int(cfg.TurnTimeout / time.Millisecond),
 			}
 			if err := d.Assign(ctx, a); err != nil {
-				return nil, nil, fmt.Errorf("assign %s/%d: %w", step.Name, dispatched, err)
+				return nil, nil, sd, fmt.Errorf("assign %s/%d: %w", step.Name, dispatched, err)
 			}
 			sentAt[a.Seq] = time.Now()
 			dispatched++
 			inFlight++
 		}
+		sd.Dispatched = dispatched
 
 		poll, cancel := context.WithTimeout(ctx, 2*time.Second)
 		results, err := d.Results(poll)
 		cancel()
 		if err != nil && !errors.Is(err, context.DeadlineExceeded) {
-			return nil, nil, err
+			return nil, nil, sd, err
 		}
 
 		for _, r := range results {
 			// A result from an earlier step is a straggler, not this step's.
 			if r.Step != step.Name {
+				sd.Late++
 				continue
 			}
+			if answered[r.Seq] {
+				sd.Duplicates++
+				continue
+			}
+			answered[r.Seq] = true
 			o := callOutcome{step: r.Step, requestID: r.RequestID, turns: r.Turns, worker: r.Worker,
 				startedAt: sentAt[r.Seq], endedAt: time.Now()}
 			if r.Err != "" {
@@ -151,7 +175,7 @@ func dispatchStep(ctx context.Context, cfg Config, d *bus.Dispatcher, runID stri
 		}
 
 		if ctx.Err() != nil {
-			return outcomes, workers, nil
+			break
 		}
 		if time.Now().After(deadline) {
 			// Reported rather than retried. A step that could not be completed
@@ -159,6 +183,7 @@ func dispatchStep(ctx context.Context, cfg Config, d *bus.Dispatcher, runID stri
 			// would hide exactly that.
 			fmt.Fprintf(cfg.Out, "\n%-12s gave up waiting: %d of %d calls never came back",
 				step.Name, step.Calls-received, step.Calls)
+			sd.Missing = step.Calls - received
 			for i := received; i < step.Calls; i++ {
 				outcomes = append(outcomes, callOutcome{
 					step: step.Name,
@@ -168,14 +193,15 @@ func dispatchStep(ctx context.Context, cfg Config, d *bus.Dispatcher, runID stri
 			break
 		}
 	}
-	return outcomes, workers, nil
+	sd.Received = received
+	return outcomes, workers, sd, nil
 }
 
 // stepBudget is how long a step may take before the fleet is declared unable to
 // finish it: the time the calls themselves need, plus room for one consumer
 // group rebalance.
 func stepBudget(cfg Config, step Step) time.Duration {
-	perCall := cfg.TurnTimeout * time.Duration(len(cfg.Scenario.Turns)+2)
+	perCall := cfg.TurnTimeout * time.Duration(cfg.Scenario.TurnLimit()+2)
 	if perCall < time.Minute {
 		perCall = time.Minute
 	}
