@@ -622,7 +622,83 @@ func judgeRun(ctx context.Context, o opts, sc *scenario.Scenario, rep *loadgen.R
 	}
 
 	printJudgements(judgements, path)
+	printWERCorrelation(sampled, judgements)
 	return nil
+}
+
+// printWERCorrelation asks whether the calls the agent misheard are the calls
+// it failed.
+//
+// This is the join that makes word error rate worth reporting. Alone it is an
+// accuracy statistic with no action attached; set against task outcomes it
+// either points at the transcript as the thing to fix, or shows the failures
+// are elsewhere and the WER figure is a distraction.
+func printWERCorrelation(calls []loadgen.CallRecord, judgements []judge.Judgement) {
+	verdict := make(map[string]judge.Judgement, len(judgements))
+	for _, g := range judgements {
+		verdict[g.Step+"/"+g.RequestID] = g
+	}
+
+	var scores []judge.CallScore
+	for _, c := range calls {
+		g, ok := verdict[c.Step+"/"+c.RequestID]
+		if !ok {
+			continue
+		}
+		// Per call, errors are totalled over words rather than averaged over
+		// turns, matching the step-level rate: averaging would let a
+		// three-word turn weigh as heavily as a thirty-word one.
+		var errs, words int
+		for _, t := range c.Turns {
+			if t.HeardText == "" {
+				continue
+			}
+			w := judge.Score(t.CallerText, t.HeardText)
+			errs += w.Substitutions + w.Deletions + w.Insertions
+			words += w.RefWords
+		}
+		s := judge.CallScore{
+			Step: c.Step, RequestID: c.RequestID,
+			RefWords: words, Met: g.Met(), Judged: g.Err == "",
+		}
+		if words > 0 {
+			s.WER = float64(errs) / float64(words)
+		}
+		scores = append(scores, s)
+	}
+
+	x := judge.Correlate(scores)
+	if x.Calls == 0 {
+		return
+	}
+
+	fmt.Printf("\nheard vs done  %d judged calls, split at %.0f%% word error rate\n",
+		x.Calls, x.Threshold*100)
+	fmt.Printf("  heard cleanly   %d calls, %d completed the task", x.CleanCalls, x.CleanPassed)
+	if x.CleanCalls > 0 {
+		fmt.Printf("  (%.0f%%)", x.CleanPassRate*100)
+	}
+	fmt.Println()
+	fmt.Printf("  misheard        %d calls, %d completed the task", x.MisheardCalls, x.MisheardPassed)
+	if x.MisheardCalls > 0 {
+		fmt.Printf("  (%.0f%%)", x.MisheardPassRate*100)
+	}
+	fmt.Println()
+	fmt.Printf("  median WER      %.1f%% on calls that passed, %.1f%% on calls that failed\n",
+		x.MedianWERPassed*100, x.MedianWERFailed*100)
+
+	if !x.Conclusive {
+		fmt.Printf("  inconclusive: %s\n", x.Note)
+		return
+	}
+	if x.Gap > 0 {
+		fmt.Printf("  the calls it heard passed %.0f points more often. Fix the transcript first.\n",
+			x.Gap*100)
+	} else {
+		fmt.Printf("  mishearing did not separate the failures here; they are somewhere else.\n")
+	}
+	fmt.Printf("  association only: nothing assigned which calls were misheard, and load\n")
+	fmt.Printf("  degrades recognition and everything else at the same time.\n")
 }
 
 // judgeModel picks the grader and reports which one, because a verdict is only
