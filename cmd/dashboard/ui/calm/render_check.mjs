@@ -167,7 +167,7 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
     correlation: { calls: 3, threshold: 0.05, clean_calls: 2, clean_passed: 2, misheard_calls: 1, misheard_passed: 0, clean_pass_rate: 1, misheard_pass_rate: 0, gap: 1, conclusive: false, note: "too few judged calls to compare groups", median_wer_passed: 0.015, median_wer_failed: 0.09 },
     judgements: [
       { step: "c1", request_id: "aaaa1111", outcomes: [{ criterion: "Asks for the order number", met: true, evidence: "turn 1: \"agent: What is your order number?\"" }, { criterion: "Offers a replacement first", met: true, evidence: "turn 2: \"agent: I can send a replacement.\"" }] },
-      { step: "c1", request_id: "bbbb2222", outcomes: [{ criterion: "Asks for the order number", met: true, evidence: "turn 1: \"agent: Order number please?\"" }, { criterion: "Offers a replacement first", met: false, evidence: "turn 2: \"agent: I can refund that now.\"" }] },
+      { step: "c1", request_id: "bbbb2222", outcomes: [{ criterion: "Asks for the order number", met: true, evidence: "turn 1: \"agent: Order number please?\"" }, { criterion: "Offers a replacement first", met: false, evidence: "turn 2: \"agent: I can refund that now.\"", reasoning: "The assistant went straight to a refund; no replacement was offered before it." }] },
       { step: "c5", request_id: "cccc3333", outcomes: [{ criterion: "Asks for the order number", met: true, evidence: "turn 1" }, { criterion: "Offers a replacement first", met: true, evidence: "turn 2" }] },
     ],
   };
@@ -182,6 +182,7 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
   has(ev, "heard versus done", "Are the calls it misheard the calls it failed?");
   has(ev, "call log", "3 graded conversations");
   has(ev, "call log quotes evidence", "I can refund that now.");
+  has(ev, "call log shows the judge's reasoning", "no replacement was offered before it");
   has(ev, "call log marks the miss", "missed 1 of 2");
   has(ev, "call log points at the transcript file", "judged-calls.jsonl");
   const fi = drawer("findings", judged, "judged", "quality");
@@ -287,6 +288,15 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
   const eh = page1(run, "run", "calls", { initialCalls: eventful });
   has(eh, "call header carries its start and length", "· 30s");
   has(eh, "event log offered", "4 events on the call&#x27;s clock");
+  {
+    // A judged run: graded calls carry a verdict, the rest say they were not graded.
+    const jrun = JSON.parse(JSON.stringify(run));
+    jrun.judge = { backend: "t", judged: 1, passed: 1, errored: 0, criteria: ["c"], misses: [], calls: [], correlation: {},
+      judgements: [{ step: run.steps[0].name, request_id: "aaaa1111-0000", outcomes: [{ criterion: "c", met: true, evidence: "turn 1" }] }] };
+    const jh = page1(jrun, "jrun", "calls", { initialCalls: calls });
+    has(jh, "graded call carries its verdict", "did the job");
+    has(jh, "ungraded call says so", "not graded");
+  }
   has(eh, "event rows", "rtt 0.52ms");
   has(eh, "event bytes", "3200 bytes");
   has(eh, "per-turn instants on the call's clock", "first audio at 6.10s");

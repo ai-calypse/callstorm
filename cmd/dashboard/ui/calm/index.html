@@ -1631,6 +1631,7 @@ function CallLog({ rep, id }) {
                     <div>
                       <div>${o.criterion}</div>
                       ${o.evidence && html`<div className="utterance">${o.evidence}</div>`}
+                      ${o.reasoning && html`<div className="reasoning">${o.reasoning}</div>`}
                     </div>
                   </li>`)}
               </ol>
@@ -1747,7 +1748,9 @@ function Transcripts({ calls, judge, step, cohort, query, selected, onSelect, li
               ${c.error
                 ? html`<span className="cs-badge cs-badge-danger">never connected</span>`
                 : html`<span className="call-meta">${turns.length} turns · slowest ${ms(worst)}${failed ? ` · ${failed} failed` : ""}</span>`}
-              ${j && html`<span className=${"cs-badge " + (met === j.outcomes.length ? "cs-badge-success" : "cs-badge-danger")}>${met === j.outcomes.length ? "did the job" : `missed ${j.outcomes.length - met} of ${j.outcomes.length}`}</span>`}
+              ${j
+                ? html`<span className=${"cs-badge " + (met === j.outcomes.length ? "cs-badge-success" : "cs-badge-danger")}>${met === j.outcomes.length ? "did the job" : `missed ${j.outcomes.length - met} of ${j.outcomes.length}`}</span>`
+                : (judge && judge.judged > 0 && !c.error) ? html`<span className="cs-badge ungraded" title="The judge grades a sample of each step's calls; this call was not in it.">not graded</span>` : ""}
             </summary>
             ${c.error && html`<div className="turns"><div className="utterance failed"><small>CALL FAILED TO SET UP</small>${c.error}</div></div>`}
             <div className="turns">
@@ -1772,7 +1775,7 @@ function Transcripts({ calls, judge, step, cohort, query, selected, onSelect, li
                     ].filter(Boolean).join(" · ")} · on the call's clock</div>`}
                     ${j && j.turns.has(t.turn) && html`
                       <ul className="judged-lines">
-                        ${j.turns.get(t.turn).map((o, k) => html`<li key=${k} className=${o.met ? "met" : "missed"}><span className="mark" aria-hidden="true">${o.met ? "✓" : "✕"}</span>${o.criterion}</li>`)}
+                        ${j.turns.get(t.turn).map((o, k) => html`<li key=${k} className=${o.met ? "met" : "missed"}><span className="mark" aria-hidden="true">${o.met ? "✓" : "✕"}</span><span>${o.criterion}${o.reasoning && html`<span className="reasoning">${o.reasoning}</span>`}</span></li>`)}
                       </ul>`}
                   </div>
                 </div>`)}
@@ -2392,8 +2395,10 @@ function view(tab, ctx) {
       ${(s.cost.agent_minutes || 0).toFixed(1)} ${priced ? "agent-minutes billed" : `connected minutes across ${s.calls} calls`} · ${s.turns_total} turns · $${(s.cost.usd || 0).toFixed(2)} for the step
       ${!priced && s.harness_minutes > 0 ? html`<small>The harness's own count for this step is ${s.harness_minutes.toFixed(1)} agent-minutes (caller speech plus reply wait); connection time also covers setup and the agent speaking.</small>` : ""}
     <//>`,
-    footnote: "Agent-minutes are caller speech plus turn latency, so every second of waiting is on the bill. Telephony, hosting and the judge are excluded.",
-    compareable: true,
+    footnote: priced
+      ? "Agent-minutes are caller speech plus turn latency, so every second of waiting is on the bill. Telephony, hosting and the judge are excluded."
+      : "Connection time is what Deepgram bills: from the WebSocket opening to its close. Telephony, the judge and the synthetic caller's speech are not on this bill.",
+    compareable: priced,
   };
 }
 
