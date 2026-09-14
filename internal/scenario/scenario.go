@@ -63,12 +63,14 @@ type Pacing struct {
 	//
 	// The line is still one utterance and one turn. The pause is inside it.
 	SentencePause string `json:"sentence_pause,omitempty"`
-
-	sentencePause time.Duration
 }
 
 // Pause is the parsed SentencePause, or zero for a caller who does not pause.
-func (p Pacing) Pause() time.Duration { return p.sentencePause }
+//
+// It parses the field each time rather than keeping a copy that only Load
+// fills in: a worker decodes the scenario from its Kafka assignment without
+// Load, and a copy would silently drop every pause there.
+func (p Pacing) Pause() time.Duration { return positive(p.SentencePause) }
 
 // Turn is one thing the caller says, and a node of the scenario graph.
 type Turn struct {
@@ -104,8 +106,6 @@ type Turn struct {
 	// refund they refused. Branching keeps the caller responsive without
 	// giving up a fixed script, which is what makes runs comparable.
 	Branch []Branch `json:"branch,omitempty"`
-
-	bargeIn time.Duration
 }
 
 // Branch is an alternative line, chosen by what the agent last said.
@@ -156,8 +156,19 @@ func (e *Expect) Check(reply string) (met bool, miss string) {
 }
 
 // BargeIn is the parsed BargeInAfter, or zero when this turn waits its proper
-// turn to speak.
-func (t Turn) BargeIn() time.Duration { return t.bargeIn }
+// turn to speak. Like Pause, it reads the field itself, so a scenario decoded
+// from an assignment still barges in.
+func (t Turn) BargeIn() time.Duration { return positive(t.BargeInAfter) }
+
+// positive parses a duration Load has already validated, and reads anything
+// unparseable or negative as zero.
+func positive(s string) time.Duration {
+	d, err := time.ParseDuration(s)
+	if err != nil || d < 0 {
+		return 0
+	}
+	return d
+}
 
 // Lines returns every line the caller could possibly speak, defaults and all
 // branches alike.
@@ -286,7 +297,6 @@ func (s *Scenario) validate() error {
 			if i == 0 {
 				return fmt.Errorf("turn 1 cannot barge in: there is no reply in progress to interrupt")
 			}
-			t.bargeIn = d
 		}
 		for j, b := range t.Branch {
 			if b.IfAgentSaid == "" {
@@ -321,7 +331,6 @@ func (s *Scenario) validate() error {
 		if d < 0 {
 			return fmt.Errorf("pacing.sentence_pause must not be negative, got %s", s.Pacing.SentencePause)
 		}
-		s.Pacing.sentencePause = d
 	}
 	if s.Target.Voice == "" {
 		s.Target.Voice = "aura-2-apollo-en"
