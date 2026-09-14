@@ -36,18 +36,6 @@
       "next_step": "Add turn-level alerts to the CI pipeline to flag when any individual turn breaches the target limit, even if the overall step passes."
     },
     {
-      "title": "Latency Decreases as Call Concurrency Rises",
-      "category": "capacity",
-      "severity": "medium",
-      "evidence": [
-        "20260913-172146-sweep-deepgram-30, step baseline: ttfa p95_ms 2348.8",
-        "20260913-172146-sweep-deepgram-30, step c40: ttfa p95_ms 1228.1"
-      ],
-      "finding": "Latency does not follow load as expected. The system's p95 TTFA actually drops from 2348.8 ms at the baseline step (concurrency 1) down to 1228.1 ms at step c40 (concurrency 40).",
-      "why_it_matters": "This pattern shows the system is not bottlenecked by high concurrency. The high latency at low load points to potential system warm-up or container cold-start delays.",
-      "next_step": "Run a pre-warming script before executing the baseline step to see if it eliminates the tail latency."
-    },
-    {
       "title": "Median Latency Comfortably Beats Industry Standard",
       "category": "latency",
       "severity": "info",
@@ -82,6 +70,12 @@
       "finding": "Only 20 calls out of 210 total load test calls were graded by the LLM judge, making the 100.0% pass rate positive but statistically fragile.",
       "why_it_matters": "Grading a small fraction of the total call volume increases the risk of missing rare logic errors or task failures that might only surface under higher stress.",
       "next_step": "Increase the portion of calls that are judged to obtain statistically robust quality metrics across larger runs."
+    }
+  ],
+  "rejected": [
+    {
+      "title": "Latency Decreases as Call Concurrency Rises",
+      "reason": "repeats \"Slow Final Turn Hidden by Aggregated Step Latency\""
     }
   ]
 }

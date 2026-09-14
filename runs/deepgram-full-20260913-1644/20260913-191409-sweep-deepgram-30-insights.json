@@ -53,20 +53,6 @@
       "next_step": "Re-run the baseline, c5, and c10 load configurations on a fresh, non-degraded test machine to establish clean, trustworthy low-load performance baselines."
     },
     {
-      "title": "Consistent Performance Between 20 and 40 Concurrent Calls",
-      "category": "capacity",
-      "severity": "low",
-      "evidence": [
-        "20260913-191409-sweep-deepgram-30, step c20: ttfa p50_ms 752.2",
-        "20260913-191409-sweep-deepgram-30, step c20: ttfa p95_ms 3435",
-        "20260913-191409-sweep-deepgram-30, step c40: ttfa p50_ms 747.8",
-        "20260913-191409-sweep-deepgram-30, step c40: ttfa p95_ms 3355.2"
-      ],
-      "finding": "When doubling load from 20 to 40 concurrent calls, the agent's typical TTFA (p50) remains steady at 752.2 ms in c20 and 747.8 ms in c40. Similarly, the tail TTFA (p95) remains stable, moving from 3435 ms at c20 to 3355.2 ms at c40.",
-      "why_it_matters": "This consistency proves that the system's capacity is not yet saturated at 40 concurrent calls, confirming that the slowdown is not caused by traffic load but rather by specific turn-based logic.",
-      "next_step": "Increase the load in future tests beyond 40 concurrent calls to identify the true load-bearing ceiling of the system."
-    },
-    {
       "title": "Exceptional Conversational Accuracy and Success Rates",
       "category": "quality",
       "severity": "info",
@@ -92,6 +78,12 @@
       "finding": "The automated LLM judge successfully completed a conclusive evaluation (conclusive is true) but only graded 20 calls out of the total test run. Within this small sample, both clean calls and slow calls achieved a perfect 100.0% pass rate (clean_pass_rate 1 and slow_pass_rate 1) against the criteria.",
       "why_it_matters": "While these results indicate high conversational quality, evaluating only 20 calls from a 210-call test limits our statistical confidence.",
       "next_step": "Scale up the number of judged calls in the configuration so that a larger, more representative subset of high-concurrency calls is audited."
+    }
+  ],
+  "rejected": [
+    {
+      "title": "Consistent Performance Between 20 and 40 Concurrent Calls",
+      "reason": "repeats \"Overall Tail Latency Violates Coval Target Due to Turn 4\""
     }
   ]
 }

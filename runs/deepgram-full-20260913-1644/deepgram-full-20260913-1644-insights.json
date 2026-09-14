@@ -78,19 +78,6 @@
       "next_step": "Optimize prompt routing or context processing for final polite exchanges to ensure they return fast replies."
     },
     {
-      "title": "Other Scenarios Greatly Outperform Escalation Under Load",
-      "category": "capacity",
-      "severity": "medium",
-      "evidence": [
-        "refund-branching, step c20: ttfa p95_ms 1125.2",
-        "refund-hesitant, step c20: ttfa p95_ms 985.5",
-        "refund-escalation, step c20: ttfa p95_ms 3151.6"
-      ],
-      "finding": "While refund-escalation experiences heavy latency degradation at 20 concurrent calls, the branching and hesitant scenarios stay well within fast, acceptable limits.",
-      "why_it_matters": "This suggests that the performance limits are scenario-specific—likely due to prompt complexity or specific API paths used in the escalation scenario—rather than a platform-wide system limitation.",
-      "next_step": "Compare prompt templates, size of conversation context, and API tool calling pathways between the scenarios to isolate the cause of escalation slowdown."
-    },
-    {
       "title": "Excellent Task Accuracy and Word Recognition Maintained Under Load",
       "category": "quality",
       "severity": "low",
@@ -113,6 +100,12 @@
       "finding": "In the graph-reference scenario, the final turn (Turn 4) displays extremely high median and outlier latency, exceeding 3 seconds for half of the callers.",
       "why_it_matters": "A median of 3151.1 ms means almost every caller experiences a noticeable, uncomfortable multi-second gap of dead air, indicating a systemic logic bottleneck rather than an occasional glitch.",
       "next_step": "Examine the backend operation or external integration running on Turn 4 in the graph-reference scenario to resolve the systemic 3-second block."
+    }
+  ],
+  "rejected": [
+    {
+      "title": "Other Scenarios Greatly Outperform Escalation Under Load",
+      "reason": "repeats \"Tail Latency Degrades Severely Under Load in refund-escalation Scenario\""
     }
   ]
 }
