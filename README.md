@@ -15,6 +15,21 @@
 [![Real calls](https://img.shields.io/badge/Real_calls_in_repo-1320-blueviolet?style=for-the-badge)](runs/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-236a59?style=for-the-badge)](LICENSE)
 
+**Built with**
+
+[![Go](https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white)](go.mod)
+[![Kafka](https://img.shields.io/badge/Kafka_·_franz--go-231F20?style=for-the-badge&logo=apachekafka&logoColor=white)](internal/bus/)
+[![Redpanda](https://img.shields.io/badge/Redpanda-E14226?style=for-the-badge&logo=redpanda&logoColor=white)](deploy/k8s/10-redpanda.yaml)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes_·_Kustomize-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)](deploy/)
+[![KEDA](https://img.shields.io/badge/KEDA-3D5AFE?style=for-the-badge&logo=kubernetes&logoColor=white)](deploy/overlays/keda/scaler.yaml)
+[![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=prometheus&logoColor=white)](deploy/monitoring/prometheus.yml)
+[![Grafana](https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white)](deploy/monitoring/grafana/provisioning/dashboards/callstorm.json)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](Dockerfile)
+[![WebSocket](https://img.shields.io/badge/WebSocket_·_PCM_audio-010101?style=for-the-badge&logo=socketdotio&logoColor=white)](https://developers.deepgram.com/docs/voice-agent)
+[![React](https://img.shields.io/badge/React_·_htm-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](cmd/dashboard/ui/)
+[![Claude](https://img.shields.io/badge/Claude-judge_&_analysis-D97757?style=for-the-badge&logo=anthropic&logoColor=white)](internal/judge/)
+[![GitHub Pages](https://img.shields.io/badge/GitHub_Pages-static_export-222222?style=for-the-badge&logo=github&logoColor=white)](.github/workflows/pages.yml)
+
 <br/>
 
 ### 🌐 **[Open the live dashboard →](https://ai-calypse.github.io/callstorm/)**
