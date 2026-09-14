@@ -44,6 +44,21 @@ Every report in it comes from a committed run. Nothing is mocked.
 
 ---
 
+# ❓ What can you learn?
+
+| Question | What Callstorm shows |
+| --- | --- |
+| **Does the assistant get slower when more people call?** | Per-stage reply-time percentiles, load sweeps, and degradation against a baseline. |
+| **Did callers get what they asked for?** | Scenario checks and optional transcript-based task review, with quoted evidence. |
+| **Where does the waiting happen?** | Wait bands, reply-position timings, and the split between detecting the end of speech and producing audio. |
+| **Does the conversation hold up?** | Transcription errors, interruptions, speaking balance, repeated replies, and long silences. |
+| **What changes on a poor connection?** | Optional network-impairment tests and comparisons against a clean connection. |
+| **Can I trust the test?** | A calibrated reference agent, call-level event logs, and warnings when the test system falls behind. |
+
+Callstorm speaks the **Deepgram Voice Agent WebSocket protocol**, including a local reference target. It is not a general phone dialer: SIP and PSTN calling and other provider adapters are not implemented.
+
+---
+
 # 🎙️ The call that started this
 
 The caller said **"No."**
@@ -321,8 +336,6 @@ go run ./cmd/callstorm -scenario scenarios/refund.json -profile profiles/smoke-d
 ```
 
 Start small, then pick a larger [profile](profiles/) suited to the target's limits. Values in `.env` override the inherited environment. Caller audio is cached after the first synthesis; new audio, real-agent calls and model-based reviews can incur provider charges. Run `go run ./cmd/callstorm -h` for every option.
-
-Callstorm speaks the **Deepgram Voice Agent WebSocket protocol**. It is not a phone dialer: SIP and PSTN calling and other provider adapters are not implemented.
 
 ---
 
