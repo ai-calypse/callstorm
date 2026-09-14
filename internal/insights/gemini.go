@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -16,6 +17,11 @@ const DefaultModel = "gemini-3.5-flash"
 
 // geminiAttempts bounds how many times one analysis waits out a rate limit.
 const geminiAttempts = 4
+
+// ErrLimited is a rate limit that outlasted every attempt. Every attempt counts
+// against the quota, and the free tier's is a count of requests, so a batch
+// that meets this stops rather than spending the rest of it on refusals.
+var ErrLimited = errors.New("Gemini is refusing more requests for now")
 
 // Gemini writes analyses over the Gemini API's generateContent endpoint.
 type Gemini struct {
@@ -80,7 +86,10 @@ func (g Gemini) Generate(ctx context.Context, system, user string, schema json.R
 		if err != nil && ctx.Err() == context.DeadlineExceeded {
 			return "", fmt.Errorf("gemini timed out after %s", timeout)
 		}
-		if err == nil || wait == 0 || attempt == geminiAttempts {
+		if err != nil && wait != 0 && attempt == geminiAttempts {
+			return "", fmt.Errorf("%w: %v", ErrLimited, err)
+		}
+		if err == nil || wait == 0 {
 			return text, err
 		}
 		select {

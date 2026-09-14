@@ -73,9 +73,22 @@ func main() {
 	mux.Handle("/", http.FileServer(pages))
 
 	log.Printf("dashboard on http://localhost%s  runs=%s", *addr, *runsDir)
-	if err := http.ListenAndServe(*addr, mux); err != nil {
+	if err := http.ListenAndServe(*addr, revalidate(mux)); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// revalidate has the browser check every /api/ response again before reusing
+// it. Run files change on disk after a run -- a re-judge rewrites a report, an
+// analysis is written later -- and a file served with only Last-Modified is
+// cached on a guess, so a page went on showing an analysis already replaced.
+func revalidate(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			w.Header().Set("Cache-Control", "no-cache")
+		}
+		h.ServeHTTP(w, r)
+	})
 }
 
 func newFS() (http.FileSystem, error) {

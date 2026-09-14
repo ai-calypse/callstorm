@@ -10,10 +10,11 @@ import (
 )
 
 // The lines a caller's wait is sorted against. 800ms is Hamming's target for
-// the wait from the end of the caller's speech ("Voice AI latency: what's fast,
-// what's slow", January 2026). 1,200ms is where Coval says callers start
-// repeating themselves, talking over the agent or hanging up ("Voice AI
-// latency", March 2026). Past two seconds is dead air.
+// the wait from the end of the caller's speech ("Voice AI Latency: What's Fast,
+// What's Slow, and How to Fix It", January 2026). 1,200ms is where Coval says
+// callers start repeating themselves, talking over the agent or hanging up
+// ("Voice AI Latency: What Causes Delays and How to Fix Them", March 2026).
+// Past two seconds is dead air.
 const (
 	waitTarget = 800 * time.Millisecond
 	waitRepeat = 1200 * time.Millisecond
@@ -128,9 +129,10 @@ func analyzeCalls(s *StepReport, calls [][]metrics.TurnMetric) {
 }
 
 // repeatedReplies counts replies in one call that say again what the agent
-// already said earlier in it. Coval's loop detection looks for exactly this,
-// repeated agent utterances as the sign of a stuck dialogue or voice, and
-// Hamming puts repeated questions above 3% of turns as a problem. Two replies
+// already said earlier in it. Coval's Agent Repeats Itself metric looks for
+// exactly this, the agent repeating the same phrases or questions in a call,
+// and Hamming rates repeated questions under 3% of those asked as excellent
+// ("How to Measure Conversational Flow in Voice Agents", December 2025). Two replies
 // are the same when their words match, ignoring case and punctuation, or when
 // both have at least four words and share at least 80% of their distinct
 // words. The four words and 80% are Callstorm's own lines: close enough to

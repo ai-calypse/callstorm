@@ -272,4 +272,5 @@ Newer fields, absent on runs that predate them:
 - steps[].quality is the step's verdict on doing the job, apart from its latency verdict, with what it compared and why it warned or failed. A step can pass on speed and fail on quality.
 - steps[].leading_silence is silence at the start of replies before any sound, and audible_ttfa the wait until a caller could hear something.
 - conversation.repeated_replies counts replies that repeated an earlier reply in the same call.
+- calls.by_turn[].heard_cut_short counts turns where the agent's transcript of the caller held under half the words the caller said; ttfa_p50_ms_cut_short and ttfa_p50_ms_heard_in_full are that turn's median wait on those turns and on the rest. A turn slow mostly when cut short is a hearing problem, not a thinking one.
 - judge.waits compares how often judged calls with a wait past line_ms did the job against calls without one. Read it only when conclusive is true.`

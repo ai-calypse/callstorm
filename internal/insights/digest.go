@@ -49,6 +49,14 @@ type TurnStats struct {
 	CallerLine       string  `json:"caller_line"`
 	CommonReply      string  `json:"most_common_reply"`
 	CommonReplyCount int     `json:"most_common_reply_count"`
+
+	// HeardCutShort counts turns whose transcript of the caller held under half
+	// the words said, with the median wait on those turns and on the rest. A
+	// turn slow only when the caller is cut off reads as slow thinking in the
+	// medians above, and as this here.
+	HeardCutShort        int     `json:"heard_cut_short"`
+	TTFAP50MsCutShort    float64 `json:"ttfa_p50_ms_cut_short,omitempty"`
+	TTFAP50MsHeardInFull float64 `json:"ttfa_p50_ms_heard_in_full,omitempty"`
 }
 
 // IDs lists the runs the digest covers.
@@ -201,6 +209,7 @@ type callLine struct {
 		Failed        bool    `json:"failed"`
 		CallerText    string  `json:"caller_text"`
 		AgentText     string  `json:"agent_text"`
+		HeardText     string  `json:"heard_text"`
 		TTFAMs        float64 `json:"ttfa_ms"`
 		EndpointingMs float64 `json:"endpointing_ms"`
 		ThinkSpeakMs  float64 `json:"think_speak_ms"`
@@ -215,9 +224,11 @@ func callStats(path string) (*CallStats, error) {
 	defer f.Close()
 
 	type acc struct {
-		count, failed    int
-		ttfa, ep, ts     []float64
-		callers, replies map[string]int
+		count, failed     int
+		ttfa, ep, ts      []float64
+		callers, replies  map[string]int
+		cut               int
+		cutTTFA, fullTTFA []float64
 	}
 	byTurn := map[int]*acc{}
 	cs := &CallStats{}
@@ -259,6 +270,18 @@ func callStats(path string) (*CallStats, error) {
 			}
 			a.callers[t.CallerText]++
 			a.replies[t.AgentText]++
+			// A target that sends no transcript leaves nothing to compare.
+			if heard := len(strings.Fields(t.HeardText)); heard > 0 {
+				short := 2*heard < len(strings.Fields(t.CallerText))
+				if short {
+					a.cut++
+				}
+				if t.TTFAMs > 0 && short {
+					a.cutTTFA = append(a.cutTTFA, t.TTFAMs)
+				} else if t.TTFAMs > 0 {
+					a.fullTTFA = append(a.fullTTFA, t.TTFAMs)
+				}
+			}
 		}
 	}
 	if err := sc.Err(); err != nil {
@@ -279,6 +302,7 @@ func callStats(path string) (*CallStats, error) {
 			TTFAP50Ms: nearestRank(a.ttfa, 0.50), TTFAP95Ms: nearestRank(a.ttfa, 0.95),
 			EndpointingP50Ms: nearestRank(a.ep, 0.50), ThinkSpeakP50Ms: nearestRank(a.ts, 0.50),
 			CallerLine: caller, CommonReply: reply, CommonReplyCount: n,
+			HeardCutShort: a.cut, TTFAP50MsCutShort: nearestRank(a.cutTTFA, 0.50), TTFAP50MsHeardInFull: nearestRank(a.fullTTFA, 0.50),
 		})
 	}
 	return cs, nil

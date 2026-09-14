@@ -12,8 +12,8 @@ func stepOf(name string, turns, failed int) StepReport {
 	return StepReport{Step: Step{Name: name}, TurnsTotal: turns, TurnsFailed: failed}
 }
 
-// Hamming's gate for task completion under load: within 5 points passes, 5 to
-// 10 warns, more fails. Below 30 checks a rate is not compared at all.
+// Hamming's gate for task completion under load, read as points: within 5
+// passes, 5 to 10 warns, more fails. Below 30 checks a rate is not compared at all.
 func TestQualityHoldsTaskChecksToTheGate(t *testing.T) {
 	base := stepOf("c1", 200, 0)
 	base.Nodes = []NodeStats{{Node: "refund", Checked: 50, PassRate: 0.96}}

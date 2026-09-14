@@ -8,6 +8,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"math"
@@ -34,39 +35,41 @@ import (
 )
 
 // deepgramConcurrencyCap is Deepgram's Voice Agent limit on pay-as-you-go
-// (45 connections; 60 on Growth, 100+ on Enterprise). A profile that exceeds it
+// (45 connections; 60 on Growth in North America and 45 elsewhere, 100+ on
+// Enterprise). A profile that exceeds it
 // produces connection refusals that look exactly like agent failures, so the
 // preflight blocks rather than letting a run generate misleading data.
 const deepgramConcurrencyCap = 40
 
 type opts struct {
-	scenarioPath   string
-	profilePath    string
-	outDir         string
-	cacheDir       string
-	sampleRate     int
-	turnTimeout    time.Duration
-	targetURL      string
-	maxConcurrency int
-	envPath        string
-	metricsAddr    string
-	metricsLinger  time.Duration
-	kafkaBrokers   string
-	kafkaTopic     string
-	ratePerMinute  float64
-	distributed    bool
-	judge          bool
-	judgeCalls     int
-	judgeBackend   string
-	judgeModel     string
-	impairments    string
-	impairDev      string
-	suite          string
-	rejudge        string
-	labels         string
-	insightsPath   string
-	insightsModel  string
-	refresh        string
+	scenarioPath    string
+	profilePath     string
+	outDir          string
+	cacheDir        string
+	sampleRate      int
+	turnTimeout     time.Duration
+	targetURL       string
+	maxConcurrency  int
+	envPath         string
+	metricsAddr     string
+	metricsLinger   time.Duration
+	kafkaBrokers    string
+	kafkaTopic      string
+	ratePerMinute   float64
+	distributed     bool
+	judge           bool
+	judgeCalls      int
+	judgeBackend    string
+	judgeModel      string
+	impairments     string
+	impairDev       string
+	suite           string
+	rejudge         string
+	labels          string
+	insightsPath    string
+	insightsModel   string
+	insightsBackend string
+	refresh         string
 }
 
 func main() {
@@ -109,9 +112,15 @@ func main() {
 		"write the analysis of a run report, or of every suite and run in a directory, with Gemini, instead of placing calls")
 	flag.StringVar(&o.insightsModel, "insights-model", insights.DefaultModel,
 		"Gemini model that writes run analyses; analyses are written after every run when GEMINI_API_KEY is set")
+	flag.StringVar(&o.insightsBackend, "insights-backend", "gemini",
+		"who writes analyses: gemini (needs GEMINI_API_KEY) or claude-code (the Claude Code CLI, no key)")
 	flag.StringVar(&o.refresh, "refresh", "",
 		"recompute turn waits, wait bands, repeated replies and quality from the calls log of a report, or of every report in a directory, instead of placing calls")
 	flag.Parse()
+	// A Gemini model name means nothing to Claude Code.
+	if o.insightsBackend == "claude-code" && o.insightsModel == insights.DefaultModel {
+		o.insightsModel = insights.DefaultClaudeModel
+	}
 
 	if err := run(o); err != nil {
 		fmt.Fprintf(os.Stderr, "\ncallstorm: %v\n", err)
@@ -1151,9 +1160,13 @@ func printAgreement(t *loadgen.TaskSuccess, labelsPath string) error {
 	return nil
 }
 
-// geminiModel returns the model that writes analyses, and false when there is
-// no key: a run without one is not an error, only a run without an analysis.
-func geminiModel(o opts) (insights.Model, bool) {
+// analysisModel returns the model that writes analyses, and false when Gemini
+// is asked for and there is no key: a run without one is not an error, only a
+// run without an analysis. Claude Code needs no key.
+func analysisModel(o opts) (insights.Model, bool) {
+	if o.insightsBackend == "claude-code" {
+		return insights.ClaudeCode{Model: o.insightsModel}, true
+	}
 	key := os.Getenv("GEMINI_API_KEY")
 	if key == "" {
 		return nil, false
@@ -1165,17 +1178,22 @@ func geminiModel(o opts) (insights.Model, bool) {
 // as name to directory. An analysis that cannot be written is reported and
 // does not fail the run: the measurements stand without it.
 func writeInsights(ctx context.Context, o opts, reportPaths []string, suites map[string]string) {
-	m, ok := geminiModel(o)
+	m, ok := analysisModel(o)
 	if !ok {
 		return
 	}
+	type job struct {
+		d    insights.Digest
+		path string
+	}
+	var jobs []job
 	for _, p := range reportPaths {
 		d, err := insights.ForRun(p)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "insights: %v\n", err)
 			continue
 		}
-		saveInsights(ctx, o, m, d, insights.PathForRun(p))
+		jobs = append(jobs, job{d, insights.PathForRun(p)})
 	}
 	for suite, dir := range suites {
 		d, err := insights.ForSuite(dir, suite)
@@ -1183,26 +1201,37 @@ func writeInsights(ctx context.Context, o opts, reportPaths []string, suites map
 			fmt.Fprintf(os.Stderr, "insights: %v\n", err)
 			continue
 		}
-		saveInsights(ctx, o, m, d, insights.PathForSuite(dir, suite))
+		jobs = append(jobs, job{d, insights.PathForSuite(dir, suite)})
+	}
+	for i, j := range jobs {
+		if err := saveInsights(ctx, o, m, j.d, j.path); errors.Is(err, insights.ErrLimited) {
+			// Analyses already written stay as they were, and a later run
+			// skips every one that is up to date, so rerunning costs only the
+			// ones left.
+			fmt.Fprintf(os.Stderr, "insights: stopped with %d analyses not written; run -insights again once Gemini's limit resets\n", len(jobs)-i)
+			return
+		}
 	}
 }
 
-func saveInsights(ctx context.Context, o opts, m insights.Model, d insights.Digest, path string) {
+// saveInsights writes one analysis. The error is returned only so a batch can
+// stop at a rate limit; it has already been reported.
+func saveInsights(ctx context.Context, o opts, m insights.Model, d insights.Digest, path string) error {
 	if insights.Unchanged(path, o.insightsModel, d) {
 		fmt.Printf("\ninsights     %s %s already analysed from this data with these instructions; kept as it is\n", d.Kind, d.Subject)
-		return
+		return nil
 	}
 	fmt.Printf("\ninsights     writing the analysis of %s %s with %s\n", d.Kind, d.Subject, o.insightsModel)
 	r, err := insights.Generate(ctx, m, o.insightsModel, d)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "insights: %s %s: %v\n", d.Kind, d.Subject, err)
-		return
+		return err
 	}
 	if err := r.Write(path); err != nil {
 		fmt.Fprintf(os.Stderr, "insights: %v\n", err)
-		return
+		return err
 	}
-	fmt.Printf("insights     %d kept, %d dropped by the number check  %s\n", len(r.Insights), len(r.Rejected), path)
+	fmt.Printf("insights     %d kept, %d dropped as unchecked or repeated  %s\n", len(r.Insights), len(r.Rejected), path)
 	if r.Headline != "" {
 		fmt.Printf("             %s\n", r.Headline)
 	}
@@ -1212,6 +1241,7 @@ func saveInsights(ctx context.Context, o opts, m insights.Model, d insights.Dige
 	for _, rj := range r.Rejected {
 		fmt.Printf("  dropped %s: %s\n", rj.Title, rj.Reason)
 	}
+	return nil
 }
 
 // runInsights is -insights: the analysis of one report and its suite, or of
@@ -1219,8 +1249,8 @@ func saveInsights(ctx context.Context, o opts, m insights.Model, d insights.Dige
 // existed get one, and how every analysis is rewritten when the instructions
 // change.
 func runInsights(ctx context.Context, o opts) error {
-	if _, ok := geminiModel(o); !ok {
-		return fmt.Errorf("-insights needs GEMINI_API_KEY in %s or the environment", o.envPath)
+	if _, ok := analysisModel(o); !ok {
+		return fmt.Errorf("-insights needs GEMINI_API_KEY in %s or the environment, or -insights-backend claude-code", o.envPath)
 	}
 	info, err := os.Stat(o.insightsPath)
 	if err != nil {
