@@ -372,9 +372,12 @@ func runLoad(ctx context.Context, o opts, sc *scenario.Scenario, apiKey string) 
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(jsonPath, b, 0o644); err != nil {
+	// The JSON report is the discovery marker. Publish it only after the
+	// evidence files are complete, so retrieval never sees a half-written run.
+	if err := os.WriteFile(jsonPath+".tmp", b, 0o644); err != nil {
 		return err
 	}
+	defer os.Remove(jsonPath + ".tmp")
 	csvPath := filepath.Join(o.outDir, runID+".csv")
 	if err := writeCSV(csvPath, rep); err != nil {
 		return err
@@ -390,6 +393,9 @@ func runLoad(ctx context.Context, o opts, sc *scenario.Scenario, apiKey string) 
 		svgPath = ""
 	}
 
+	if err := os.Rename(jsonPath+".tmp", jsonPath); err != nil {
+		return err
+	}
 	printLoadReport(rep, jsonPath, csvPath, svgPath, callsPath)
 
 	if rep.Judge != nil {

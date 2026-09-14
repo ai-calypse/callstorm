@@ -54,6 +54,7 @@ func main() {
 	// The calls file beside a report: every turn's words and instants, one
 	// call per line. The report summarises it; the transcript view reads it.
 	mux.HandleFunc("GET /api/runs/{id}/calls.jsonl", getCalls(*runsDir))
+	mux.HandleFunc("GET /api/runs/{id}/archive.tar.gz", getArchive(*runsDir))
 	// The written analysis of a run, and of a suite of runs, for runs that have
 	// one. Both dashboards read these; neither writes them.
 	mux.HandleFunc("GET /api/runs/{id}/insights.json", getInsights(*runsDir, "id"))
@@ -392,7 +393,7 @@ func suitesOf(runs []summary) []string {
 // resolve turns a run id into a path inside dir, refusing anything that tries
 // to climb out of it.
 func resolve(dir, id, ext string) (string, error) {
-	if id == "" || strings.ContainsAny(id, `/\`) || strings.Contains(id, "..") {
+	if id == "" || strings.ContainsAny(id, `/\*?[]:`) || strings.Contains(id, "..") {
 		return "", fmt.Errorf("bad id")
 	}
 	candidates, _ := filepath.Glob(filepath.Join(dir, id+ext))
