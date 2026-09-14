@@ -1,4 +1,4 @@
-/* Review studio: a separate presentation on the existing report data. */
+/* The review layout: the summary, the views and the scenario comparison, over the kit and the dashboard layouts. */
 :root {
   --studio-teal: #236a59; --studio-blue: #6689a8; --studio-chart-wash: #eff5f0;
   --cs-canvas: #f6f7f4; --cs-sidebar: #eef1eb; --cs-surface: #fff;
@@ -28,7 +28,6 @@ button:active { opacity: .85; }
 .sidebar-note { padding: 35px 9px 25px; }
 .sidebar-note .mini-wave { display: none; }
 .sidebar-note p { line-height: 1.7; font-size: 13px; }
-.studio-original { display: block; font-size: 11px; color: var(--studio-teal); margin-top: 20px; line-height: 1.6; }
 .profile { padding-top: 18px; font-size: 12px; }
 .profile small { font-size: 11px; }
 .avatar { background: #d5e3d7; }

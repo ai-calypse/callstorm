@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="components.css">
 <link rel="stylesheet" href="dashboard.css">
 <link rel="stylesheet" href="clarity.css">
+<link rel="stylesheet" href="studio.css">
 </head>
 <body class="cs-app">
 <div id="root"></div>
@@ -20,13 +21,11 @@
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
 <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js" crossorigin></script>
 <script>
-// The same dashboard as ../index.html, read from the same API, laid out as the
 // Callstorm Calm evaluation studio: one run, one question at a time, with the
 // evidence behind every answer one click away.
 //
-// The page is served from /calm/ by the same file server that serves the
-// original, so every request below climbs one directory to the API the Go
-// server (or a static export) already answers. Nothing here has its own data.
+// The Go server, or a static export, answers the API beside this page. Nothing
+// here has its own data.
 const { useState, useEffect, useRef } = React;
 const API = "api/";
 
@@ -106,9 +105,7 @@ const describeNet = p => {
   return parts.length ? parts.join(", ") : "unimpaired";
 };
 
-// ---- Shared with ../index.html, verbatim: the readings and the reference tables.
-// ---- Both pages must say the same thing about the same run, so nothing below is
-// ---- edited here; the original is the source.
+// ---- The readings and the reference tables.
 const GLOSSARY = [
   ["p50 / p95 TTFA",
    "Time to first audio: you stop talking, and this is how long the line stays dead before the agent says anything. p50 is the middle turn; p95 is the turn worse than 95% of the rest.",
@@ -693,9 +690,8 @@ function readIntegrity(d, te) {
 }
 
 
-// ---- Shared with ../index.html, verbatim: the plain-language questions, their
-// ---- answer functions, the charts they draw and the helpers they use. Both
-// ---- pages must answer the same question the same way; the original is the source.
+// ---- The plain-language questions, their answer functions, the charts they draw
+// ---- and the helpers they use.
 const kindOf = s => (s.phase && s.phase.kind) || s.kind || "ramp";
 const has = v => v !== null && v !== undefined && Number.isFinite(v);
 const fixed = (v, d) => (has(v) ? v.toFixed(d) : "-");
@@ -739,8 +735,8 @@ function ladderOf(steps) {
 const baselineOf = (rep, L) => L.find(s => s.name === rep.baseline) || L[0];
 
 // A line across load levels. Missing values leave a gap rather than a zero.
-function LineChart({ labels, series, yFmt, refs, highlight, xTitle }) {
-  const W = 640, H = 210, L = 58, R = 110, T = 14, B = 40;
+function LineChart({ labels, series, yFmt, refs, highlight, xTitle, endLabels = true }) {
+  const W = 640, H = 210, L = 58, R = endLabels ? 110 : 18, T = 14, B = 40;
   const vals = series.flatMap(s => s.values.filter(has)).concat((refs || []).map(r => r.value));
   const top = Math.max(...vals, 1e-9) * 1.15;
   const x = i => L + (labels.length < 2 ? (W - L - R) / 2 : (i * (W - L - R)) / (labels.length - 1));
@@ -768,7 +764,7 @@ function LineChart({ labels, series, yFmt, refs, highlight, xTitle }) {
                 <circle key=${i} cx=${x(i)} cy=${y(v)} r="4" fill=${s.color} stroke="var(--surface)" strokeWidth="2">
                   <title>${s.name + " at " + labels[i] + ": " + yFmt(v)}</title>
                 </circle>` : null))}
-              ${series.length > 1 && last >= 0 && html`<text x=${W - R + 8} y=${y(s.values[last]) + 4 + si * 12} fontSize="10.5" fill="var(--ink-2)">${s.name}</text>`}
+              ${endLabels && series.length > 1 && last >= 0 && html`<text x=${W - R + 8} y=${y(s.values[last]) + 4 + si * 12} fontSize="10.5" fill="var(--ink-2)">${s.name}</text>`}
             </g>`;
         })}
         ${labels.map((l, i) => html`<text key=${i} x=${x(i)} y=${H - B + 16} fontSize="10" textAnchor="middle" fill="var(--mute)">${l}</text>`)}
@@ -1197,6 +1193,35 @@ function qJob(rep, L) {
         answer: html`<b>Yes.</b> Every checked step passed about as often at ${atOnce(high.concurrency)} as at ${low.concurrency}. The weakest, ${weakest.id}, passed ${pctOf(weakest.to)} of the time at the heaviest load.` };
 }
 
+// Whether mishearing cost the task: the split the evidence card draws, read the
+// same way, so the two cannot disagree.
+function qHeardDone(rep) {
+  const q = { id: "heard-done", group: "Quality when busy", ask: "Are the calls it misheard the calls it failed?" };
+  if (!rep.judge) return { ...q, missing: "This run was not judged, so nothing says which calls did the job. Run it with -judge and written success criteria." };
+  const x = rep.judge.correlation;
+  if (!x || !(x.calls > 0)) return { ...q, missing: "None of the judged calls has a record of what the agent heard, so hearing can't be set against the outcome. The reference agent does no speech recognition; run the same test against the real agent." };
+  const line = `${Math.round((x.threshold || 0.05) * 100)}%`;
+  if (!x.conclusive) {
+    const next = x.clean_calls > 0 && x.misheard_calls > 0 ? " Judge more calls per step with -judge-calls to answer this."
+      : x.misheard_calls === 0 ? " With none misheard there is no second group to compare against." : " With none heard cleanly there is no group to compare against.";
+    return { ...q, missing: `Not enough to tell: ${x.note}. Of ${x.calls} judged calls, ${x.misheard_calls} had more than ${line} of their words misheard.${next}` };
+  }
+  const chart = html`<${StackBars} rows=${[
+      { label: `misheard over ${line}`, values: [x.misheard_passed, x.misheard_calls - x.misheard_passed] },
+      { label: "heard cleanly", values: [x.clean_passed, x.clean_calls - x.clean_passed] },
+    ]} segments=${[{ name: "did the job", color: "var(--pass)" }, { name: "did not", color: "var(--fail)" }]}
+      share=${true} valueFmt=${v => `${v} calls`} totalFmt=${sum => `${sum} calls`}/>`;
+  const how = `Callstorm knows exactly what the test caller said, so each judged call gets the share of its words the agent misheard. Calls with more than ${line} misheard are compared with the rest on how often they did the job. A misheard-words figure alone says nothing about what to fix; set against outcomes it either points at the listening or clears it. Nothing chose which calls would be misheard, so it shows an association, not a cause.`;
+  const counts = html`${pctOf(x.misheard_pass_rate)} of the ${x.misheard_calls} misheard calls did the job, against ${pctOf(x.clean_pass_rate)} of the ${x.clean_calls} heard cleanly.`;
+  const small = Math.min(x.clean_calls, x.misheard_calls);
+  const loose = small < 5 ? ` The smaller group has only ${small} ${small === 1 ? "call" : "calls"}, so read this loosely.` : "";
+  return x.gap > 0
+    ? { ...q, how, chart, short: `Yes: ${pctOf(x.misheard_pass_rate)} of misheard calls did the job, ${pctOf(x.clean_pass_rate)} of the rest.`,
+        answer: html`<b>Yes, mishearing is costing it the task.</b> ${counts} Fix the listening before the reasoning.${loose}` }
+    : { ...q, how, chart, short: "No: misheard calls did the job at least as often.",
+        answer: html`<b>No, mishearing is not what fails these calls.</b> ${counts} Look past the transcript, at the reasoning, tools or prompt.${loose}` };
+}
+
 function qInterrupt(rep, L) {
   const q = { id: "interrupt", group: "Quality when busy", ask: "Does it talk over people more when it's busy?" };
   const rows = L.filter(s => s.conversation && s.conversation.turns > 0);
@@ -1537,7 +1562,7 @@ function buildQuestions(rep, runs, id) {
     () => qCapacity(rep, L), () => qQualityLimit(rep, L), () => qShape(rep, L), () => qWho(rep, L), () => qProblems(rep),
     () => qWhereWait(rep, L), () => qTurnWait(rep, L), () => qLongWaits(rep, L),
     () => qRush(rep), () => qRecovery(rep), () => qOverTime(rep),
-    () => qHearing(rep, L), () => qJob(rep, L), () => qSlowFail(rep), () => qInterrupt(rep, L), () => qWordier(rep, L), () => qRepeats(rep, L),
+    () => qHearing(rep, L), () => qJob(rep, L), () => qHeardDone(rep), () => qSlowFail(rep), () => qInterrupt(rep, L), () => qWordier(rep, L), () => qRepeats(rep, L),
     () => qBadLine(rep), () => qCost(rep, L), () => qTrust(rep), () => qRepeat(rep, runs, id),
   ];
   // One broken answer must not take the whole report with it; it says it
@@ -2391,6 +2416,29 @@ function WERStrip({ calls, threshold }) {
     </div>`;
 }
 
+// The two groups the heard-versus-done split compares, for the evidence card
+// and the task view both.
+function HeardDoneTable({ x }) {
+  return html`
+    <div className="tablewrap">
+      <table>
+        <thead><tr><th>Group</th><th>Calls</th><th>Did the job</th><th>Rate</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Heard cleanly (under ${Math.round((x.threshold || 0.05) * 100)}% misheard)</td>
+            <td>${x.clean_calls}</td><td>${x.clean_passed}</td>
+            <td>${x.clean_calls > 0 ? pct(x.clean_pass_rate) : "-"}</td>
+          </tr>
+          <tr>
+            <td>Misheard</td>
+            <td>${x.misheard_calls}</td><td>${x.misheard_passed}</td>
+            <td>${x.misheard_calls > 0 ? pct(x.misheard_pass_rate) : "-"}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>`;
+}
+
 const UNJUDGED = html`Every number elsewhere on this page says how the agent sounded. None of them says whether it did the job.
   Re-run with <code>-judge</code> and a scenario that defines <code>success_criteria</code>,
   and this card grades each conversation against them and then asks whether the calls it
@@ -2439,23 +2487,7 @@ function TaskSuccessCard({ rep }) {
           <span className="eyebrow">HEARD VERSUS DONE</span>
           <h4 className="sub tight">Are the calls it misheard the calls it failed?</h4>
           <${WERStrip} calls=${calls} threshold=${x.threshold || 0.05}/>
-          <div className="tablewrap">
-            <table>
-              <thead><tr><th>Group</th><th>Calls</th><th>Did the job</th><th>Rate</th></tr></thead>
-              <tbody>
-                <tr>
-                  <td>Heard cleanly (under ${Math.round((x.threshold || 0.05) * 100)}% misheard)</td>
-                  <td>${x.clean_calls}</td><td>${x.clean_passed}</td>
-                  <td>${x.clean_calls > 0 ? pct(x.clean_pass_rate) : "-"}</td>
-                </tr>
-                <tr>
-                  <td>Misheard</td>
-                  <td>${x.misheard_calls}</td><td>${x.misheard_passed}</td>
-                  <td>${x.misheard_calls > 0 ? pct(x.misheard_pass_rate) : "-"}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <${HeardDoneTable} x=${x}/>
         </div>`}
     <//>`;
 }
@@ -3392,7 +3424,7 @@ function view(tab, ctx) {
   };
 }
 
-// The evidence behind a tab: every card the original page draws for it.
+// The evidence behind a tab: every card the page draws for it.
 function Evidence({ tab, rep, refs, id, calls, step, onOpenCall, estimate }) {
   const cards = {
     load: [ReportTable, SlowTurn, Timeline, AgentLatency, ComponentShare, ReferenceLines, PhaseTable, IntegrityCard],
@@ -4042,7 +4074,7 @@ function PreviousTest({rep,prev,onHistory}) {
       </tbody></table></div><p className="quiet">Rates use the sample counts shown. Small samples can move substantially between tests. Cost comparisons use recorded prices on the same billing basis, not an estimate mixed with a recorded bill.</p><//>`}
   </section>`;
 }
-function PriorityViews({rep,prev,onExplore,onCall,onHistory}) {
+function PriorityViews({rep,prev,onExplore,onCall,onHistory,mode="all"}) {
   const groups=rep.matrix?.cohorts?.length ? rep.matrix.cohorts : [{steps:sel.steps(rep)}];
   const [groupIndex,setGroupIndex]=useState(0);
   const group=groups[groupIndex] || groups[0], steps=group.steps || [];
@@ -4054,8 +4086,9 @@ function PriorityViews({rep,prev,onExplore,onCall,onHistory}) {
   const picked=heatPick && steps.find(s=>s.name === heatPick.step)?.turns?.find(t=>t.turn === heatPick.turn);
   const misses=(rep.judge?.misses || []).filter(m=>m.judged>0).slice().sort((a,b)=>b.missed-a.missed || a.criterion.localeCompare(b.criterion));
   const judgedTotal=rep.judge?.judged || 0;
+  const heardX=rep.judge?.correlation || {}, heardRead=rep.judge ? readTaskSuccess(rep.judge) : null;
   return html`<div className="priority-views">
-    <section className="priority-panel" aria-labelledby="load-results-title">
+    <section hidden=${mode !== "all" && !["overview"].includes(mode)} className="priority-panel" aria-labelledby="load-results-title">
       <div className="priority-heading"><div><h2 id="load-results-title">What changed as more people called?</h2><p className="quiet">Read across a row to see task completion, reliability, speed, and conversation issues together.</p></div>
       ${groups.length>1 && html`<label className="stage-picker">Connection conditions<select className="cs-input" value=${groupIndex} onChange=${e=>{setGroupIndex(Number(e.target.value));setHeatPick(null);}}>${groups.map((g,i)=>html`<option key=${i} value=${i}>${g.impairment?.name || "Standard connection"}</option>`)}</select></label>`}</div>
       ${steps.length ? html`<div className="tablewrap"><table className="results-grid"><thead><tr><th>Calls at once</th><th>Tasks completed</th><th>Calls connected</th><th>Reply wait</th><th>Conversation issues</th></tr></thead><tbody>
@@ -4071,7 +4104,7 @@ function PriorityViews({rep,prev,onExplore,onCall,onHistory}) {
       <p className="quiet">Task review and connection success are different checks. A fast, connected call can still miss the task. Reviewed samples can be much smaller than the total call count.</p>
     </section>
 
-    <section className="priority-panel" aria-labelledby="wait-frequency-title"><h2 id="wait-frequency-title">How often did callers have to wait?</h2>
+    <section hidden=${mode !== "all" && !["experience"].includes(mode)} className="priority-panel" aria-labelledby="wait-frequency-title"><h2 id="wait-frequency-title">How often did callers have to wait?</h2>
       <p className="quiet">Each bar contains all timed replies at that call load. Width shows the share in each wait band; counts are shown underneath.</p>
       <div className="wait-key">${WAIT_BANDS.map(([k,label,color])=>html`<span key=${k}><i style=${{background:color}}></i>${label}</span>`)}</div>
       ${steps.length ? steps.map(s=>{const w=validWaits(s);return html`<div key=${s.name} className="wait-frequency-row"><div><strong>${s.concurrency} at once</strong><small>${s.name}</small></div><div>
@@ -4081,7 +4114,7 @@ function PriorityViews({rep,prev,onExplore,onCall,onHistory}) {
       </div></div>`;}) : html`<p className="cs-notice">No timed replies recorded.</p>`}
     </section>
 
-    <section className="priority-panel" aria-labelledby="conversation-heat-title"><div className="priority-heading"><div><h2 id="conversation-heat-title">Where in the conversation did things slow down?</h2><p className="quiet">Rows are reply positions, columns are call loads. Darker cells mean a longer wait. Select a cell to read the caller’s line.</p></div>
+    <section hidden=${mode !== "all" && !["experience"].includes(mode)} className="priority-panel" aria-labelledby="conversation-heat-title"><div className="priority-heading"><div><h2 id="conversation-heat-title">Where in the conversation did things slow down?</h2><p className="quiet">Rows are reply positions, columns are call loads. Darker cells mean a longer wait. Select a cell to read the caller’s line.</p></div>
       <label className="stage-picker">Reply time<select className="cs-input" aria-label="Conversation heatmap measure" value=${heatMetric} onChange=${e=>setHeatMetric(e.target.value)}><option value="p95_ms">Slow replies (95th percentile)</option><option value="p50_ms">Typical reply (median)</option></select></label></div>
       ${turns.length ? html`<${Frag}><div className="tablewrap"><table className="conversation-heatmap"><thead><tr><th>Conversation moment</th>${steps.map(s=>html`<th key=${s.name}>${s.concurrency} at once<small>${s.name}</small></th>`)}</tr></thead><tbody>
         ${turns.map(n=>html`<tr key=${n}><th scope="row">Reply ${n}</th>${steps.map(s=>{const t=(s.turns || []).find(t=>t.turn===n), value=t?.ttfa?.n>0 ? t.ttfa[heatMetric] : null;return html`<td key=${s.name}>${Number.isFinite(value) ? html`<button aria-pressed=${!!(heatPick?.step === s.name && heatPick?.turn === n)} aria-label=${`Reply ${n}, ${s.concurrency} calls at once, ${ms(value)}, ${t.ttfa.n} samples`} style=${{background:`color-mix(in srgb, var(--cs-lavender) ${Math.round(15+85*Math.max(0,value)/maxWait)}%, white)`}} onClick=${()=>setHeatPick({step:s.name,turn:n})}>${ms(value)}<small>${t.ttfa.n} samples</small></button>` : html`<span className="quiet">Not measured</span>`}</td>`;})}</tr>`)}
@@ -4089,7 +4122,7 @@ function PriorityViews({rep,prev,onExplore,onCall,onHistory}) {
       <p className="quiet">For branching conversations, the same reply position can contain different tasks. The report stores the most common caller line, not timing by scenario node, so these rows are not treated as identical tasks. Color scales to the selected connection group.</p><//>` : html`<p className="cs-notice">Reply-position timings were not recorded in this report.</p>`}
     </section>
 
-    <section className="priority-panel" aria-labelledby="missed-requirements-title"><h2 id="missed-requirements-title">Which requirements were missed?</h2><p className="quiet">Most frequently missed first. Counts cover reviewed calls across the whole run, including all connection conditions.</p>
+    <section hidden=${mode !== "all" && !["tasks"].includes(mode)} className="priority-panel" aria-labelledby="missed-requirements-title"><h2 id="missed-requirements-title">Which requirements were missed?</h2><p className="quiet">Most frequently missed first. Counts cover reviewed calls across the whole run, including all connection conditions.</p>
       ${misses.length ? html`<${Frag}><div className="requirements-ranking">${misses.map(m=>{
         const example=(rep.judge?.judgements || []).find(c=>(c.outcomes || []).some(o=>o.criterion === m.criterion && !o.met && o.evidence));
         const outcome=example?.outcomes.find(o=>o.criterion === m.criterion && !o.met && o.evidence);
@@ -4099,8 +4132,345 @@ function PriorityViews({rep,prev,onExplore,onCall,onHistory}) {
         </div>`;
       })}</div><button className="outline" onClick=${()=>onExplore("quality")}>Explore task evidence</button><//>` : html`<p className="cs-notice">${judgedTotal ? "Individual requirement results were not recorded." : "Task completion was not reviewed in this run."}</p>`}
     </section>
-    <${PreviousTest} rep=${rep} prev=${prev} onHistory=${onHistory}/>
+
+    <section hidden=${mode !== "all" && !["tasks"].includes(mode)} className="priority-panel" aria-labelledby="heard-done-title"><h2 id="heard-done-title">Are the calls it misheard the calls it failed?</h2>
+      ${heardX.calls > 0 ? html`<${Frag}><p className="quiet">Each dot is a reviewed call, placed by the share of its words the agent misheard. Under ${Math.round((heardX.threshold || 0.05) * 100)}% counts as heard cleanly. It shows an association, not a cause.</p>
+        <p>${keyed(heardRead.verdict)}</p><${WERStrip} calls=${rep.judge.calls || []} threshold=${heardX.threshold || 0.05}/><${HeardDoneTable} x=${heardX}/>
+        <p className="quiet">${keyed(heardRead.act)}</p><//>` : html`<p className="cs-notice">${heardRead ? keyed(heardRead.why) : "Task completion was not reviewed in this run, so there is no outcome to set hearing against."}</p>`}
+    </section>
+    <div hidden=${mode !== "all" && mode !== "compare"}><${PreviousTest} rep=${rep} prev=${prev} onHistory=${onHistory}/></div>
   </div>`;
+}
+
+// ---- Scenario comparison ----------------------------------------------------
+// A suite runs one load plan through several conversations. Each part's page
+// reads it against its own normal load; this reads the parts against each other
+// on one axis, so a scenario that is slow everywhere is not hidden by a baseline
+// that was slow too.
+
+const SCENARIO_COLORS = ["var(--cs-chart-primary)", "var(--cs-chart-comparison)", "var(--cs-chart-target)", "var(--cs-chart-efficiency)", "var(--ink-2)"];
+
+// wilson is the 95% Wilson score interval for k successes in n: the pass rates
+// a sample this size cannot tell apart. 20 of 20 is not 100%, it is "above 84%".
+function wilson(k, n) {
+  if (!(n > 0)) return null;
+  const z = 1.96, p = k / n, d = 1 + z * z / n;
+  const c = (p + z * z / (2 * n)) / d, h = (z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))) / d;
+  return [Math.max(0, c - h), Math.min(1, c + h)];
+}
+
+const ratioOf = (n, d) => (has(n) && has(d) && d > 0 ? n / d : null);
+const roundPct = v => `${Math.round(v * 100)}%`;
+
+function scenarioRows(parts, reports) {
+  const count = parts.reduce((m, p) => ({ ...m, [p.scenario]: (m[p.scenario] || 0) + 1 }), {});
+  return parts.map((part, i) => {
+    const rep = reports[part.id];
+    return { part, rep, L: rep ? ladderOf(sel.steps(rep)) : [], color: SCENARIO_COLORS[i % SCENARIO_COLORS.length],
+      name: count[part.scenario] > 1 ? `${part.scenario} (part ${i + 1})` : part.scenario };
+  }).filter(r => r.rep);
+}
+
+const ScenarioName = ({ r, onPick }) => html`<button className="text-button scenario-link" onClick=${() => onPick(r.part.id)}><i className="scenario-swatch" aria-hidden="true" style=${{background: r.color}}></i>${r.name}</button>`;
+
+function ScenarioWaits({ rows, onPick }) {
+  const [pick, setPick] = useState("p95_ms");
+  const ready = rows.filter(r => r.L.length > 0);
+  const title = html`<h2 id="scenario-waits-title">Which scenario keeps callers waiting longest?</h2>`;
+  if (ready.length === 0) return html`<section className="priority-panel" aria-labelledby="scenario-waits-title">${title}<p className="cs-notice">No scenario recorded reply timings.</p></section>`;
+  const levels = [...new Set(ready.flatMap(r => r.L.map(s => s.concurrency)))].sort((a, b) => a - b);
+  const at = (r, c) => { const s = r.L.find(s => s.concurrency === c); return s ? s.ttfa[pick] : null; };
+  const table = ready.map(r => {
+    const p50s = r.L.map(s => s.ttfa.p50_ms), top = r.L[r.L.length - 1];
+    // The verdict is measured against the report's own baseline step, even when
+    // the ladder left that step out, so the explanation quotes the same one.
+    const base = sel.steps(r.rep).find(s => s.name === r.rep.baseline && s.ttfa && s.ttfa.n > 0) || baselineOf(r.rep, r.L);
+    return { r, base: base.ttfa.p95_ms, top: top.ttfa.p95_ms, topLevel: top.concurrency, lo50: Math.min(...p50s), hi50: Math.max(...p50s) };
+  });
+  const byTop = table.slice().sort((a, b) => b.top - a.top);
+  const lines = [];
+  if (byTop.length > 1) {
+    const hi = byTop[0], lo = byTop[byTop.length - 1];
+    lines.push(`At its heaviest load, ${hi.r.name} kept its slowest callers waiting longest, ${ms(hi.top)} at the 95th percentile at ${atOnce(hi.topLevel)}, and ${lo.r.name} the least, ${ms(lo.top)} at ${atOnce(lo.topLevel)}.`);
+  }
+  // A verdict compares a scenario with its own normal load, so a scenario that
+  // was slow from the start can pass while a faster one fails.
+  const failing = table.filter(t => t.r.part.verdict === "fail"), passing = table.filter(t => t.r.part.verdict !== "fail");
+  const inverted = passing.filter(q => failing.some(f => q.top > f.top)).sort((a, b) => b.top - a.top)[0];
+  if (inverted) {
+    const f = failing.filter(f => inverted.top > f.top).sort((a, b) => a.top - b.top)[0];
+    lines.push(`Yet ${inverted.r.name} ${inverted.r.part.verdict === "warn" ? "only warned" : "passed"} while ${f.r.name} failed, at ${ms(inverted.top)} against ${ms(f.top)}. Each verdict compares a scenario with its own normal load, and those differed: ${inverted.r.name} started at ${ms(inverted.base)}, ${f.r.name} at ${ms(f.base)}. Read the verdicts for what load changed, and this chart for how slow each scenario is.`);
+  }
+  // A line that starts late is a scenario whose early levels measured the test
+  // machine rather than the agent; saying so keeps a short line from reading as
+  // a scenario that was only tested at heavy load.
+  for (const r of ready) {
+    const left = sel.steps(r.rep).filter(s => s.harness_degraded && !r.L.includes(s));
+    if (!left.length) continue;
+    const first = r.L[0].concurrency, last = r.L[r.L.length - 1].concurrency;
+    const where = left.every(s => s.concurrency < first) ? `its line starts at ${atOnce(first)}`
+      : left.every(s => s.concurrency > last) ? `its line stops at ${atOnce(last)}` : "its line skips those levels";
+    lines.push(`${r.name} leaves out ${left.map(s => s.name).join(", ")}, where the test machine fell behind real time, so ${where}${left.some(s => s.name === r.rep.baseline) ? " and its verdict rests on a suspect baseline" : ""}.`);
+  }
+  const medians = table.flatMap(t => [t.lo50, t.hi50]);
+  if (table.length > 1 && Math.max(...medians) <= 1.25 * Math.min(...medians)) {
+    lines.push(`The typical wait hardly moved: every scenario's median stayed between ${ms(Math.min(...medians))} and ${ms(Math.max(...medians))} at every load, so what changed was the slowest calls.`);
+  }
+  return html`<section className="priority-panel" aria-labelledby="scenario-waits-title">
+    <div className="priority-heading"><div>${title}<p className="quiet">Reply wait from the moment the caller stopped speaking, every scenario on the same axis.</p></div>
+      <label className="stage-picker">Reply time<select className="cs-input" aria-label="Scenario wait measure" value=${pick} onChange=${e => setPick(e.target.value)}><option value="p95_ms">Slow replies (95th percentile)</option><option value="p50_ms">Typical reply (median)</option></select></label></div>
+    <div className="scenario-line-chart"><${LineChart} labels=${levels.map(String)} xTitle="calls at the same time" yFmt=${v => ms(v)} endLabels=${false}
+      series=${ready.map(r => ({ name: r.name, color: r.color, values: levels.map(c => at(r, c)) }))}/></div>
+    ${lines.map((l, i) => html`<p key=${i} className="scenario-reading">${l}</p>`)}
+    <div className="tablewrap"><table className="results-grid"><thead><tr><th>Scenario</th><th>Normal load</th><th>Heaviest load</th><th>Typical wait</th><th>Verdict</th></tr></thead><tbody>
+      ${table.map(t => html`<tr key=${t.r.part.id}><th scope="row"><${ScenarioName} r=${t.r} onPick=${onPick}/></th>
+        <td>${ms(t.base)}<small>95th percentile</small></td>
+        <td>${ms(t.top)}<small>95th percentile at ${atOnce(t.topLevel)}</small></td>
+        <td>${ms(t.lo50)} to ${ms(t.hi50)}<small>median across load levels</small></td>
+        <td><${Badge} v=${t.r.part.verdict}/><small>${t.r.part.breakpoint ? `breaks at ${t.r.part.breakpoint}` : "held against its own normal load"}</small></td></tr>`)}
+    </tbody></table></div>
+  </section>`;
+}
+
+function ScenarioTasks({ rows, onPick }) {
+  const title = html`<h2 id="scenario-tasks-title">Did every scenario do the job?</h2>`;
+  const judged = rows.filter(r => r.rep.judge && r.rep.judge.judged > 0);
+  if (judged.length === 0) return html`<section className="priority-panel" aria-labelledby="scenario-tasks-title">${title}<p className="cs-notice">No scenario in this test was judged, so nothing compares how often each did the job. Run the suite with -judge and written success criteria, or re-judge its runs with -rejudge.</p></section>`;
+  const stats = judged.map(r => {
+    const j = r.rep.judge;
+    const calls = sel.steps(r.rep).reduce((a, s) => a + (s.calls_attempted ?? s.calls ?? 0), 0);
+    return { r, j, calls, rate: j.passed / j.judged, ci: wilson(j.passed, j.judged) };
+  });
+  const lines = [];
+  const lo = Math.max(...stats.map(s => s.ci[0])), hi = Math.min(...stats.map(s => s.ci[1]));
+  const sizes = stats.map(s => s.j.judged);
+  if (stats.every(s => s.rate === 1)) {
+    lines.push(`Every judged call in every scenario did the job. With ${Math.min(...sizes)}${Math.min(...sizes) === Math.max(...sizes) ? "" : ` to ${Math.max(...sizes)}`} judged calls each, that fits a true pass rate of ${roundPct(Math.min(...stats.map(s => s.ci[0])))} or better in all of them.`);
+  } else if (lo <= hi) {
+    const worst = stats.slice().sort((a, b) => a.rate - b.rate)[0];
+    lines.push(`No scenario is shown to do the job less often than another: every scenario's range overlaps the rest. The lowest measured was ${worst.r.name}, at ${pct(worst.rate)}.`);
+  } else {
+    const worst = stats.slice().sort((a, b) => a.ci[1] - b.ci[1])[0];
+    const better = stats.filter(s => s.ci[0] > worst.ci[1]);
+    lines.push(`${worst.r.name} did the job less often: ${pct(worst.rate)} (${roundPct(worst.ci[0])} to ${roundPct(worst.ci[1])}), against ${better.map(s => `${s.r.name} at ${pct(s.rate)}`).join(", ")}. Their ranges do not overlap, so a sample this size shows a real difference.`);
+  }
+  const judgedAll = stats.reduce((a, s) => a + s.j.judged + (s.j.errored || 0), 0), callsAll = stats.reduce((a, s) => a + s.calls, 0);
+  if (judgedAll < callsAll) lines.push(`Only ${judgedAll} of ${callsAll} calls were judged. Judge every call with -judge-calls 0 to narrow the ranges.`);
+  const graders = [...new Set(stats.map(s => s.j.backend).filter(Boolean))];
+  if (graders.length > 1) lines.push(`The scenarios were judged by different graders (${graders.join(", ")}), so part of any difference may be the grader.`);
+
+  // The same criterion asked in several scripts says whether a behaviour holds
+  // regardless of the conversation around it.
+  const crit = new Map();
+  for (const s of stats) for (const m of s.j.misses || []) {
+    if (!(m.judged > 0)) continue;
+    if (!crit.has(m.criterion)) crit.set(m.criterion, {});
+    crit.get(m.criterion)[s.r.part.id] = m;
+  }
+  const critRows = [...crit.entries()].sort((a, b) => Object.keys(b[1]).length - Object.keys(a[1]).length);
+  return html`<section className="priority-panel" aria-labelledby="scenario-tasks-title">${title}
+    <p className="quiet">Judged calls that met every requirement. The bar is the measured rate; the darker band is the range of true rates a sample this size cannot rule out (95% Wilson interval).</p>
+    <div className="requirements-ranking">${stats.map(s => html`<div className="requirement-row" key=${s.r.part.id}>
+      <div className="requirement-title"><strong><${ScenarioName} r=${s.r} onPick=${onPick}/></strong><span>${s.j.passed} of ${s.j.judged} did the job (${pct(s.rate)}) · range ${roundPct(s.ci[0])} to ${roundPct(s.ci[1])}</span></div>
+      <div className="requirement-track rate-track" role="img" aria-label=${`${s.r.name}: ${pct(s.rate)} of ${s.j.judged} judged calls, 95% range ${roundPct(s.ci[0])} to ${roundPct(s.ci[1])}`}>
+        <span className="rate-fill" style=${{width: s.rate * 100 + "%"}}></span><span className="rate-range" style=${{left: s.ci[0] * 100 + "%", width: (s.ci[1] - s.ci[0]) * 100 + "%"}}></span></div>
+      <small>${s.j.judged + (s.j.errored || 0)} of ${s.calls} calls judged${s.j.errored ? `, ${s.j.errored} could not be graded` : ""}${s.j.backend ? ` · ${s.j.backend}` : ""}</small>
+    </div>`)}</div>
+    ${lines.map((l, i) => html`<p key=${i} className="scenario-reading">${l}</p>`)}
+    ${critRows.length > 0 && html`<div className="tablewrap"><table className="results-grid"><thead><tr><th>Requirement</th>${stats.map(s => html`<th key=${s.r.part.id}>${s.r.name}</th>`)}</tr></thead><tbody>
+      ${critRows.map(([c, by]) => html`<tr key=${c}><th scope="row">${c}</th>${stats.map(s => {
+        const m = by[s.r.part.id];
+        return html`<td key=${s.r.part.id}>${m ? `${m.judged - m.missed} of ${m.judged}` : html`<span className="quiet">not asked</span>`}${m && m.missed > 0 ? html`<small>${m.missed} missed</small>` : ""}</td>`;
+      })}</tr>`)}
+    </tbody></table></div>`}
+  </section>`;
+}
+
+function ScenarioTurns({ rows, onPick }) {
+  const title = html`<h2 id="scenario-turns-title">Is the slow moment the same in every scenario?</h2>`;
+  const data = rows.filter(r => r.L.length).map(r => {
+    const top = r.L[r.L.length - 1];
+    return { r, top, ts: (top.turns || []).filter(t => t.ttfa && t.ttfa.n > 0) };
+  }).filter(d => d.ts.length);
+  if (data.length === 0) return html`<section className="priority-panel" aria-labelledby="scenario-turns-title">${title}<p className="cs-notice">Reply-position timings were not recorded for these scenarios.</p></section>`;
+  const positions = Array.from({ length: Math.max(...data.flatMap(d => d.ts.map(t => t.turn))) }, (_, i) => i + 1);
+  const maxWait = Math.max(1, ...data.flatMap(d => d.ts.map(t => t.ttfa.p95_ms)));
+  const slow = data.map(d => ({ d, t: d.ts.reduce((a, t) => (t.ttfa.p95_ms > a.ttfa.p95_ms ? t : a)), last: Math.max(...d.ts.map(t => t.turn)) }));
+  const span = xs => `${ms(Math.min(...xs))}${Math.min(...xs) === Math.max(...xs) ? "" : ` to ${ms(Math.max(...xs))}`}`;
+  const reading = data.length < 2 ? ""
+    : slow.every(x => x.t.turn === x.last)
+    ? `The last reply is the slowest in every scenario, ${span(slow.map(x => x.t.ttfa.p95_ms))} at the 95th percentile. A delay every script shares comes from how the calls end rather than from any one conversation: look at what the agent does when it answers the caller's closing line.`
+    : slow.every(x => x.t.turn === slow[0].t.turn)
+    ? `Reply ${slow[0].t.turn} is the slowest in every scenario, ${span(slow.map(x => x.t.ttfa.p95_ms))} at the 95th percentile, so the delay does not depend on the script.`
+    : `The slowest reply differs by scenario: ${slow.map(x => `${x.d.r.name} at reply ${x.t.turn} (${ms(x.t.ttfa.p95_ms)})`).join(", ")}.`;
+  return html`<section className="priority-panel" aria-labelledby="scenario-turns-title">${title}
+    <p className="quiet">Slow replies (95th percentile) at each reply position, for each scenario at its heaviest load. Darker cells mean a longer wait; hover a cell for the caller's line.</p>
+    <div className="tablewrap"><table className="conversation-heatmap"><thead><tr><th>Scenario</th>${positions.map(n => html`<th key=${n}>Reply ${n}</th>`)}</tr></thead><tbody>
+      ${slow.map(({ d, t: worst }) => html`<tr key=${d.r.part.id}><th scope="row"><${ScenarioName} r=${d.r} onPick=${onPick}/><small>${atOnce(d.top.concurrency)}</small></th>${positions.map(n => {
+        const t = d.ts.find(t => t.turn === n);
+        return html`<td key=${n}>${t ? html`<div className="scenario-heat" title=${t.caller_line || ""} style=${{background: `color-mix(in srgb, var(--cs-lavender) ${Math.round(15 + 85 * t.ttfa.p95_ms / maxWait)}%, white)`}}>${t === worst ? html`<b>${ms(t.ttfa.p95_ms)}</b>` : ms(t.ttfa.p95_ms)}<small>${t.ttfa.n} samples</small></div>` : html`<span className="quiet">none</span>`}</td>`;
+      })}</tr>`)}
+    </tbody></table></div>
+    ${reading && html`<p className="scenario-reading">${reading}</p>`}
+  </section>`;
+}
+
+function ScenarioWaitBands({ rows, onPick }) {
+  const title = html`<h2 id="scenario-bands-title">How often did callers wait long enough to notice?</h2>`;
+  const data = rows.map(r => {
+    const ws = r.L.map(validWaits).filter(Boolean);
+    if (ws.length === 0) return null;
+    const w = { turns: ws.reduce((a, x) => a + x.turns, 0) };
+    for (const [k] of WAIT_BANDS) w[k] = ws.reduce((a, x) => a + x[k], 0);
+    return { r, w, past: (w["1200_to_2000ms"] + w.over_2000ms) / w.turns };
+  }).filter(Boolean);
+  if (data.length === 0) return html`<section className="priority-panel" aria-labelledby="scenario-bands-title">${title}<p className="cs-notice">Wait bands were not recorded for these scenarios.</p></section>`;
+  const byPast = data.slice().sort((a, b) => b.past - a.past);
+  return html`<section className="priority-panel" aria-labelledby="scenario-bands-title">${title}
+    <p className="quiet">Every timed reply across each scenario's load levels, sorted by the caller's wait.</p>
+    <div className="wait-key">${WAIT_BANDS.map(([k, label, color]) => html`<span key=${k}><i style=${{background: color}}></i>${label}</span>`)}</div>
+    ${data.map(({ r, w }) => html`<div key=${r.part.id} className="wait-frequency-row"><div><${ScenarioName} r=${r} onPick=${onPick}/><small>${w.turns} replies</small></div><div>
+      <div className="wait-stack" role="img" aria-label=${`${r.name}: ` + WAIT_BANDS.map(([k, label]) => `${label}: ${w[k]} of ${w.turns} replies`).join(", ")}>
+        ${WAIT_BANDS.filter(([k]) => w[k] > 0).map(([k, label, color]) => html`<span key=${k} style=${{width: (w[k] / w.turns * 100) + "%", background: color, color: k === "800_to_1200ms" || k === "1200_to_2000ms" ? "#182018" : "#ffffff"}} title=${`${label}: ${w[k]} replies (${pct(w[k] / w.turns)})`}>${w[k] / w.turns >= .12 ? pct(w[k] / w.turns) : ""}</span>`)}
+      </div><div className="wait-counts">${WAIT_BANDS.map(([k, label]) => html`<span key=${k}>${label}: <b>${w[k]}</b></span>`)}</div>
+    </div></div>`)}
+    ${data.length > 1 && html`<p className="scenario-reading">${byPast[0].r.name} kept callers waiting past 1.2 seconds most often, on ${pct(byPast[0].past)} of replies, against ${pct(byPast[byPast.length - 1].past)} for ${byPast[byPast.length - 1].r.name}. Past 1.2 seconds is where Coval says callers start repeating themselves.</p>`}
+  </section>`;
+}
+
+// The heard-versus-done split pooled across the suite: the parts' judged calls
+// together often clear the eight-call floor no single part does.
+function ScenarioHearing({ rows }) {
+  const title = html`<h2 id="scenario-hearing-title">Across the suite, are the calls it misheard the calls it failed?</h2>`;
+  const withCalls = rows.map(r => ({ r, cs: ((r.rep.judge && r.rep.judge.calls) || []).filter(c => c.judged && c.ref_words > 0) })).filter(x => x.cs.length);
+  const pooled = withCalls.flatMap(x => x.cs);
+  if (pooled.length === 0) return html`<section className="priority-panel" aria-labelledby="scenario-hearing-title">${title}<p className="cs-notice">No judged call has a record of what the agent heard, so hearing can't be set against the outcome.</p></section>`;
+  const T = 0.05, clean = pooled.filter(c => c.wer <= T), mis = pooled.filter(c => c.wer > T);
+  const x = { threshold: T, clean_calls: clean.length, clean_passed: clean.filter(c => c.met).length, misheard_calls: mis.length, misheard_passed: mis.filter(c => c.met).length };
+  x.clean_pass_rate = ratioOf(x.clean_passed, x.clean_calls) || 0;
+  x.misheard_pass_rate = ratioOf(x.misheard_passed, x.misheard_calls) || 0;
+  const perScenario = withCalls.map(w => `${w.r.name} ${w.cs.filter(c => c.wer > T).length} of ${w.cs.length}`).join(", ");
+  const small = Math.min(x.clean_calls, x.misheard_calls);
+  const loose = small > 0 && small < 5 ? ` The smaller group has only ${small} ${small === 1 ? "call" : "calls"}, so read this loosely.` : "";
+  // Pooling can make one scenario's problem read as the suite's: say where the
+  // misheard calls that failed came from.
+  const failedMisheard = withCalls.map(w => ({ w, n: w.cs.filter(c => c.wer > T && !c.met).length })).filter(f => f.n > 0);
+  const where = failedMisheard.length === 1 && withCalls.length > 1
+    ? ` All ${failedMisheard[0].n} misheard calls that failed came from ${failedMisheard[0].w.r.name}, so this is that scenario's problem rather than the suite's.`
+    : failedMisheard.length > 1 ? ` The misheard calls that failed came from ${failedMisheard.map(f => `${f.w.r.name} (${f.n})`).join(", ")}.` : "";
+  const reading = pooled.length < 8 ? `Not enough to tell: only ${pooled.length} judged calls across the suite, and the split needs 8.`
+    : x.misheard_calls === 0 ? `Not enough to tell: every one of the ${pooled.length} judged calls was heard cleanly, so there is no second group to compare.`
+    : x.clean_calls === 0 ? `Not enough to tell: every one of the ${pooled.length} judged calls was misheard, so there is no clean group to compare.`
+    : x.clean_pass_rate > x.misheard_pass_rate
+    ? `Mishearing is costing it the task across the suite: ${pct(x.misheard_pass_rate)} of the ${x.misheard_calls} misheard calls did the job, against ${pct(x.clean_pass_rate)} of the ${x.clean_calls} heard cleanly.${where} Fix the listening before the reasoning.${loose}`
+    : `Mishearing is not what fails calls across the suite: ${pct(x.misheard_pass_rate)} of the ${x.misheard_calls} misheard calls did the job, against ${pct(x.clean_pass_rate)} of the ${x.clean_calls} heard cleanly.${loose}`;
+  return html`<section className="priority-panel" aria-labelledby="scenario-hearing-title">${title}
+    <p className="quiet">Every judged call from every scenario, placed by the share of its words the agent misheard. Misheard calls by scenario: ${perScenario}. It shows an association, not a cause.</p>
+    <p className="scenario-reading">${reading}</p>
+    <${WERStrip} calls=${pooled} threshold=${T}/><${HeardDoneTable} x=${x}/>
+  </section>`;
+}
+
+function ScenarioSideBySide({ rows, onPick }) {
+  // Pooled over the steps that recorded each figure; a scenario with none reads
+  // as not measured, never as zero.
+  const pooled = (r, pick, num, den) => {
+    const L = r.L.filter(s => pick(s));
+    return L.length ? ratioOf(L.reduce((a, s) => a + num(s), 0), L.reduce((a, s) => a + den(s), 0)) : null;
+  };
+  const metrics = [
+    ["Calls connected", r => pooled(r, s => has(s.calls_connected), s => s.calls_connected, s => s.calls_attempted ?? s.calls), pct],
+    ["Replies that failed", r => pooled(r, s => has(s.turns_failed) && s.turns_total > 0, s => s.turns_failed, s => s.turns_total), pct],
+    ["Words misheard", r => pooled(r, s => s.wer && s.wer.turns > 0, s => s.wer.mean * s.wer.turns, s => s.wer.turns), pct],
+    ["Replies that talked over the caller", r => pooled(r, s => s.conversation && s.conversation.turns > 0, s => s.conversation.interruptions || 0, s => s.conversation.turns), pct],
+    ["Waits over 2 seconds", r => pooled(r, s => s.conversation && s.conversation.turns > 0, s => s.conversation.dead_air_turns || 0, s => s.conversation.turns), pct],
+    ["Replies repeating an earlier one", r => pooled(r, s => s.conversation && s.conversation.turns > 0 && has(s.conversation.repeated_replies), s => s.conversation.repeated_replies, s => s.conversation.turns), pct],
+    ["Agent minutes per call", r => pooled(r, s => s.cost && has(s.cost.agent_minutes) && (s.calls_attempted ?? s.calls) > 0, s => s.cost.agent_minutes, s => s.calls_attempted ?? s.calls), v => `${v.toFixed(2)} min`],
+  ];
+  return html`<section className="priority-panel" aria-labelledby="scenario-side-title"><h2 id="scenario-side-title">Everything else, side by side</h2>
+    <p className="quiet">Pooled over every load level each scenario kept. Not measured means the scenario recorded no such figure.</p>
+    <div className="tablewrap"><table className="results-grid"><thead><tr><th>Measure</th>${rows.map(r => html`<th key=${r.part.id}><${ScenarioName} r=${r} onPick=${onPick}/></th>`)}</tr></thead><tbody>
+      ${metrics.map(([label, get, fmt]) => html`<tr key=${label}><th scope="row">${label}</th>${rows.map(r => { const v = get(r); return html`<td key=${r.part.id}>${has(v) ? fmt(v) : html`<span className="quiet">Not measured</span>`}</td>`; })}</tr>`)}
+    </tbody></table></div>
+  </section>`;
+}
+
+function ScenarioCompare({ parts, reports, onPick }) {
+  const loading = parts.filter(p => reports[p.id] === undefined).length;
+  const failed = parts.filter(p => reports[p.id] === null);
+  const rows = scenarioRows(parts, reports);
+  const plans = new Set(parts.map(p => p.profile_hash || p.profile)).size;
+  return html`<div className="priority-views scenario-compare">
+    ${loading > 0 && html`<p className="cs-notice">Loading ${loading} of ${parts.length} scenarios…</p>`}
+    ${failed.length > 0 && html`<p className="cs-notice">${failed.map(p => p.scenario).join(", ")} could not be loaded, so ${failed.length === 1 ? "it is" : "they are"} left out.</p>`}
+    ${plans > 1 && html`<p className="cs-notice">These scenarios ran different load plans, so a load level means the same number of calls at once but not the same test.</p>`}
+    ${rows.length > 0 && html`<${Frag}>
+      <${ScenarioWaits} rows=${rows} onPick=${onPick}/>
+      <${ScenarioTasks} rows=${rows} onPick=${onPick}/>
+      <${ScenarioTurns} rows=${rows} onPick=${onPick}/>
+      <${ScenarioWaitBands} rows=${rows} onPick=${onPick}/>
+      <${ScenarioHearing} rows=${rows}/>
+      <${ScenarioSideBySide} rows=${rows} onPick=${onPick}/>
+    <//>`}
+  </div>`;
+}
+
+const STUDIO_VIEWS = [["overview","Overview"],["experience","Caller experience"],["tasks","Task results"],["scenarios","Compare scenarios"],["compare","Compare tests"],["findings","Findings"],["evidence","Explore evidence"]];
+function StudioSummary({rep,g,onExplore}) {
+  const steps=sel.steps(rep), j=rep.judge, judged=j?.judged>0;
+  const attempts=steps.reduce((n,s)=>n+(s.calls_attempted ?? s.calls ?? 0),0);
+  const connected=steps.length && steps.every(s=>Number.isFinite(s.calls_connected)) ? steps.reduce((n,s)=>n+s.calls_connected,0) : null;
+  const timed=steps.filter(s=>s.ttfa?.n>0), worst=timed.length ? Math.max(...timed.map(s=>s.ttfa.p95_ms)) : null;
+  const title=!steps.length ? "No measurements to review yet." : judged ? `${j.passed} of ${j.judged} reviewed calls completed the task.` : "The calls are measured. The outcome is still unknown.";
+  const metrics=[
+    {label:"Tasks completed",value:judged ? pct(j.passed/j.judged) : "Not reviewed",note:judged ? `${j.passed} of ${j.judged} reviewed calls` : "Task review was not recorded",tab:"quality"},
+    {label:"Calls handled at once",value:g.stats[0].value,note:"Highest tested level that passed",tab:"load"},
+    {label:"Slow reply time",value:worst === null ? "Not measured" : (worst/1000).toFixed(2)+"s",note:"95% faster than this in the worst stage",tab:"load"},
+    {label:"Cost per call",value:g.stats[2].value === "—" ? "Not priced" : g.stats[2].value,note:keyed(g.stats[2].note),tab:"cost"},
+  ];
+  return html`<section className="studio-summary" aria-label="Evaluation summary">
+    <div className="studio-result"><div><span className="eyebrow">AT A GLANCE</span><h2>${title}</h2><p>Simulated callers. Your real assistant. Results from this test, with the evidence to explain them.</p></div>
+      <div className="studio-sample"><strong>${attempts}</strong><span>call attempts</span><small>${connected === null ? "Connections not recorded" : `${connected} connected`} · ${steps.length} test stages</small></div></div>
+    ${g.degraded.length>0 && html`<div className="studio-caution"><span>!</span><p><strong>Read the timing results with care.</strong> The test system fell behind in ${g.degraded.length} stages. Some delay may come from the test itself.</p><button onClick=${()=>onExplore("load")}>Check timing →</button></div>`}
+    <div className="studio-metrics">${metrics.map(m=>html`<button key=${m.label} onClick=${()=>onExplore(m.tab)}><span>${m.label}</span><strong>${m.value}</strong><small>${m.note}</small><span className="metric-arrow" aria-hidden="true">↗</span></button>`)}</div>
+  </section>`;
+}
+function StudioTrend({rep,onExplore}) {
+  const steps=sel.ttfa(rep), [selected,setSelected]=useState(0);
+  if(!steps.length) return html`<section className="studio-chart"><h2>Reply speed as calls increase</h2><p>No reply timings were recorded.</p></section>`;
+  const s=steps[Math.min(selected,steps.length-1)];
+  const width=660, height=240, left=48,right=625,top=22,bottom=195;
+  const maximum=Math.max(100,...steps.map(s=>s.ttfa.p95_ms))*1.15;
+  const peak=Math.max(1,...steps.map(s=>s.concurrency)), min=Math.min(...steps.map(s=>s.concurrency));
+  const x=s=>peak===min ? (left+right)/2 : left+(s.concurrency-min)/(peak-min)*(right-left);
+  const y=v=>bottom-v/maximum*(bottom-top);
+  const path=key=>steps.map((s,i)=>`${i ? "L" : "M"}${x(s)},${y(s.ttfa[key])}`).join(" ");
+  return html`<section className="studio-chart"><div className="studio-chart-head"><div><h2>Does a busier line mean a longer wait?</h2><p>Reply time, from the moment a caller stops speaking.</p></div><span className="chart-unit">SECONDS</span></div>
+    <div className="studio-chart-legend"><span><i className="slow-line"></i>Slow replies · 95th percentile</span><span><i className="typical-line"></i>Typical reply · median</span></div>
+    <svg className="studio-speed-chart" viewBox=${`0 0 ${width} ${height}`} role="group" aria-label="Reply speed by calls at once. Select a stage to inspect its timings.">
+      ${[0,.25,.5,.75,1].map(f=>html`<g key=${f}><line x1=${left} x2=${right} y1=${y(maximum*f)} y2=${y(maximum*f)} stroke="var(--cs-border)" strokeDasharray=${f ? "3 5" : "none"}/><text x=${left-12} y=${y(maximum*f)+4} textAnchor="end">${(maximum*f/1000).toFixed(1)}</text></g>`)}
+      <path d=${path("p95_ms")+` L${x(steps[steps.length-1])},${bottom} L${x(steps[0])},${bottom} Z`} fill="var(--studio-chart-wash)"/>
+      <path d=${path("p95_ms")} fill="none" stroke="var(--studio-teal)" strokeWidth="2.5" strokeLinejoin="round"/>
+      <path d=${path("p50_ms")} fill="none" stroke="var(--studio-blue)" strokeWidth="2" strokeDasharray="5 5"/>
+      ${steps.map((stage,i)=>html`<g key=${stage.name} role="button" tabIndex="0" aria-label=${`${stage.name}, ${stage.concurrency} at once: slow ${ms(stage.ttfa.p95_ms)}, typical ${ms(stage.ttfa.p50_ms)}`} aria-pressed=${selected===i} onClick=${()=>setSelected(i)} onKeyDown=${e=>{if(e.key === "Enter" || e.key === " "){e.preventDefault();setSelected(i);}}}>
+        <rect x=${x(stage)-14} y=${top} width="28" height=${bottom-top+35} fill="transparent"/>
+        <circle cx=${x(stage)} cy=${y(stage.ttfa.p95_ms)} r=${selected===i ? 6 : 4} fill="var(--cs-surface)" stroke="var(--studio-teal)" strokeWidth="2.5"/>
+        <text x=${x(stage)} y=${bottom+23} textAnchor="middle">${stage.concurrency}</text>
+      </g>`)}
+      <text x=${(left+right)/2} y="237" textAnchor="middle">Calls at the same time</text>
+    </svg>
+    <div className="studio-chart-detail"><div><span>${s.concurrency} calls at once</span><strong>${ms(s.ttfa.p95_ms)} <small>slow replies</small></strong></div><div><span>${s.ttfa.n} measured replies</span><strong>${ms(s.ttfa.p50_ms)} <small>typical reply</small></strong></div><button className="text-button" onClick=${()=>onExplore("load")}>Inspect timings →</button></div>
+    <p className="quiet">Each point is a measured test stage, not a capacity guarantee. The line connects observations.</p>
+  </section>`;
+}
+function StudioBrief({rep,insights,onExplore,onAll}) {
+  const items=(insights?.insights || []).slice().sort((a,b)=>["high","medium","low","info"].indexOf(a.severity)-["high","medium","low","info"].indexOf(b.severity)).slice(0,3);
+  const routes={latency:"load",capacity:"load",test:"load",reliability:"network",quality:"quality",cost:"cost"};
+  const failed=sel.steps(rep).find(s=>s.verdict === "fail");
+  return html`<aside className="studio-brief"><div className="brief-heading"><span className="eyebrow">REVIEW NOTES</span><span className="brief-mark">↗</span></div><h2>What deserves a closer look</h2>
+    ${items.length ? html`<ol>${items.map((item,i)=>html`<li key=${i}><span className=${"brief-severity "+item.severity}>${item.severity === "high" ? "Needs attention" : item.severity === "medium" ? "Worth checking" : "Observation"}</span><button onClick=${()=>onExplore(routes[item.category] || "load")}>${item.title}<span>↗</span></button>${item.next_step && html`<p>${item.next_step}</p>`}</li>`)}</ol>` : html`<p className="brief-empty">${insights === undefined ? "Loading the written analysis…" : failed ? `A test stage failed at ${failed.concurrency} calls at once. Review the measured results to understand why.` : !rep.judge?.judged ? "Task completion still needs a review. Call timings alone do not establish whether the assistant did the job." : "No written analysis is available. The measured results and call evidence are ready to inspect."}</p>`}
+    <button className="brief-more" onClick=${onAll}>Read all findings <span>→</span></button>
+  </aside>`;
 }
 
 function ClearOverview({ rep, g, onExplore }) {
@@ -4155,6 +4525,8 @@ function ClearOverview({ rep, g, onExplore }) {
 }
 
 function Report({ rep, id, refs, runs, prev, initialTab, initialDrawer, initialCalls, initialInsights, initialSuiteInsights, onOpenRuns, onPick }) {
+  const [studioMode, setStudioMode] = useState(initialTab ? "evidence" : "overview");
+  useEffect(() => { const overview = () => setStudioMode("overview"); window.addEventListener("studio-overview", overview); return () => window.removeEventListener("studio-overview", overview); }, []);
   const [tab, setTabRaw] = useState(initialTab || TABS[0].id);
   const [point, setPoint] = useState(0);
   const [criterion, setCriterion] = useState(null);
@@ -4168,7 +4540,7 @@ function Report({ rep, id, refs, runs, prev, initialTab, initialDrawer, initialC
   const [query, setQuery] = useState("");
   const [selectedCall, setSelectedCall] = useState(0);
   const [callLimit, setCallLimit] = useState(30);
-  const setTab = t => { setTabRaw(t); setPoint(0); };
+  const setTab = t => { setStudioMode("evidence"); setTabRaw(t); setPoint(0); };
   const closeDrawer = React.useCallback(() => setDrawer(null), []);
 
   // Pricing a run the harness did not price: the tier and rate the reader
@@ -4176,6 +4548,7 @@ function Report({ rep, id, refs, runs, prev, initialTab, initialDrawer, initialC
   const [tier, setTier] = useState("standard");
   const [rateOverride, setRate] = useState(null);
   const [suiteCalls, setSuiteCalls] = useState({});
+  const [partReports, setPartReports] = useState({});
 
   // Unpriced reports need connection times on arrival so the overview can
   // show cost without a visit to the Cost tab. Priced reports load calls
@@ -4226,6 +4599,19 @@ function Report({ rep, id, refs, runs, prev, initialTab, initialDrawer, initialC
     }
   }, [tab, unpriced, parts.length, id]);
 
+  // The other parts' reports, read once the scenario comparison is opened.
+  useEffect(() => {
+    if (studioMode !== "scenarios" || parts.length < 2) return;
+    for (const p of parts) {
+      if (p.id === id || p.id in partReports) continue;
+      setPartReports(m => ({ ...m, [p.id]: undefined }));
+      fetch(API + `runs/${p.id}.json`)
+        .then(r => r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)))
+        .then(j => setPartReports(m => ({ ...m, [p.id]: j })))
+        .catch(() => setPartReports(m => ({ ...m, [p.id]: null })));
+    }
+  }, [studioMode, parts.map(p => p.id).join(), id]);
+
   const rate = rateOverride !== null ? rateOverride : rateOn(tierOf(tier), rep.started_at);
   const estimate = unpriced && Array.isArray(calls) ? {
     tier, rate, rows: connectedRows(rep, calls, rate),
@@ -4264,8 +4650,8 @@ function Report({ rep, id, refs, runs, prev, initialTab, initialDrawer, initialC
     <${Frag}>
       <div className="heading-row">
         <div>
-          <div className="eyebrow">TEST RESULTS</div>
-          <h1>What did your phone assistant achieve?</h1>
+          <div className="eyebrow">CALLSTORM / TEST RESULTS</div>
+          <h1>Your assistant, under review.</h1>
           <p className="subheading">${rep.profile} <span>·</span> ${rep.scenario} <span>·</span> <span title="Target">${rep.target || "deepgram voice agent"}</span></p>
         </div>
         <button className="outline" onClick=${onOpenRuns}>↗ <span>Run history</span></button>
@@ -4281,18 +4667,31 @@ function Report({ rep, id, refs, runs, prev, initialTab, initialDrawer, initialC
         <span className="sample-note">Measured data · synthetic callers</span>
       </div>
 
-      ${parts.length > 0 && html`<details className="supporting-details suite-context"><summary>Part ${parts.findIndex(p => p.id === id) + 1} of ${parts.length} in this test group <span>Results below are for the selected part. View all parts</span></summary><${SuiteStrip} suite=${me.suite} parts=${parts} selected=${id} onPick=${onPick} insights=${suiteInsights}/></details>`}
+      ${parts.length > 0 && html`<details className="supporting-details suite-context scenario-switcher"><summary>
+        <span className="scenario-count" aria-hidden="true">${new Set(parts.map(p => p.scenario)).size}</span>
+        <span className="scenario-description"><strong>${new Set(parts.map(p => p.scenario)).size} ${new Set(parts.map(p => p.scenario)).size === 1 ? "scenario" : "scenarios"} in this test group</strong><small>Viewing ${rep.scenario} · Part ${parts.findIndex(p => p.id === id) + 1} of ${parts.length}. Select another scenario to see its results.</small></span>
+        <span className="scenario-toggle"><span className="scenario-show">View all scenarios</span><span className="scenario-hide">Hide scenarios</span><span className="scenario-chevron" aria-hidden="true">⌄</span></span>
+      </summary><${SuiteStrip} suite=${me.suite} parts=${parts} selected=${id} onPick=${onPick} insights=${suiteInsights}/></details>`}
 
-      <${ClearOverview} rep=${rep} g=${g} onExplore=${t => { setTab(t); requestAnimationFrame(() => document.getElementById("explore-results").scrollIntoView({block: "start"})); }}/>
+      <${StudioSummary} rep=${rep} g=${g} onExplore=${t => setTab(t)}/>
+      <nav className="studio-nav" aria-label="Review sections">${STUDIO_VIEWS.filter(([key])=>key !== "scenarios" || parts.length > 1).map(([key,label])=>html`<button key=${key} aria-pressed=${studioMode===key} onClick=${()=>setStudioMode(key)}>${label}</button>`)}</nav>
+      <div className="studio-overview-grid" hidden=${studioMode !== "overview"}>
+        <${StudioTrend} rep=${rep} onExplore=${t=>setTab(t)}/>
+        <${StudioBrief} rep=${rep} insights=${insights} onExplore=${t=>setTab(t)} onAll=${()=>setStudioMode("findings")}/>
+      </div>
+      <div className="studio-view-heading"><span>${({overview:"THE TEST AT A GLANCE",experience:"THE CALLER’S EXPERIENCE",tasks:"DID IT DO THE JOB?",scenarios:"HOW THE SCENARIOS COMPARE",compare:"PROGRESS BETWEEN TESTS",findings:"FINDINGS & EXPLANATIONS",evidence:"THE MEASURED EVIDENCE"})[studioMode]}</span><p>${({overview:"Every load level, in one place.",experience:"See how often callers waited, and where in the conversation it happened.",tasks:"Task completion and the requirements behind it.",scenarios:"One load plan, several conversations, read on the same axis.",compare:"Compare the result with the previous test under matching conditions.",findings:"Read the analysis, then follow each finding to its evidence.",evidence:"Inspect timings, conversations, task checks, connections, and cost."})[studioMode]}</p></div>
 
-      <${PriorityViews} rep=${rep} prev=${prev} onHistory=${onOpenRuns} onCall=${requestId => { openCall(requestId); requestAnimationFrame(() => document.getElementById("explore-results").scrollIntoView({block:"start"})); }} onExplore=${t => { setTab(t); requestAnimationFrame(() => document.getElementById("explore-results").scrollIntoView({block:"start"})); }}/>
 
-      <details className="supporting-details">
+      <${PriorityViews} mode=${studioMode} rep=${rep} prev=${prev} onHistory=${onOpenRuns} onCall=${requestId => { openCall(requestId); requestAnimationFrame(() => document.getElementById("explore-results").scrollIntoView({block:"start"})); }} onExplore=${t => { setTab(t); requestAnimationFrame(() => document.getElementById("explore-results").scrollIntoView({block:"start"})); }}/>
+      ${studioMode === "scenarios" && parts.length > 1 && html`<${ScenarioCompare} parts=${parts} reports=${{ ...partReports, [id]: rep }} onPick=${onPick}/>`}
+
+      <details open hidden=${studioMode !== "findings"} className="supporting-details studio-findings">
         <summary>Written analysis & more questions answered <span>Explore the supporting findings</span></summary>
         <${Insights} data=${insights} kind="run" subject=${id}/>
         <${Questions} rep=${rep} runs=${runs} id=${id}/>
       </details>
 
+      <div hidden=${studioMode !== "evidence"} className="studio-evidence">
       <div className="section-top" id="explore-results">
         <div>
           <span className="eyebrow">EXPLORE THE EVIDENCE</span>
@@ -4339,7 +4738,8 @@ function Report({ rep, id, refs, runs, prev, initialTab, initialDrawer, initialC
         </aside>
       </section>
 
-      <${ComputedAppendix} rep=${rep} refs=${lines} estimate=${estimate}/>
+      <details className="supporting-details"><summary>Calculations for this run <span>Measured values, formulas, and test stages</span></summary><${ComputedAppendix} rep=${rep} refs=${lines} estimate=${estimate}/></details>
+      </div>
 
       <div className="below-note">
         <span className=${"verified" + (g.degraded.length > 0 ? " warn" : "")}>${g.degraded.length > 0 ? "!" : "✓"}</span>
@@ -4434,11 +4834,11 @@ function Sidebar({ count, target, onOverview, onRuns, onAbout, who }) {
       <nav>
         <button className="nav-item active" onClick=${onOverview}><span>◫</span> Overview</button>
         <button className="nav-item" onClick=${onRuns}><span>◷</span> Test history <small>${count}</small></button>
-        <button className="nav-item" onClick=${onAbout}><span>◎</span> Definitions & how this test works</button>
+        <button className="nav-item" onClick=${onAbout}><span>◎</span> Definitions</button>
       </nav>
       <div className="sidebar-note">
         <span className="mini-wave">▏▎▍▎▏</span>
-        <p>Understand the result.<br/>Then explore the evidence.</p>
+        <p>From a test result<br/>to a better conversation.</p>
       </div>
       <div className="profile">
         <span className="avatar">${initials}</span>
@@ -4479,7 +4879,7 @@ function App() {
   }, []);
 
   const current = runs.find(r => r.id === selected);
-  const top = () => window.scrollTo({ top: 0, behavior: "smooth" });
+  const top = () => { window.dispatchEvent(new Event("studio-overview")); window.scrollTo({ top: 0, behavior: "auto" }); };
   const about = () => setDefinitionsOpen(true);
 
   return html`

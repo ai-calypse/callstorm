@@ -112,7 +112,7 @@ func exportStatic(runsDir, dst string) error {
 
 	// The page and the stylesheets it links beside it: the design kit's
 	// theme and components, and the dashboard's own layout on top of them.
-	for _, name := range []string{"index.html", "theme.css", "components.css", "dashboard.css", "clarity.css"} {
+	for _, name := range []string{"index.html", "theme.css", "components.css", "dashboard.css", "clarity.css", "studio.css"} {
 		b, err := ui.ReadFile("ui/" + name)
 		if err != nil {
 			return err

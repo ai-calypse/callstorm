@@ -10,6 +10,11 @@ Open http://localhost:8090/ after starting:
 go run ./cmd/dashboard -runs runs
 ```
 
+The page opens on a result summary and a median/p95 chart, then separate
+views for caller experience, task results, comparing the scenarios of a suite,
+comparing with the previous test, findings, and the evidence. Metric cards lead
+to the evidence behind them; definitions open from the sidebar.
+
 The overview also includes five views in priority order: combined results by
 call load, timed-reply wait bands, an interactive reply-position heatmap,
 ranked missed requirements with quoted call evidence, and a previous-test
@@ -44,11 +49,12 @@ measurements explicitly and identifying whole-run values.
 | `index.html` | The page: React + htm from a CDN, one script, no build step. |
 | `theme.css`, `components.css` | The Callstorm Calm design kit, verbatim from `design-system/callstorm-calm/web/`. Regenerate from `tokens.json`; do not edit here. |
 | `dashboard.css`, `clarity.css` | The studio layout and the clear layout on the kit's tokens. |
+| `studio.css` | The review layout over those: the summary, the views, and the scenario comparison. |
 | `render_check.mjs` | Renders every tab and drawer against the fixtures in `testdata/` under Node. |
 | `answers_check.mjs` | Prints one run's plain-language answers beside the numbers they are computed from. |
 | `read_run.mjs` | Reads one run's report the way the page does. |
 
-`-export` writes the page and its four stylesheets beside the run files, so
+`-export` writes the page and its five stylesheets beside the run files, so
 a static host serves the same dashboard.
 
 ## Check it

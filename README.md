@@ -9,7 +9,7 @@ Callstorm places scripted voice calls against an assistant, increases the load,
 and measures reply speed, conversation quality, task completion, and cost.
 Its dashboard connects each finding to the calls and measurements behind it.
 
-![Callstorm review studio showing task completion, tested concurrency, reply time, cost, and a test-timing caveat.](docs/images/callstorm-overview.png)
+![Callstorm dashboard showing task completion, tested concurrency, reply time, cost, and a test-timing caveat.](docs/images/callstorm-overview.png)
 
 [Quickstart](#quickstart) · [Dashboard](#explore-the-results) · [Technical guide](docs/technical-guide.md) · [Contributing](CONTRIBUTING.md)
 
@@ -40,9 +40,7 @@ cd callstorm
 go run ./cmd/dashboard -runs runs -addr 127.0.0.1:8090
 ```
 
-Open **[the review studio](http://127.0.0.1:8090/studio/)** or
-[the original dashboard](http://127.0.0.1:8090/). Both read the same reports.
-Stop the server with `Ctrl+C`.
+Open **[the dashboard](http://127.0.0.1:8090/)**. Stop the server with `Ctrl+C`.
 
 The dashboard loads React and htm from a CDN, so the first browser load needs
 internet access. Node.js is needed for frontend checks, not for serving it.
@@ -100,11 +98,12 @@ target's limits. Run `go run ./cmd/callstorm -h` for all options.
 
 ## Explore the results
 
-The review studio organizes a test around six questions:
+The dashboard organizes a test around these views:
 
 - **Overview:** what was achieved, how reply speed changed, and what needs attention.
 - **Caller experience:** how often callers waited and which conversation moments were slow.
-- **Task results:** missed requirements, sample counts, and example conversations.
+- **Task results:** missed requirements, sample counts, example conversations, and whether misheard calls were the ones that failed.
+- **Compare scenarios:** for a test made of several scenarios, each one side by side on reply wait, task success, the slowest moment, wait bands, and mishearing.
 - **Compare tests:** differences between tests with matching recorded conditions.
 - **Findings:** written analysis and plain-language answers, with unanswered questions grouped separately.
 - **Explore evidence:** timings, transcripts, task checks, connection quality, costs, and calculation tables.
@@ -237,13 +236,12 @@ For dashboard rendering checks, with Node.js and npm installed:
 cd cmd/dashboard/ui
 npm install
 npm run check
-node studio/render_check.mjs
 ```
 
 | Path | Purpose |
 | --- | --- |
 | [`cmd/callstorm/`](cmd/callstorm/) | Test CLI and dispatcher. |
-| [`cmd/dashboard/ui/`](cmd/dashboard/ui/) | Original dashboard; `studio/` holds the review studio. |
+| [`cmd/dashboard/ui/`](cmd/dashboard/ui/) | The dashboard page, its stylesheets, and its render checks. |
 | [`cmd/refagent/`](cmd/refagent/) | Reference target with controlled timings. |
 | [`internal/`](internal/) | Audio, timing, load generation, reviews, and transport. |
 | [`scenarios/`](scenarios/) · [`profiles/`](profiles/) | Example conversations and test configurations. |
@@ -258,10 +256,8 @@ is hosted at `github.com/ai-calypse/callstorm`.
 go run ./cmd/dashboard -runs runs -export dist
 ```
 
-This exports the **original dashboard** and report data as static files.
-The review studio is served by the Go server and is not included by the
-current exporter. The repository includes a GitHub Pages workflow and Vercel
-configuration for the static export.
+This exports the dashboard and report data as static files. The repository
+includes a GitHub Pages workflow and Vercel configuration for the static export.
 
 ## Sources
 

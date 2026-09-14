@@ -1070,7 +1070,7 @@ and reused rather than regenerated.
 
 ```
 cmd/callstorm        CLI, report card, sweep
-cmd/dashboard        run browser; embedded HTML/CSS with an additional studio view
+cmd/dashboard        run browser; one embedded HTML page and its stylesheets
 cmd/refagent         calibrated reference target
 cmd/collector        consumes turn events, reports consumer lag
 cmd/fakekafka        in-process Kafka broker for local runs

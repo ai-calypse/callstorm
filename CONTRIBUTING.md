@@ -15,7 +15,6 @@ go test ./...
 cd cmd/dashboard/ui
 npm install
 npm run check
-node studio/render_check.mjs
 ```
 
 Go tests and dashboard fixtures are the starting point for local validation;

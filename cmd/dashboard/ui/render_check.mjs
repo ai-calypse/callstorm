@@ -1,5 +1,5 @@
 // Render the calm dashboard's real page script under Node, tab by tab and
-// drawer by drawer, against the same fixtures the original is checked with.
+// drawer by drawer, against the fixtures in testdata/.
 // The failure this catches is the one the dashboard has actually had: a render
 // that throws, which in a browser is a page that appears and then goes blank.
 //
@@ -37,7 +37,7 @@ globalThis.React = React;
 globalThis.ReactDOM = { createRoot: () => ({ render() {} }) };
 globalThis.fetch = async () => { throw new Error("fetch during render"); };
 
-const mod = new Function(src + "\n;return { Report, Evidence, Method, Findings, RunList, Trend, Sidebar, Glossary, About, Appendix, Sources, TABS, glance, findings, groupRuns, buildQuestions, appendixValues, ComputedAppendix, Questions, ComponentShare, PriorityViews, PreviousTest, matchingTest, comparisonMetrics, validWaits, stageJudged };")();
+const mod = new Function(src + "\n;return { Report, Evidence, Method, Findings, RunList, Trend, Sidebar, Glossary, About, Appendix, Sources, TABS, glance, findings, groupRuns, buildQuestions, appendixValues, ComputedAppendix, Questions, ComponentShare, PriorityViews, PreviousTest, matchingTest, comparisonMetrics, validWaits, stageJudged, StudioSummary, StudioTrend, StudioBrief, ScenarioCompare, wilson };")();
 const render = (C, props) => ReactDOMServer.renderToStaticMarkup(React.createElement(C, props));
 
 let bad = 0;
@@ -73,14 +73,14 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
 // The page frame the demo has: heading, run picker, summary, tabs, below-note.
 {
   const html = page1(run, "run", "load");
-  has(html, "eyebrow TEST RESULTS", "TEST RESULTS");
-  has(html, "page heading", "What did your phone assistant achieve?");
+  has(html, "page heading", "CALLSTORM / TEST RESULTS");
+  has(html, "page heading", "Your assistant, under review.");
   has(html, "run history button", "Run history");
   has(html, "run picker names the run", "Run · run");
   has(html, "at a glance", "AT A GLANCE");
   has(html, "within baseline stat", "Calls handled at once");
   has(html, "task success stat", "Tasks completed");
-  has(html, "cost stat", "Cost per call attempt");
+  has(html, "cost stat", "Cost per call");
   has(html, "explore the evidence", "What would you like to understand?");
   has(html, "how is this measured", "How is this measured?");
   has(html, "view findings", "View findings");
@@ -508,7 +508,49 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
   has(page1(phases, "phases", "load"), "recovery question answered on a run with a recovery step", "After a rush ends, how long does it take to get back to normal?");
 }
 
-// The reference sections the original page opens with, kept on the page.
+// Scenario comparison: the parts of a suite read against each other on one axis.
+{
+  const a = fixture("run-deepgram-graph.json"), b = fixture("run.json");
+  const parts = [
+    { id: "p1", suite: "suite-x", scenario: a.scenario, profile: a.profile, profile_hash: "h", verdict: "pass", started_at: "2026-09-13T16:00:00Z" },
+    { id: "p2", suite: "suite-x", scenario: `${b.scenario}-b`, profile: b.profile, profile_hash: "h", verdict: "fail", breakpoint: "c5 at 5 concurrent", started_at: "2026-09-13T17:00:00Z" },
+  ];
+  const cmp = render(mod.ScenarioCompare, { parts, reports: { p1: a, p2: b }, onPick() {} });
+  for (const t of ["Which scenario keeps callers waiting longest?", "Did every scenario do the job?", "Is the slow moment the same in every scenario?",
+    "How often did callers wait long enough to notice?", "Across the suite, are the calls it misheard the calls it failed?", "Everything else, side by side"]) {
+    has(cmp, `scenario comparison: ${t}`, t);
+  }
+  has(cmp, "both scenarios named", `${b.scenario}-b`);
+  has(cmp, "task success carries its range", "range 84% to 100%");
+  const [lo, hi] = mod.wilson(20, 20);
+  check(`20 of 20 reads as a range, not 100% (${lo.toFixed(3)})`, Math.abs(lo - 0.839) < 0.002 && hi === 1);
+  check("no interval without a sample", mod.wilson(0, 0) === null);
+  has(render(mod.ScenarioCompare, { parts, reports: { p1: a }, onPick() {} }), "a scenario still loading says so", "Loading 1 of 2 scenarios");
+  has(render(mod.ScenarioCompare, { parts, reports: { p1: a, p2: null }, onPick() {} }), "a scenario that failed to load is named", "could not be loaded");
+  const suiteRuns = parts.map(p => ({ ...p, steps: 5, peak_concurrency: 40, worst_p95_ms: 1000, target: "t" }));
+  has(render(mod.Report, { rep: { ...a, id: "p1", suite: "suite-x" }, id: "p1", refs: REFS, runs: suiteRuns, prev: null, onOpenRuns() {}, onPick() {} }), "a suite offers the scenario comparison", "Compare scenarios");
+  check("a lone run does not", !page1(run, "run", "load").includes("Compare scenarios"));
+}
+
+// Heard versus done: the question and the task view read the same split the
+// same way, and say why when a run cannot answer it.
+{
+  const heardRun = fixture("run-deepgram-graph.json");
+  const heardQ = rep => mod.buildQuestions(rep, [], "heard").find(q => q.id === "heard-done");
+  const answered = heardQ(heardRun);
+  check("heard-versus-done question answered on a run with the split", answered && !answered.missing && /^No/.test(answered.short));
+  const tasks = render(mod.PriorityViews, { rep: heardRun, mode: "tasks", onExplore() {}, onCall() {}, onHistory() {} });
+  has(tasks, "task view asks the heard-versus-done question", "Are the calls it misheard the calls it failed?");
+  has(tasks, "task view draws the strip", "Every judged call by word error rate");
+  has(tasks, "task view tables both groups", "Heard cleanly (under");
+  has(tasks, "task view reads it the evidence card's way", "Mishearing is not what is failing these calls");
+  check("heard-versus-done says why an unjudged run cannot answer", /not judged/.test(heardQ(run).missing || ""));
+  const thin = { ...heardRun, judge: { ...heardRun.judge, correlation: { ...heardRun.judge.correlation, conclusive: false, note: "too few judged calls to compare groups" } } };
+  check("an inconclusive split is not answered", /Not enough to tell/.test(heardQ(thin).missing || ""));
+  has(render(mod.PriorityViews, { rep: run, mode: "tasks", onExplore() {}, onCall() {}, onHistory() {} }), "task view explains a missing split", "no outcome to set hearing against");
+}
+
+// The reference sections the page opens with.
 {
   const gl = render(mod.Glossary, {});
   has(gl, "glossary card", "What each number catches");
@@ -576,6 +618,18 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
   check("incomplete wait bands are not invented",mod.validWaits({waits:{turns:10,up_to_800ms:10}})===null);
   check("different cohorts do not share judged calls",mod.stageJudged(rich,rich.steps[0],"poor-network").length===0);
   check("all empty priority views render",render(mod.PriorityViews,{rep:{steps:[]},...callbacks}).includes("No test stages were recorded"));
+}
+
+
+{
+  const summary=render(mod.StudioSummary,{rep:run,g:mod.glance(run,null,null),onExplore(){}});
+  has(summary,"studio summary keeps reviewed-call scope","Task review was not recorded");
+  const trend=render(mod.StudioTrend,{rep:run,onExplore(){}});
+  has(trend,"studio chart has keyboard-operable observations",'tabindex="0"');
+  has(trend,"studio chart explains sample count",run.steps[0].ttfa.n+" measured replies");
+  has(render(mod.StudioTrend,{rep:{steps:[]},onExplore(){}}),"studio chart empty state","No reply timings were recorded");
+  const brief=render(mod.StudioBrief,{rep:run,insights:{insights:[],rejected:[{title:"Do not show this rejected claim"}]},onExplore(){},onAll(){}});
+  check("review notes exclude rejected claims",!brief.includes("Do not show this rejected claim"));
 }
 
 check(`no React warnings (${warnings.length})`, warnings.length === 0);
