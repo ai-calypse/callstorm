@@ -35,7 +35,8 @@ import (
 )
 
 // deepgramConcurrencyCap is Deepgram's Voice Agent limit on pay-as-you-go
-// (45 connections; 60 on Growth, 100+ on Enterprise). A profile that exceeds it
+// (45 connections; 60 on Growth in North America and 45 elsewhere, 100+ on
+// Enterprise). A profile that exceeds it
 // produces connection refusals that look exactly like agent failures, so the
 // preflight blocks rather than letting a run generate misleading data.
 const deepgramConcurrencyCap = 40

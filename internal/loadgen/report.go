@@ -8,8 +8,8 @@ import (
 	"github.com/yakshgandhi/callstorm/internal/metrics"
 )
 
-// The fail line follows the degradation rule in Coval's load-testing
-// methodology (March 2026), p95 within 2x the baseline at peak; the warn line
+// The fail line follows the benchmark Coval's load-testing guide cites ("Voice
+// Load Testing", March 2026), p95 within 2x the baseline at peak; the warn line
 // at 1.5x is Callstorm's own. A step is scored by how far it has degraded
 // relative to the baseline step, not against an absolute latency target,
 // because published targets disagree and a target that is generous for one

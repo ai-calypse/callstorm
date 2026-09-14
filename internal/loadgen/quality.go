@@ -7,40 +7,44 @@ import (
 )
 
 // The lines a step's quality is held to. Each is a published one where a
-// published one exists; the sources are pages read through a summariser, so
-// check the wording against the page before quoting it.
+// published one exists; each page is listed with its link under Sources in the
+// README.
 const (
 	// Hamming's load-testing gate for task completion under load against the
-	// baseline: within 5 points passes, a drop of 5 to 10 warns, more fails
-	// ("Voice agent load testing guide", May 2026).
+	// baseline: within 5% passes, a drop of 5% to 10% warns, more fails ("Voice
+	// Agent Load Testing Guide", May 2026). The page gives percentages; they are
+	// read here as points of the pass rate.
 	taskDropWarn = 0.05
 	taskDropFail = 0.10
 
-	// Hamming's regression tolerance for word error rate is 2 points ("Voice
-	// agent testing guide", January 2026), and above 15% it calls recognition
-	// poor ("Voice agent evaluation metrics", January 2026). A rise past the
+	// Hamming's regression tolerance for word error rate is ±2% ("Voice Agent
+	// Testing Guide", January 2026), read here as 2 points, and above 15% it
+	// calls recognition poor ("Voice Agent Evaluation Metrics", January 2026).
+	// A rise past the
 	// tolerance warns; a rise that also leaves the step above 15% fails.
 	werRiseWarn = 0.02
 	werPoor     = 0.15
 
 	// A rise of 5 points in turns the agent talked over is the line the
 	// dashboard's question already uses; above 10% of turns Hamming calls
-	// interruptions poor ("Voice agent analytics", February 2026).
+	// interruptions poor ("Voice Agent Analytics & Post-Call Metrics", February
+	// 2026).
 	interruptRiseWarn = 0.05
 	interruptPoor     = 0.10
 
 	// Hamming's error-rate bands: under 0.5% good, under 1% acceptable, above
-	// 1% critical ("Testing voice agents for production reliability", December
-	// 2025). Failed turns are held to the bands rather than to the baseline: a
+	// 1% critical ("Testing Voice Agents: Load, Regression, and A/B Evaluation
+	// for Production Reliability", December 2025). Failed turns are held to the bands rather than to the baseline: a
 	// failed turn is a failure at any load.
 	failedTurnsWarn = 0.005
 	failedTurnsFail = 0.01
 
 	// minQualitySample is the fewest checks on each side before a rate is
 	// compared, and it is Callstorm's own floor: below 30, one call moves a
-	// rate by more than the 5-point line being tested. Hamming asks for 500
-	// calls before trusting goal completion, so a comparison clearing 30 is
-	// still rough, and every reason says how many checks it rests on.
+	// rate by more than the 5-point line being tested. The same Hamming
+	// reliability guide asks for 1,000+ calls per variant before an A/B
+	// comparison reaches 95% confidence, so a comparison clearing 30 is still
+	// rough, and every reason says how many checks it rests on.
 	minQualitySample = 30
 
 	// rateEpsilon keeps a rate stored to three places from crossing a line it

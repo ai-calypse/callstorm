@@ -171,7 +171,7 @@ const minWaitSplitCalls = 8
 // Coval's 1,200ms line, and compares how often each group did the job.
 //
 // Hamming reports that each 100ms past 800ms costs 4 to 6% of task completion
-// ("Voice agent drop-off analysis", January 2026). That is a finding about
+// ("Voice Agent Drop-Off Analysis", January 2026). That is a finding about
 // other people's agents; this checks it on this one. Like the mishearing split
 // it is an association: load slows calls and strains everything else at once.
 type WaitOutcome struct {
