@@ -1,866 +1,554 @@
-// Render the dashboard's real page script under Node and assert the new cards
-// appear. This is the check that catches the failure mode the dashboard has
-// actually had: a render that throws on a prop React silently rejects, which in
-// a browser shows as a page that appears and then goes blank.
+// Render the calm dashboard's real page script under Node, tab by tab and
+// drawer by drawer, against the same fixtures the original is checked with.
+// The failure this catches is the one the dashboard has actually had: a render
+// that throws, which in a browser is a page that appears and then goes blank.
+//
+// Run from cmd/dashboard/ui:  node render_check.mjs
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import React from "react";
 import ReactDOMServer from "react-dom/server";
 import htm from "htm";
 
-const HTML = process.argv[2] || "index.html";
-const RUN = process.argv[3] || "testdata/run.json";
-
-const page = fs.readFileSync(HTML, "utf8");
+const here = path.dirname(fileURLToPath(import.meta.url));
+const page = fs.readFileSync(path.join(here, "index.html"), "utf8");
 const scripts = [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
 const src = scripts.join("\n");
-if (!src.includes("function ReportCard")) throw new Error("did not find the page script");
+if (!src.includes("function Report(")) throw new Error("did not find the page script");
+if (src.includes("@@SHARED@@")) throw new Error("the shared block was never spliced in");
 
 // React reports key and prop problems through console.error and carries on.
-// Those are the warnings that precede the bugs this dashboard has actually
-// had, so they fail the check rather than scrolling past.
 const warnings = [];
 const realError = console.error;
 console.error = (...a) => { warnings.push(String(a[0])); realError(...a); };
 
-const run = JSON.parse(fs.readFileSync(RUN, "utf8"));
-const REFS = JSON.parse(fs.readFileSync("../../../internal/loadgen/references.json", "utf8"));
-const id = path.basename(RUN, ".json");
-const index = [{
-  id, profile: run.profile, scenario: run.scenario, target: run.target,
-  started_at: run.started_at, duration_s: run.duration_s, steps: run.steps.length,
-  verdict: run.verdict || "pass", peak_concurrency: 15,
-  baseline_p95_ms: 762.6, worst_p95_ms: 1027.9, wer_mean: 0, harness_degraded: true,
-}];
+const fixture = f => JSON.parse(fs.readFileSync(path.join(here, "testdata", f), "utf8"));
+const REFS = JSON.parse(fs.readFileSync(path.join(here, "../../../internal/loadgen/references.json"), "utf8"));
 
-// Enough of a browser for the module to evaluate. fetch is the only thing the
-// page actually needs from the environment.
+// Enough of a browser for the module to evaluate. Effects never run under
+// renderToStaticMarkup, so fetch is never called; it is stubbed so a stray call
+// fails loudly rather than reaching the network.
 const listeners = {};
 globalThis.window = { addEventListener: (k, f) => (listeners[k] = f) };
 globalThis.document = { getElementById: () => ({}) };
 globalThis.htm = htm;
 globalThis.React = React;
 globalThis.ReactDOM = { createRoot: () => ({ render() {} }) };
-globalThis.fetch = async (url) => ({
-  ok: true,
-  json: async () => (url.includes("/runs/") ? run : index),
-});
+globalThis.fetch = async () => { throw new Error("fetch during render"); };
 
-const mod = new Function(src + "\n;return { App, ReportCard, ComponentShare, CostChart, ReferenceLines, placeRef, PhaseTable, TaskSuccessCard, ImpairmentHeatmap, NodeScores, IntegrityCard, Appendix, AgentLatency };")();
+const mod = new Function(src + "\n;return { Report, Evidence, Method, Findings, RunList, Trend, Sidebar, Glossary, About, Appendix, TABS, glance, findings, groupRuns, buildQuestions, appendixValues, ComputedAppendix, Questions, ComponentShare };")();
+const render = (C, props) => ReactDOMServer.renderToStaticMarkup(React.createElement(C, props));
 
-// useEffect does not run during renderToString, so the components are driven
-// directly with the data the fetch would have produced. That is the point:
-// this asserts the render path, not the plumbing the browser already proves.
-const html = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod.ComponentShare, { steps: run.steps })) +
-  ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod.CostChart, { steps: run.steps }));
-
-const want = [
-  ["component share heading", "Which half saturates first"],
-  ["cost heading", "What the latency costs"],
-  ["stacked bars present", "<rect"],
-  ["cost polyline present", "<polyline"],
-  ["think/speak share label", "% think"],
-];
 let bad = 0;
-for (const [name, needle] of want) {
-  const ok = html.includes(needle);
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
-}
+const check = (name, ok) => { if (!ok) bad++; console.log(`${ok ? "ok  " : "FAIL"}  ${name}`); };
+const has = (html, name, needle) => check(name, html.includes(needle));
 
-// A rect of zero width renders nothing, which is the silent way a bar chart
-// lies: the card is there, the bars are not.
-const widths = [...html.matchAll(/<rect[^>]*width="([\d.]+)"/g)].map(m => Number(m[1]));
-const drawn = widths.filter(w => w > 1).length;
-console.log(`${drawn >= run.steps.length * 2 ? "ok  " : "FAIL"}  ${drawn} bar segments with real width (want ${run.steps.length * 2})`);
-if (drawn < run.steps.length * 2) bad++;
+const run = fixture("run.json");
+const matrix = fixture("run-matrix.json");
+const phases = fixture("run-phases.json");
+const index = [run, matrix, phases].map((r, i) => ({
+  id: "r" + i, profile: r.profile, scenario: r.scenario, target: r.target, started_at: r.started_at,
+  steps: r.steps.length, verdict: ["pass", "warn", "fail"][i], peak_concurrency: 15, worst_p95_ms: 900 + i * 100,
+  breakpoint: i === 2 ? "stress at 30 concurrent" : "", judged: i === 1 ? 6 : 0, passed: 5, wer_mean: 0,
+}));
+const page1 = (rep, id, tab, extra = {}) => render(mod.Report, { rep: { ...rep, id }, id, refs: REFS, runs: index, prev: null, initialTab: tab, onOpenRuns() {}, ...extra });
+const drawer = (kind, rep, id, tab) => render(mod.Report, { rep: { ...rep, id }, id, refs: REFS, runs: index, prev: null, initialTab: tab, initialDrawer: kind, onOpenRuns() {} });
 
-// Now the whole ReportCard, including the conversation table. useEffect never
-// fires server-side, so the state hooks are seeded in call order instead: the
-// first useState in ReportCard is the report, the second is the error.
-let seeded = 0;
-let current = run;
-const stub = Object.create(React);
-stub.useState = () => [seeded++ === 0 ? current : null, () => {}];
-stub.useEffect = () => {};
-globalThis.React = stub;
-const mod2 = new Function(src + "\n;return { ReportCard };")();
-const card = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod2.ReportCard, { refs: REFS, id }));
-
-const wantCard = [
-  ["conversation heading", "How the calls sounded"],
-  ["talk ratio cell", "38.9%"],
-  ["agent pace cell", "100 wpm"],
-  ["interruption score", "5.00"],
-  ["dead air column", "none"],
-  ["component share inside the card", "Which half saturates first"],
-  ["cost chart inside the card", "What the latency costs"],
-];
-for (const [name, needle] of wantCard) {
-  const ok = card.includes(needle);
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
-}
-
-// The teaching layer: a glossary before any table, a diagram of the split, and
-// a computed reading under every chart. These are the parts that turn a page of
-// numbers into something a reader who has never load-tested an agent can use,
-// so they are asserted like any other output.
-const wantTeaching = [
-  ["glossary card", "What each number catches"],
-  ["glossary defines TTFA in plain words", "how long the line stays dead"],
-  ["glossary explains p95 vs p50", "worse than 95% of the rest"],
-  ["turn anatomy diagram", "transcript of you"],
-  ["anatomy names the endpointing half", "listening to silence"],
-  ["anatomy names the think/speak half", "composes a reply"],
-  ["latency reading present", "95 of every 100 turns were faster"],
-  ["latency reading explains the verdict bands", "past 1.5"],
-  ["conversation reading present", "visible in a latency chart"],
-  ["cost reading projects to real money", "a month"],
-  ["reading says what to do", "read-do"],
-];
-for (const [name, needle] of wantTeaching) {
-  const ok = card.includes(needle);
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
-}
-
-// The reading has to be right, not merely present. This fixture's think/speak
-// grew while endpointing held, so there is exactly one correct verdict.
-const base = run.steps[0], peak = run.steps[run.steps.length - 1];
-const tsGrew = peak.think_speak.p95_ms - base.think_speak.p95_ms;
-const epGrew = peak.endpointing.p95_ms - base.endpointing.p95_ms;
-if (run.steps.length > 1 && tsGrew > epGrew && tsGrew / base.think_speak.p95_ms >= 0.15) {
-  const right = card.includes("Think/speak is the half that saturates");
-  if (!right) bad++;
-  console.log(`${right ? "ok  " : "FAIL"}  names think/speak as the saturating half (it grew ${Math.round(tsGrew)}ms vs endpointing ${Math.round(epGrew)}ms)`);
-  const wrong = card.includes("Endpointing is the half that saturates");
-  if (wrong) bad++;
-  console.log(`${!wrong ? "ok  " : "FAIL"}  does not also claim the other half`);
-}
-
-// The same card against a run recorded before these fields existed. A card
-// that hides itself when its data is absent is indistinguishable from a card
-// that is broken, and every run already on disk is this shape -- so the empty
-// state is the case that actually ships, and it has to say something.
-const old = JSON.parse(JSON.stringify(run));
-for (const s of old.steps) { delete s.conversation; delete s.cost; }
-seeded = 0;
-current = old;
-const legacy = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod2.ReportCard, { refs: REFS, id }));
-
-const wantLegacy = [
-  ["legacy run explains missing conversation data", "predates talk ratio"],
-  ["legacy run explains missing cost data", "predates cost accounting"],
-  ["legacy run still draws the component split", "Which half saturates first"],
-];
-for (const [name, needle] of wantLegacy) {
-  const ok = legacy.includes(needle);
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
-}
-
-
-// Reference lines on two clocks, rendered from the fixture's own steps against
-// the real published list. A line whose citation or clock goes missing fails
-// here rather than in front of a reader.
-const refsHtml = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod.ReferenceLines, { steps: run.steps, refs: REFS }));
-
-for (const [name, needle] of [
-  ["reference card", "Where this run sits against what others have published"],
-  ["draws the end-of-speech clock", "From true end of speech"],
-  ["draws the detection clock", "From detection"],
-  ["says none of them decides the verdict", "none of them decides pass or fail"],
-  ["starts from where real agents are", "Start from where real agents are"],
-  ["an observed range is shaded", "<rect"],
-]) {
-  const ok = refsHtml.includes(needle);
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
-}
-{
-  // Every citation is named with its date, and linked wherever a URL is known.
-  const cites = REFS.flatMap(r => r.cites);
-  const named = cites.filter(c => refsHtml.includes(`${c.source}, ${c.title}`) && refsHtml.includes(c.published) &&
-    (!c.url || refsHtml.includes(`href="${c.url.replace(/&/g, "&amp;")}"`))).length;
-  const ok = cites.length > 0 && named === cites.length;
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${named} of ${cites.length} citations named with their date`);
-
-  // Every step on both clocks: a p50 and a p95 dot per clock with samples.
-  const want = run.steps.filter(s => s.ttfa && s.ttfa.n > 0)
-    .reduce((a, s) => a + ["ttfa", "think_speak"].filter(k => s[k] && s[k].n > 0).length * 2, 0);
-  const dots = (refsHtml.match(/<circle/g) || []).length;
-  const drawn = dots === want;
-  if (!drawn) bad++;
-  console.log(`${drawn ? "ok  " : "FAIL"}  ${dots} dots for ${want} step, clock and percentile readings`);
-}
-{
-  const none = ReactDOMServer.renderToStaticMarkup(
-    React.createElement(mod.ReferenceLines, { steps: run.steps, refs: [] }));
-  const ok = none.includes("No reference lines loaded");
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  a page without the list says so`);
-}
-
-// Phase shape. A plain ramp has nothing to say and must say nothing: a card
-// that renders an empty table is worse than one that does not render.
-const plainRamp = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod.PhaseTable, {
-    steps: [{ name: "c1", concurrency: 1, phase: { kind: "ramp", drift: "unknown", held_s: 0 } }],
-  })) || "";
-{
-  const ok = plainRamp === "";
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  a ramp with no shape renders no phase card`);
-}
-
-// A soak that drifted is the finding the whole phase model exists for, so the
-// card has to name the step, quote both halves, and say what to look for.
-const drifted = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod.PhaseTable, {
-    steps: [
-      { name: "ramp-c4", concurrency: 4, p95_ratio: 1,
-        phase: { kind: "ramp", drift: "steady", drift_pct: 0.02, held_s: 120,
-                 first_half: { n: 40, p50_ms: 410 }, second_half: { n: 40, p50_ms: 418 } } },
-      { name: "soak-c8", concurrency: 8, p95_ratio: 1.3,
-        phase: { kind: "soak", drift: "drifting", drift_pct: 0.42, held_s: 600,
-                 first_half: { n: 60, p50_ms: 430 }, second_half: { n: 60, p50_ms: 610 } } },
-      { name: "recover-c4", concurrency: 4, p95_ratio: 1.9,
-        phase: { kind: "recovery", drift: "steady", drift_pct: 0.01, held_s: 120, recovered: false,
-                 first_half: { n: 40, p50_ms: 700 }, second_half: { n: 40, p50_ms: 707 } } },
-    ],
-  }));
-
-for (const [name, needle] of [
-  ["phase card", "over its own duration"],
-  ["names the drifting step", "soak-c8"],
-  ["quotes both halves", "610ms"],
-  ["explains what a soak is for", "cache going"],
-  ["points at accumulation, not capacity", "adding capacity will not fix it"],
-  ["says why the median and not p95", "one unlucky call"],
-]) {
-  const ok = drifted.includes(needle);
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
-}
-
-// A recovery that never came back must not be reported as a drift finding it
-// is not, nor swallowed by the drift branch above it.
-const stuck = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod.PhaseTable, {
-    steps: [
-      { name: "recover-c4", concurrency: 4, p95_ratio: 1.9,
-        phase: { kind: "recovery", drift: "steady", drift_pct: 0.01, held_s: 120, recovered: false,
-                 first_half: { n: 40, p50_ms: 700 }, second_half: { n: 40, p50_ms: 707 } } },
-    ],
-  }));
-for (const [name, needle] of [
-  ["recovery failure is the headline when nothing drifted", "It did not come back"],
-  ["says what the peak might have left behind", "still draining"],
-]) {
-  const ok = stuck.includes(needle);
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
-}
-
-// Task success. The empty state is the case that ships on every unjudged run,
-// so it has to say what is missing and how to get it.
-const nojudge = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod.TaskSuccessCard, { judge: undefined }));
-for (const [name, needle] of [
-  ["unjudged run says so", "was not judged"],
-  ["and says how to fix that", "-judge"],
-]) {
-  const ok = nojudge.includes(needle);
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
-}
-
-// A judged run where mishearing clearly separated the failures. The numbers
-// are chosen so there is exactly one correct verdict.
-const judged = {
-  backend: "groq test-model",
-  criteria: ["The agent asks for an order number", "The agent offers a replacement first"],
-  judged: 10, passed: 5, errored: 1,
-  misses: [
-    { criterion: "The agent asks for an order number", missed: 0, judged: 10 },
-    { criterion: "The agent offers a replacement first", missed: 5, judged: 10,
-      evidence: "turn 3: \"I can refund that for you right away.\"" },
-  ],
-  calls: [
-    { step: "c1", request_id: "a", wer: 0.01, ref_words: 71, met: true, judged: true },
-    { step: "c1", request_id: "b", wer: 0.02, ref_words: 71, met: true, judged: true },
-    { step: "c5", request_id: "c", wer: 0.02, ref_words: 71, met: true, judged: true },
-    { step: "c5", request_id: "d", wer: 0.03, ref_words: 71, met: true, judged: true },
-    { step: "c10", request_id: "e", wer: 0.04, ref_words: 71, met: true, judged: true },
-    { step: "c10", request_id: "f", wer: 0.09, ref_words: 71, met: false, judged: true },
-    { step: "c20", request_id: "g", wer: 0.11, ref_words: 71, met: false, judged: true },
-    { step: "c20", request_id: "h", wer: 0.13, ref_words: 71, met: false, judged: true },
-    { step: "c40", request_id: "i", wer: 0.18, ref_words: 71, met: false, judged: true },
-    { step: "c40", request_id: "j", wer: 0.24, ref_words: 71, met: false, judged: true },
-  ],
-  correlation: {
-    calls: 10, threshold: 0.05,
-    clean_calls: 5, clean_passed: 5, misheard_calls: 5, misheard_passed: 0,
-    clean_pass_rate: 1, misheard_pass_rate: 0, gap: 1,
-    median_wer_passed: 0.02, median_wer_failed: 0.13,
-    conclusive: true, note: "",
-  },
-};
-const task = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod.TaskSuccessCard, { judge: judged }));
-
-for (const [name, needle] of [
-  ["task card", "Did it actually do the job"],
-  ["names the grader", "groq test-model"],
-  ["lists the criteria", "offers a replacement first"],
-  ["quotes the judge's evidence", "refund that for you right away"],
-  ["warns the judge only reads words", "measured"],
-  ["draws the strip plot", "did the job"],
-  ["marks the usable threshold", "usable"],
-  ["one dot per judged call", "<circle"],
-  ["two-group table", "Heard cleanly"],
-  ["names the finding", "Mishearing is costing it the task"],
-  ["and the fix", "Fix the listening before the reasoning"],
-]) {
-  const ok = task.includes(needle);
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
-}
-{
-  // Ten judged calls, ten dots. A strip plot that quietly drops points is the
-  // silent way this chart lies.
-  const dots = (task.match(/<circle/g) || []).length;
-  const ok = dots === judged.calls.length;
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${dots} dots for ${judged.calls.length} judged calls`);
-  // And the opposite verdict must not also appear.
-  const both = task.includes("Mishearing is not what is failing");
-  if (both) bad++;
-  console.log(`${!both ? "ok  " : "FAIL"}  does not also claim the opposite`);
-}
-
-// The same card with a group empty, which is what a real clean run produces.
-// It has to report the numbers and withhold the conclusion, not invent one.
-const thin = JSON.parse(JSON.stringify(judged));
-thin.correlation = { calls: 7, threshold: 0.05, clean_calls: 7, clean_passed: 7,
-  misheard_calls: 0, misheard_passed: 0, clean_pass_rate: 1, misheard_pass_rate: 0, gap: 0,
-  median_wer_passed: 0.028, median_wer_failed: 0, conclusive: false,
-  note: "too few judged calls to compare groups" };
-thin.calls = judged.calls.slice(0, 5).map(c => ({ ...c, met: true }));
-const thinHtml = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod.TaskSuccessCard, { judge: thin }));
-for (const [name, needle] of [
-  ["an inconclusive split says so", "No conclusion to draw yet"],
-  ["and quotes the reason", "too few judged calls"],
-  ["and says how to get a conclusion", "judge-calls"],
-]) {
-  const ok = thinHtml.includes(needle);
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
-}
-{
-  const claims = thinHtml.includes("Mishearing is costing it the task");
-  if (claims) bad++;
-  console.log(`${!claims ? "ok  " : "FAIL"}  draws no conclusion from an inconclusive split`);
-}
-
-// A second fixture: a real six-phase run against the reference agent, where
-// the injected latency is known in advance. It is here because the first
-// fixture predates the phase model and the known-answer placements, so every assertion
-// about those would have passed by never running -- the same shape of
-// non-check that let the conversation card ship hidden.
-//
-// The reference agent adds 25ms per caller past a capacity of 6, so the bands
-// each step lands in are arithmetic rather than opinion: 4 concurrent stays
-// near 400ms and 24 concurrent reaches 850ms.
-const phased = JSON.parse(fs.readFileSync("testdata/run-phases.json", "utf8"));
-seeded = 0;
-current = phased;
-const phasedCard = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod2.ReportCard, { refs: REFS, id: "run-phases" }));
-
-for (const [name, needle] of [
-  ["reference card renders inside the report", "Where this run sits against what others have published"],
-  ["phase card renders inside the report", "over its own duration"],
-  ["spike phase is named", ">spike<"],
-  ["soak phase is named", ">soak<"],
-  ["recovery phase is named", ">recovery<"],
-  ["recovery that came back says so", "back to baseline"],
-  ["a step too short for a shape says that, not steady", "too short to tell"],
-  ["task card offers the missing verdict", "was not judged"],
-]) {
-  const ok = phasedCard.includes(needle);
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
-}
-
-// The known answer, restated against the published lines. The reference agent
-// was given a capacity of 6 and 25ms per caller past it, so from end of speech
-// the baseline ramp sits near 400ms and the spike near 850ms: both past the
-// human marker and both under the production median, which is arithmetic
-// rather than opinion.
-{
-  const human = REFS.find(r => r.kind === "perceptual");
-  const observed = REFS.find(r => r.kind === "observed");
-  const spike = phased.steps.find(s => s.phase && s.phase.kind === "spike");
-  const ramp = phased.steps.find(s => s.name === phased.baseline);
-  const p50 = (r, s) => mod.placeRef(r, s).find(m => m.percentile === 50);
-  const right = human && observed && spike && ramp &&
-    p50(human, ramp).over && p50(human, spike).over &&
-    p50(observed, ramp).value_ms < observed.ms && p50(observed, spike).value_ms < observed.ms;
-  if (!right) bad++;
-  console.log(`${right ? "ok  " : "FAIL"}  the injected latency lands where it should against the published lines (${ramp && Math.round(ramp.ttfa.p50_ms)}ms then ${spike && Math.round(spike.ttfa.p50_ms)}ms)`);
-}
-
-// The same run with a judge block attached, to prove the task card mounts
-// inside the whole page and not only when rendered on its own.
-const withJudge = JSON.parse(JSON.stringify(phased));
-withJudge.judge = judged;
-seeded = 0;
-current = withJudge;
-const judgedCard = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod2.ReportCard, { refs: REFS, id: "run-judged" }));
-for (const [name, needle] of [
-  ["task card mounts in the full report", "Did it actually do the job"],
-  ["and brings its finding with it", "Mishearing is costing it the task"],
-]) {
-  const ok = judgedCard.includes(needle);
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
-}
-
-// The impairment matrix, the scenario nodes, harness integrity and the
-// appendix. Every run already on disk predates all four, so the empty states
-// are what ships first and are asserted as closely as the populated ones.
-for (const [name, needle] of [
-  ["an unimpaired run says so", "Placed on an unimpaired network"],
-  ["and says how to impair one", "60-impair-job.yaml"],
-  ["a run with no pipeline says there was nothing to check", "No pipeline to check"],
-  ["and that it is not the target's webhooks", "not the target&#x27;s webhooks"],
-  ["a run before node scoring says so", "predates per-node scoring"],
-  ["a run before round-trip measurement says so", "predates round-trip measurement"],
-  ["the appendix mounts in the report", "How every number is computed"],
-  ["the appendix gives the percentile formula", "⌈p ÷ 100 × n⌉"],
-  ["the appendix maps published boundaries onto Callstorm's clocks", "ASR finalization"],
-]) {
-  const ok = card.includes(needle);
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
-}
-
-// A matrix whose answer is fixed by construction: the severe network fails c8
-// against the clean baseline, its delay lands in endpointing (+500ms) rather
-// than think/speak (+10ms), and the refund node collapses to 2 of 16 there.
-const heldNodes = [
-  { node: "open", visits: 6, checked: 6, passed: 6, pass_rate: 1 },
-  { node: "refund", visits: 6, checked: 6, passed: 6, pass_rate: 1 },
-  { node: "close", visits: 6, checked: 0, passed: 0, pass_rate: 0 },
-];
-const brokeNodes = [
-  { node: "open", visits: 16, checked: 16, passed: 16, pass_rate: 1 },
-  { node: "refund", visits: 16, checked: 16, passed: 2, pass_rate: 0.125, miss: 'said none of ["refund"]' },
-  { node: "close", visits: 0, checked: 0, passed: 0, pass_rate: 0 },
-];
-const mstep = (name, conc, p95, vs, verdict, ep, ts, nodes) => ({
-  name, concurrency: conc, verdict, vs_clean: vs, nodes,
-  ttfa: { n: 20, p50_ms: p95 - 5, p90_ms: p95 - 2, p95_ms: p95 },
-  endpointing: { n: 20, p50_ms: ep, p95_ms: ep }, think_speak: { n: 20, p50_ms: ts, p95_ms: ts },
-});
-const matrixRun = {
-  steps: [], matrix: { device: "eth0", cohorts: [
-    { impairment: { name: "clean" }, tc_command: "tc qdisc del dev eth0 root",
-      qdisc: "qdisc noqueue 0: root refcnt 2",
-      steps: [mstep("c2", 2, 505, 1, "pass", 200, 300, heldNodes), mstep("c8", 8, 510, 1, "pass", 200, 300, heldNodes)] },
-    { impairment: { name: "severe", loss_pct: 5, jitter_ms: 100, delay_ms: 200 },
-      tc_command: "tc qdisc replace dev eth0 root netem delay 200ms 100ms loss 5%",
-      qdisc: "qdisc netem 8001: root refcnt 2 limit 1000 delay 200ms  100ms loss 5%", breakpoint: "c8",
-      steps: [mstep("c2", 2, 900, 1.78, "warn", 700, 310, heldNodes), mstep("c8", 8, 1300, 2.55, "fail", 900, 310, brokeNodes)] },
-  ] },
-};
-const heat = ReactDOMServer.renderToStaticMarkup(React.createElement(mod.ImpairmentHeatmap, { rep: matrixRun }));
-for (const [name, needle] of [
-  ["heatmap card", "Load against network"],
-  ["one row per cohort", ">severe<"],
-  ["the exact tc command", "tc qdisc replace dev eth0 root netem delay 200ms 100ms loss 5%"],
-  ["the kernel's readback", "qdisc netem 8001"],
-  ["a failed cell is marked", "✕"],
-  ["breaks-at column", ">c8<"],
-  ["offers agent p95 as a cell value", "agent p95"],
-  ["names the finding", "The network breaks it before load does"],
-  ["says loss arrives as delay over TCP", "not as damaged audio"],
-  ["places the delay in endpointing", "The network lands in endpointing"],
-]) {
-  const ok = heat.includes(needle);
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
-}
-{
-  // Four cells, four fills: a heatmap whose cells render uncoloured is the
-  // silent way this one lies.
-  const filled = (heat.match(/background:color-mix/g) || []).length;
-  const ok = filled === 4;
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${filled} filled cells for 4 cohort-steps`);
-}
-
-const nodes = ReactDOMServer.renderToStaticMarkup(React.createElement(mod.NodeScores, { rep: matrixRun }));
-for (const [name, needle] of [
-  ["node card", "Which part of the conversation gave way"],
-  ["defaults to the worst cohort", "severe · worst"],
-  ["names the collapsed node", "refund is the node that gives way"],
-  ["quotes its rate", "12.5%"],
-  ["an unvisited node is kept", "not reached"],
-  ["a node with no assertion shows visits, not a rate", "6 visits"],
-]) {
-  const ok = nodes.includes(needle);
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
-}
-
-const dup = ReactDOMServer.renderToStaticMarkup(React.createElement(mod.IntegrityCard, { integrity: {
-  dispatch: { dispatched: 16, received: 16, duplicates: 2, missing: 0, late: 1,
-    steps: [{ step: "c8", dispatched: 16, received: 16, duplicates: 2, missing: 0, late: 1 }] } } }));
-const lost = ReactDOMServer.renderToStaticMarkup(React.createElement(mod.IntegrityCard, { integrity: {
-  dispatch: { dispatched: 16, received: 13, duplicates: 0, missing: 3, late: 0,
-    steps: [{ step: "c8", dispatched: 16, received: 13, duplicates: 0, missing: 3, late: 0 }] } } }));
-for (const [name, html, needle] of [
-  ["integrity card", dup, "Did every call come back exactly once"],
-  ["duplicates are named and said to be dropped", dup, "came back twice"],
-  ["missing calls are the headline", lost, "3 of 16 calls never came back"],
-  ["and point at the fleet first", lost, "Check the workers before the agent"],
-]) {
-  const ok = html.includes(needle);
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
-}
-
-// A real matrix: graph-ref against the in-cluster reference agent under the
-// four default networks. Its answers are known. refagent's replies fix the node
-// rates in every cohort, and its injected 300ms think/speak means any network
-// cost has to land in endpointing.
-const realMatrix = JSON.parse(fs.readFileSync("testdata/run-matrix.json", "utf8"));
-seeded = 0;
-current = realMatrix;
-const matrixCard = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod2.ReportCard, { refs: REFS, id: "run-matrix" }));
-for (const [name, needle] of [
-  ["heatmap mounts in the full report", "Load against network"],
-  ["every default cohort is a row", ">moderate<"],
-  ["the recorded command is shown", "tc qdisc replace dev eth0 root netem delay 200ms 100ms loss 5%"],
-  ["the real run breaks on the network", "The network breaks it before load does"],
-  ["and the delay lands in endpointing", "The network lands in endpointing"],
-  ["the refund node is the one that gives way", "refund is the node that gives way"],
-  ["an in-process matrix has no pipeline to check", "No pipeline to check"],
-]) {
-  const ok = matrixCard.includes(needle);
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
-}
-{
-  const cells = realMatrix.matrix.cohorts.reduce((a, c) => a + c.steps.length, 0);
-  // Heatmap cells only: the question charts' legends use the same colours, so
-  // counting every colour-mix swatch on the page would count them too.
-  const filled = (matrixCard.match(/class="hm[^"]*" style="background:color-mix/g) || []).length;
-  const ok = filled === cells;
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${filled} filled cells for ${cells} cohort-steps in the real matrix`);
-  // Every cohort in this run scored the same fixed answers, so every cohort
-  // must show refund at 0% and number over twice the visits of open.
-  const zero = realMatrix.matrix.cohorts.every(c => c.steps.every(s =>
-    s.nodes.find(n => n.node === "refund").pass_rate === 0 &&
-    s.nodes.find(n => n.node === "number").visits === 2 * s.nodes.find(n => n.node === "open").visits));
-  if (!zero) bad++;
-  console.log(`${zero ? "ok  " : "FAIL"}  the graph's known answer held in every cohort`);
-}
-
-// Agent TTFA: the observed wait with the measured round trip taken out. The
-// fixture is arithmetic -- 100ms of round trip on a 640ms turn leaves 540ms, a
-// 16% share, so exactly one verdict is right -- and a run where no pong came
-// back says so rather than showing a corrected figure it does not have.
-const agentHtml = ReactDOMServer.renderToStaticMarkup(React.createElement(mod.AgentLatency, { steps: [
-  { name: "c2", concurrency: 2, ttfa: { n: 20, p50_ms: 600, p95_ms: 650 },
-    transport_rtt: { n: 20, p50_ms: 100, p95_ms: 110 }, agent_ttfa: { n: 20, p50_ms: 500, p95_ms: 545 } },
-  { name: "c8", concurrency: 8, ttfa: { n: 40, p50_ms: 640, p95_ms: 700 },
-    transport_rtt: { n: 30, p50_ms: 100, p95_ms: 120 }, agent_ttfa: { n: 30, p50_ms: 540, p95_ms: 590 } },
-] }));
-const noPong = ReactDOMServer.renderToStaticMarkup(React.createElement(mod.AgentLatency, { steps: [
-  { name: "c2", concurrency: 2, ttfa: { n: 10, p50_ms: 600, p95_ms: 650 },
-    transport_rtt: { n: 0, p50_ms: 0, p95_ms: 0 }, agent_ttfa: { n: 0, p50_ms: 0, p95_ms: 0 } },
-] }));
-for (const [name, html, needle] of [
-  ["agent card", agentHtml, "The wait, with the network taken out"],
-  ["shows the agent's share", agentHtml, "540ms"],
-  ["shows how much of the step was corrected", agentHtml, "30 of 40 turns"],
-  ["a small network share leaves the wait with the agent", agentHtml, "The wait is the agent"],
-  ["says the correction is an estimate", agentHtml, "The correction is an estimate"],
-  ["a run whose server answered no pings says so", noPong, "no pong came back"],
-]) {
-  const ok = html.includes(needle);
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
-}
-{
-  const both = agentHtml.includes("of the wait.</b>");
-  if (both) bad++;
-  console.log(`${!both ? "ok  " : "FAIL"}  does not also call the network a large share`);
-}
-
-// The known answer for agent TTFA, from a real run in kind: the reference agent
-// injects 500ms, and netem adds 100ms of delay to the calling pod. Observed TTFA
-// has to rise by the delay, and agent TTFA has to stay where the clean cohort
-// had it -- otherwise the correction is wrong, whatever the card says.
-const rttRun = JSON.parse(fs.readFileSync("testdata/run-rtt.json", "utf8"));
-{
-  const cohort = name => rttRun.matrix.cohorts.find(c => c.impairment.name === name);
-  const clean = cohort("clean"), delay = cohort("delay-100");
-  const pairs = delay.steps.map((s, i) => [s, clean.steps[i]]);
-  const rose = pairs.every(([s, base]) => s.ttfa.p50_ms - base.ttfa.p50_ms > 90);
-  const held = pairs.every(([s, base]) => Math.abs(s.agent_ttfa.p50_ms - base.agent_ttfa.p50_ms) < 10);
-  const ok = rose && held;
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  100ms of delay raises observed TTFA and leaves agent TTFA where clean had it`);
-}
-seeded = 0;
-current = rttRun;
-const rttCard = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod2.ReportCard, { refs: REFS, id: "run-rtt" }));
-{
-  const ok = rttCard.includes("The wait, with the network taken out") && rttCard.includes("30 of 30 turns");
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  the real run's agent card renders inside the report`);
-}
-
-// The questions section, against the fixtures already here. None of them was
-// shaped to answer every question, so these assert the answers they can give
-// and the reasons they give for the rest: an unanswerable question has to say
-// why, and no answer may fail to compute.
-for (const [name, html, needle] of [
-  ["the questions section heads the report", card, "questions answered, in plain words"],
-  ["capacity is asked in plain words", card, "How many calls at the same time can it take"],
-  ["a chart is drawn for an answered question", card, "slowest callers&#x27; wait"],
-  ["what the test can't tell you is listed", card, "What this kind of test can&#x27;t tell you"],
-  ["a run with no rush step says so", card, "no sudden-rush step"],
-  ["a rush at a level never built up to says why it can't compare", phasedCard, "never built up to that same level"],
-  ["a recovery without timestamps says what is missing", phasedCard, "predates call timestamps"],
-  ["the network question is answered from a matrix", matrixCard, "A bad connection breaks it before load does"],
-  ["a matrix run's job question uses its scenario checks", matrixCard, "failed its check at every load"],
-]) {
-  const ok = html.includes(needle);
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
-}
-// The newer figures, on a fixture shaped to answer them: the closing turn slow
-// at every load, long waits growing with load, a step that keeps its speed and
-// stops doing the job, replies repeated when busy, judged calls showing the
-// slow ones went worse, and 225ms of silence opening every reply.
-const shaped = JSON.parse(JSON.stringify(run));
-shaped.steps.forEach((s, i) => {
-  s.harness_degraded = false;
-  s.turns = [1, 2, 3].map(n => ({
-    turn: n, caller_line: n === 3 ? "Thanks for sorting it out." : `Line ${n}`,
-    ttfa: { n: 20, p50_ms: n === 3 ? 3000 : 700, p90_ms: 0, p95_ms: n === 3 ? 3100 + i * 50 : 900, p99_ms: 0, max_ms: 0 },
-    endpointing_p50_ms: 250, think_speak_p50_ms: n === 3 ? 2750 : 450,
-  }));
-  s.waits = { turns: 100, up_to_800ms: 80 - i * 10, "800_to_1200ms": 15, "1200_to_2000ms": 4 + i * 8, over_2000ms: 1 + i * 2 };
-  s.conversation.repeated_replies = [0, 1, 6][i];
-  s.conversation.calls_with_repeats = [0, 1, 4][i];
-  s.quality = i === 2
-    ? { verdict: "fail", compared: ["failed turns", "task success"], reasons: ["the judge passed 70% of 30 calls, against 97% of 30 at the baseline"] }
-    : { verdict: "pass", compared: ["failed turns", "task success"] };
-  s.leading_silence = { n: 20, p50_ms: 225, p90_ms: 230, p95_ms: 231, p99_ms: 232, max_ms: 232 };
-});
-shaped.judge = JSON.parse(JSON.stringify(judged));
-shaped.judge.waits = { line_ms: 1200, calls: 20, slow_calls: 8, slow_passed: 4, quick_calls: 12, quick_passed: 12,
-  slow_pass_rate: 0.5, quick_pass_rate: 1, conclusive: true };
-seeded = 0;
-current = shaped;
-const shapedCard = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod2.ReportCard, { refs: REFS, id: "run-shaped" }));
-
-// The known answer from a real run: the Deepgram suite's graph-reference part,
-// refreshed from its calls log. Deepgram took about three seconds to answer the
-// closing thank-you even for a typical caller, at every load the ladder kept,
-// and the share of long waits did not move with load.
-const deepgram = JSON.parse(fs.readFileSync("testdata/run-deepgram-graph.json", "utf8"));
-seeded = 0;
-current = deepgram;
-const deepgramCard = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(mod2.ReportCard, { refs: REFS, id: "run-deepgram-graph" }));
-for (const [name, html, needle] of [
-  ["the real run names its slow closing turn", deepgramCard, "Turn 4, after the caller says “Alright, that works. Thanks for sorting it out”."],
-  ["where even a typical caller waits", deepgramCard, "Even a typical caller waits"],
-  ["and its long waits do not come from load", deepgramCard, "so the long waits are not coming from load"],
-  ["a small group in the slow-call split is read loosely", deepgramCard, "the other 13."],
-  ["the slowest moment is named with what the caller said", shapedCard, "Turn 3, after the caller says “Thanks for sorting it out”."],
-  ["even a typical caller waits on it", shapedCard, "Even a typical caller waits 3000ms on that turn"],
-  ["and the wait is put down to thinking", shapedCard, "Most of it is the agent thinking up its reply: 2750ms of a typical 3000ms"],
-  ["a turn slow at every load comes from what is said", shapedCard, "so it comes from what is said on that turn, not from being busy"],
-  ["long waits are counted past 1.2 seconds", shapedCard, "25.0% of turns at 15 calls at once"],
-  ["and grow with load", shapedCard, "being busy makes the long waits more common"],
-  ["quality giving way before speed is the finding", shapedCard, "It stopped doing the job as well at 15 calls at once, and never got too slow"],
-  ["the report card grades quality beside speed", shapedCard, "<th>Quality</th>"],
-  ["and says why a step failed it", shapedCard, "c15 fails: the judge passed 70% of 30 calls"],
-  ["repeated replies are counted", shapedCard, "8.0% at 15, in 4 calls"],
-  ["against Hamming's line for repeated questions", shapedCard, "past the 3% Hamming treats as a problem"],
-  ["slow calls went worse", shapedCard, "50% of the 8 judged calls that kept someone waiting past 1.2 seconds did the job, against 100% of the other 12"],
-  ["leading silence joins the wait", shapedCard, "silence at the start of the reply, before any sound"],
-  ["a run before the newer figures says how to add them", card, "Run callstorm -refresh on its report"],
-  ["a run with no judge says the slow-call question needs one", card, "nothing says which calls went well"],
-  ["a percentile from too few turns is marked", card, "fewer turns than that percentile needs"],
-  ["and the trust answer says how many turns stand behind it", card, "baseline timed only 15 turns"],
-]) {
-  const ok = html.includes(needle);
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
-}
-{
-  const broken = [card, legacy, phasedCard, judgedCard, matrixCard, rttCard, shapedCard, deepgramCard].filter(h => h.includes("could not be computed")).length;
-  if (broken) bad++;
-  console.log(`${!broken ? "ok  " : "FAIL"}  every question computed on every fixture (${broken} reports with a broken answer)`);
-}
-
-// The readings are prose with numbers spliced into it, and both ways of
-// getting that wrong are silent. htm drops whitespace spanning a newline
-// exactly as JSX does, so a value on its own line arrives glued to the word
-// before it; and a field read off the wrong object prints NaN in a sentence
-// that otherwise looks finished. Neither throws, so neither shows up in any
-// check that only asks whether the card rendered.
-// Every reading rendered above, scanned together: a glue bug in one card is
-// the same bug in all of them, and a check that only looks at the first is how
-// the last one ships broken.
-// A load test made of several runs. Parts sharing a suite fold into one history
-// entry where the newest part sits, with the worst verdict of any part; a run
-// with no suite stays its own entry. Built with the real hooks: the suite card
-// keeps which part is open in state, and the stub above would seed it a report.
-globalThis.React = React;
-const modS = new Function(src + "\n;return { groupRuns, SuiteCard };")();
-const part = (pid, scenario, started, extra) => Object.assign({
-  id: pid, profile: "sweep-deepgram-30", scenario, target: "", started_at: started, duration_s: 600, steps: 5,
-  verdict: "pass", peak_concurrency: 40, baseline_p95_ms: 900, worst_p95_ms: 1300, wer_mean: 0,
-  harness_degraded: false, suite: "deepgram-full-test",
-}, extra);
-const history = [
-  part("p3", "refund-escalation", "2026-09-13T17:30:00Z", { profile: "impair-ref", cohorts: 4, peak_concurrency: 8, network_breaks: ["moderate at c2", "severe at c2"] }),
-  part("solo", "refund-escalation", "2026-09-13T17:20:00Z", { suite: undefined }),
-  part("p2", "refund-bargein", "2026-09-13T17:00:00Z", { verdict: "fail", breakpoint: "c40 at 40 concurrent", judged: 20, passed: 15, harness_degraded: true }),
-  part("p1", "refund-escalation", "2026-09-13T16:44:00Z", { judged: 20, passed: 18 }),
-];
-const entries = modS.groupRuns(history);
-const suite = entries[0];
-const suiteHtml = ReactDOMServer.renderToStaticMarkup(
-  React.createElement(modS.SuiteCard, { group: suite, refs: REFS, runs: history }));
-for (const [name, ok] of [
-  ["suite parts fold into one entry, a run without a suite stays its own", entries.length === 2 && suite.kind === "suite" && entries[1].id === "solo"],
-  ["suite parts in the order they ran", suite.parts.map(p => p.id).join() === "p1,p2,p3"],
-  ["suite verdict is its worst part's", suite.verdict === "fail"],
-  ["suite sums judged calls across parts", suite.judged === 40 && suite.passed === 33],
-  ["suite counts its bad-network parts and scenarios", suite.network === 1 && suite.scenarios.length === 2],
-  ["suite card names every part", ["load sweep", "bad networks · 4 conditions", "refund-bargein"].every(s => suiteHtml.includes(s))],
-  ["suite card names what broke a bad-network part", suiteHtml.includes("held; on bad networks: moderate at c2, severe at c2")],
-  ["suite reading counts broken parts", suiteHtml.includes("2 of 3 parts broke somewhere")],
-  ["suite reading flags a part the test machine could not keep up with", suiteHtml.includes("Treat refund-bargein as rough")],
-  ["suite card opens its first part below the overview", suiteHtml.includes("Part 1 of 3 · load sweep · refund-escalation")],
-]) {
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
-}
-
-// The written analysis: what the model kept, with its evidence, and a count
-// of what the number check dropped.
-const modI = new Function(src + "\n;return { InsightsView };")();
-const insightsHtml = ReactDOMServer.renderToStaticMarkup(React.createElement(modI.InsightsView, { ins: {
-  kind: "suite", subject: "deepgram-full-test", model: "gemini-3.5-flash", generated_at: "2026-09-13T20:30:00Z",
-  headline: "Only refund slows down with load, and the closing turn of graph-reference is the slowest moment.",
-  insights: [
-    { title: "The closing turn is the slowest", category: "latency", severity: "high",
-      evidence: ["graph-reference, turn 4: ttfa_p50_ms 3166"], finding: "Replies to the thank-you take 3166ms.",
-      why_it_matters: "Callers wait at the end of the call.", next_step: "Look at what the agent does after a thank-you." },
-  ],
-  rejected: [
-    { title: "Invented", reason: "cites 1830, which the data does not contain" },
-    { title: "Turn 4 again", reason: 'repeats "The closing turn is the slowest"' },
-  ],
-} }));
-for (const [name, ok] of [
-  ["analysis shows its headline", insightsHtml.includes("Only refund slows down with load")],
-  ["analysis shows each finding with its evidence", insightsHtml.includes("The closing turn is the slowest") && insightsHtml.includes("graph-reference, turn 4: ttfa_p50_ms 3166")],
-  ["analysis names the model that wrote it", insightsHtml.includes("Written analysis · gemini-3.5-flash")],
-  ["analysis counts what the number check dropped", insightsHtml.includes("Dropped: 1 claim that could not be checked, 1 repeating an earlier finding.")],
-]) {
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"}  ${name}`);
-}
-
-const ALL = [card, legacy, refsHtml, drifted, stuck, nojudge, task, thinHtml, phasedCard, judgedCard, heat, nodes, dup, lost, matrixCard, agentHtml, noPong, rttCard, suiteHtml, insightsHtml, shapedCard, deepgramCard].join(String.fromCharCode(10));
-const prose = [...ALL.matchAll(/<div class="read[^"]*">([\s\S]*?)<\/div>/g)]
-  // Inline tags are dropped rather than spaced out: <b> and <code> sit inside
-  // sentences, so replacing them with a space would invent gaps the reader
-  // never sees and hide the glued ones that matter. The blocks are joined with
-  // a gap instead, since those really are separate sentences.
-  .map(m => m[1].replace(/<[^>]+>/g, "").replace(/&#x27;/g, "'").replace(/&amp;/g, "&")
-                .replace(/\s+/g, " ").trim())
-  .join("  |  ");
-
-const broken = {
-  "NaN or undefined in a reading": /NaN|undefined/,
-  "number glued to the preceding word": /[a-z]{2}\d/,
-  "word glued to the preceding number": /\d[a-zA-Z]{3,}/,
-  "space before a full stop": / \./,
-  "dash glued to what follows": /[—–][0-9A-Za-z]/,
-};
-for (const [name, re] of Object.entries(broken)) {
-  const hit = prose.match(re);
-  if (hit) bad++;
-  console.log(`${hit ? "FAIL" : "ok  "}  no ${name}${hit ? ` — found ${JSON.stringify(prose.slice(Math.max(0, hit.index - 30), hit.index + 20))}` : ""}`);
-}
-
-// A source lint for the same bug, because the output scan above can only catch
-// the glue it can recognise. htm discards whitespace that spans a newline
-// exactly as JSX does, so a value at the end of one line and the word at the
-// start of the next arrive with nothing between them. That renders as
-// "705mson a typical turn" or "the job100.0% of the time": no error, no
-// warning, and a sentence that still looks finished.
-//
-// Reading the rendered prose only finds the branches a fixture happens to
-// exercise, and the branch that ships broken is always the other one. This
-// reads the template source instead, so an unpriced run's empty state is
-// checked as closely as the one the fixture produces.
-//
-// Attributes are exempt: whitespace between `x2=${a}` and `stroke="b"` is not
-// prose and does not matter.
-const lines = page.split(/\r?\n/);
-const glued = [];
-for (let i = 0; i < lines.length - 1; i++) {
-  const a = lines[i].replace(/\s+$/, ""), b = lines[i + 1].trim();
-  if (!a || !b) continue;
-  if (/^[a-zA-Z][\w-]*=/.test(b)) continue;       // next line is a tag attribute
-  if (a.endsWith("}") && a.includes("${") && /^[a-z(]/.test(b)) {
-    glued.push(`${i + 1}: value then "${b.slice(0, 34)}"`);
-  } else if (/[a-z,;:)—–]$/.test(a) && b.startsWith("${")) {
-    glued.push(`${i + 2}: "...${a.slice(-34)}" then value`);
-  } else if (/<\/(b|code|em|span|i)>$/.test(a) && /^[a-z(]/.test(b)) {
-    // The same trimming happens at element boundaries, not only at
-    // interpolations: a line ending in </code> and the next word arrive with
-    // nothing between them. That is where "Lengthen hold_sbefore trusting
-    // that" came from, and no amount of reading the fixture would have found
-    // it in a branch the fixture never takes.
-    glued.push(`${i + 1}: inline tag then "${b.slice(0, 30)}"`);
-  } else if (/[a-z,;:)]$/.test(a) && /^<(b|code|em|span|i)[ >]/.test(b)) {
-    glued.push(`${i + 2}: "...${a.slice(-30)}" then inline tag`);
+// Every tab renders the studio: one chart area, one takeaway, the tabs.
+for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]]) {
+  for (const t of mod.TABS) {
+    const html = page1(rep, label, t.id);
+    check(`${label}/${t.id}: chart area, takeaway and next step`,
+      html.includes('class="chart-area"') && html.includes('class="takeaway"') && html.includes("Inspect the evidence"));
+    check(`${label}/${t.id}: exactly one selected tab of ${mod.TABS.length}`,
+      (html.match(/role="tab"/g) || []).length === mod.TABS.length && (html.match(/aria-selected="true"/g) || []).length === 1);
+    const ev = drawer("evidence", rep, label, t.id);
+    check(`${label}/${t.id}: evidence drawer renders at least one card`, (ev.match(/class="evidence-block"/g) || []).length >= 1);
+    const me = drawer("method", rep, label, t.id);
+    check(`${label}/${t.id}: method drawer defines its terms`, me.includes("What these numbers mean") && me.includes("<dt>"));
   }
 }
-console.log(`${glued.length === 0 ? "ok  " : "FAIL"}  ${glued.length} template join sites where htm would drop the space`);
-for (const g of glued) console.log(`        ${g}`);
-bad += glued.length;
 
-console.log(`${warnings.length === 0 ? "ok  " : "FAIL"}  ${warnings.length} React warnings during render`);
-bad += warnings.length;
+// The page frame the demo has: heading, run picker, summary, tabs, below-note.
+{
+  const html = page1(run, "run", "load");
+  has(html, "eyebrow TEST RESULTS", "TEST RESULTS");
+  has(html, "page heading", "What did your phone assistant achieve?");
+  has(html, "run history button", "Run history");
+  has(html, "run picker names the run", "Run · run");
+  has(html, "at a glance", "AT A GLANCE");
+  has(html, "within baseline stat", "Calls handled at once");
+  has(html, "task success stat", "Tasks completed");
+  has(html, "cost stat", "Cost per call attempt");
+  has(html, "explore the evidence", "What would you like to understand?");
+  has(html, "how is this measured", "How is this measured?");
+  has(html, "view findings", "View findings");
+  has(html, "harness note names the check", "Harness suspect on");
+  has(html, "compare control", "Previous run");
+  const g = mod.glance(run, null, null);
+  check("glance headline names a concurrency", /\d+ concurrent/.test(g.headline[0]));
+  check("glance counts attention", /check/.test(g.pill));
+}
 
+// Load and latency: the chart, the selection, the takeaway, the evidence.
+{
+  const html = page1(run, "run", "load");
+  has(html, "question", "Does the assistant get slower as more people call?");
+  has(html, "p95 polyline drawn", "<polyline");
+  has(html, "fail line labelled", "2× baseline · fail");
+  has(html, "range control", "Inspect load");
+  has(html, "selected step observation", "SELECTED STEP");
+  has(html, "takeaway is the latency reading", "95 of every 100 turns were faster");
+  has(html, "takeaway explains the verdict bands", "past 1.5");
+  const pts = (html.match(/class="point"/g) || []).length;
+  check(`${pts} clickable points (want ${run.steps.length})`, pts === run.steps.length);
+
+  const ev = drawer("evidence", run, "run", "load");
+  has(ev, "report card table", "Every step, as measured");
+  has(ev, "component share", "Anatomy of the wait");
+  has(ev, "turn anatomy diagram", "transcript of you");
+  has(ev, "anatomy names the endpointing half", "listening to silence");
+  has(ev, "think/speak share label", "% think");
+  has(ev, "reference card", "Where this run sits against what others have published");
+  has(ev, "draws the end-of-speech clock", "From true end of speech");
+  has(ev, "draws the detection clock", "From detection");
+  has(ev, "says none of them decides the verdict", "none of them decides pass or fail");
+  has(ev, "integrity empty state", "No pipeline to check on this run");
+  has(ev, "what to investigate", "WHAT TO INVESTIGATE");
+  // A rect of zero width renders nothing, which is the silent way a bar chart lies.
+  const widths = [...ev.matchAll(/<rect[^>]*?\swidth="([\d.]+)"/g)].map(m => Number(m[1]));
+  const drawn = widths.filter(w => w > 1).length;
+  check(`${drawn} bar segments with real width (want at least ${run.steps.length * 2})`, drawn >= run.steps.length * 2);
+  const base = run.steps[0], peak = run.steps[run.steps.length - 1];
+  const tsGrew = peak.think_speak.p95_ms - base.think_speak.p95_ms;
+  const epGrew = peak.endpointing.p95_ms - base.endpointing.p95_ms;
+  if (run.steps.length > 1 && tsGrew > epGrew && tsGrew / base.think_speak.p95_ms >= 0.15) {
+    has(ev, "names think/speak as the saturating half", "Think/speak is the half that saturates");
+    check("does not also claim the other half", !ev.includes("Endpointing is the half that saturates"));
+  }
+  const cites = REFS.flatMap(r => r.cites);
+  const named = cites.filter(c => ev.includes(`${c.source}, ${c.title}`) && ev.includes(c.published) &&
+    (!c.url || ev.includes(`href="${c.url.replace(/&/g, "&amp;")}"`))).length;
+  check(`${named} of ${cites.length} citations named with their date`, cites.length > 0 && named === cites.length);
+
+  const me = drawer("method", run, "run", "load");
+  has(me, "method defines TTFA in plain words", "how long the line stays dead");
+  has(me, "method carries the formula", "value at rank");
+  has(me, "method carries the boundary table", "Whose boundary each number spans");
+}
+
+// Conversation: the bars, the observation, the evidence tables.
+{
+  const html = page1(run, "run", "conversation");
+  has(html, "question", "Did it sound like a conversation");
+  has(html, "80% line", "80% · lecturing");
+  has(html, "takeaway is the conversation reading", "visible in a latency chart");
+  has(html, "observation names pace", "wpm, caller");
+  const ev = drawer("evidence", run, "run", "conversation");
+  has(ev, "conversation heading", "How the calls sounded");
+  has(ev, "talk ratio cell", "38.9%");
+  has(ev, "agent pace cell", "100 wpm");
+  has(ev, "interruption score", "5.00");
+  has(ev, "dead air column", "none");
+}
+
+// Task success on an unjudged run, and on a judged one built from the fixture.
+{
+  const html = page1(run, "run", "quality");
+  has(html, "unjudged chart says so", "was not judged");
+  has(html, "unjudged takeaway", "This run was not judged");
+  const judged = JSON.parse(JSON.stringify(run));
+  judged.judge = {
+    backend: "test", judged: 3, passed: 2, errored: 0,
+    criteria: ["Asks for the order number", "Offers a replacement first"],
+    misses: [{ criterion: "Asks for the order number", judged: 3, missed: 0 }, { criterion: "Offers a replacement first", judged: 3, missed: 1, evidence: "turn 2: \"agent: I can refund that now.\"" }],
+    calls: [{ step: "c1", request_id: "aaaa1111", wer: 0.02, ref_words: 50, met: true, judged: true }, { step: "c1", request_id: "bbbb2222", wer: 0.09, ref_words: 50, met: false, judged: true }, { step: "c5", request_id: "cccc3333", wer: 0.01, ref_words: 50, met: true, judged: true }],
+    correlation: { calls: 3, threshold: 0.05, clean_calls: 2, clean_passed: 2, misheard_calls: 1, misheard_passed: 0, clean_pass_rate: 1, misheard_pass_rate: 0, gap: 1, conclusive: false, note: "too few judged calls to compare groups", median_wer_passed: 0.015, median_wer_failed: 0.09 },
+    judgements: [
+      { step: "c1", request_id: "aaaa1111", outcomes: [{ criterion: "Asks for the order number", met: true, evidence: "turn 1: \"agent: What is your order number?\"" }, { criterion: "Offers a replacement first", met: true, evidence: "turn 2: \"agent: I can send a replacement.\"" }] },
+      { step: "c1", request_id: "bbbb2222", outcomes: [{ criterion: "Asks for the order number", met: true, evidence: "turn 1: \"agent: Order number please?\"" }, { criterion: "Offers a replacement first", met: false, evidence: "turn 2: \"agent: I can refund that now.\"", reasoning: "The assistant went straight to a refund; no replacement was offered before it." }] },
+      { step: "c5", request_id: "cccc3333", outcomes: [{ criterion: "Asks for the order number", met: true, evidence: "turn 1" }, { criterion: "Offers a replacement first", met: true, evidence: "turn 2" }] },
+    ],
+  };
+  const jh = page1(judged, "judged", "quality");
+  has(jh, "criteria bars", 'class="scenario"');
+  has(jh, "criterion met rate", "67%");
+  has(jh, "observation quotes the judge", "Missed at turn 2");
+  has(jh, "task success stat is a rate", "66.7");
+  has(jh, "headline counts the job", "2 of 3 reviewed calls completed the task.");
+  const ev = drawer("evidence", judged, "judged", "quality");
+  has(ev, "task card", "Did it actually do the job?");
+  has(ev, "heard versus done", "Are the calls it misheard the calls it failed?");
+  has(ev, "call log", "3 graded conversations");
+  has(ev, "call log quotes evidence", "I can refund that now.");
+  has(ev, "call log shows the judge's reasoning", "no replacement was offered before it");
+  has(ev, "call log marks the miss", "missed 1 of 2");
+  has(ev, "call log points at the transcript file", "judged-calls.jsonl");
+  const fi = drawer("findings", judged, "judged", "quality");
+  has(fi, "findings list the task reading", "No conclusion to draw yet");
+}
+
+// Call logs: the transcripts, turn by turn, with the judge's lines attached.
+{
+  const calls = [
+    { step: run.steps[0].name, request_id: "aaaa1111-0000", turns: [
+      { turn: 1, caller_text: "Sure, it's four four eight one two.", agent_text: "Thank you, order four four eight two.", heard_text: "Sure, it's four four eight two.", failed: false, ttfa_ms: 640, endpointing_ms: 220, think_speak_ms: 420, agent_speech_ms: 1800, turn_latency_ms: 2440, pacing_drift_ms: 8 },
+      { turn: 2, caller_text: "Can I get a refund instead?", agent_text: "", heard_text: "Can I get a refund instead?", failed: true, fail_reason: "no audio within 8s", ttfa_ms: 0, endpointing_ms: 0, think_speak_ms: 0, agent_speech_ms: 0, turn_latency_ms: 0, pacing_drift_ms: 9 },
+    ] },
+    { step: run.steps[run.steps.length - 1].name, request_id: "bbbb2222-0000", turns: [
+      { turn: 1, caller_text: "Hello?", agent_text: "Hi, how can I help?", heard_text: "Hello?", failed: false, ttfa_ms: 2400, endpointing_ms: 300, think_speak_ms: 2100, agent_speech_ms: 900, turn_latency_ms: 3300, pacing_drift_ms: 5, barged_in: true, barge_in_yield_ms: 410 },
+    ] },
+    // The newer file shape: a call that never connected, and a turn with an
+    // empty heard_text, a node expectation it missed, and a measured round trip.
+    { step: run.steps[0].name, request_id: "cccc3333-0000", error: "dial: connection timed out", turns: [] },
+    { step: run.steps[0].name, request_id: "dddd4444-0000", turns: [
+      { turn: 1, caller_text: "My order number is four one nine two.", agent_text: "Reference reply.", heard_text: "", node: "number", expect_checked: true, expect_met: false, expect_miss: "said none of [\"four one nine two\"]", failed: false, ttfa_ms: 500, endpointing_ms: 200, think_speak_ms: 300, agent_speech_ms: 1000, turn_latency_ms: 1500, pacing_drift_ms: 4, transport_rtt_ms: 12.5, transport_rtt_measured: true },
+    ] },
+  ];
+  const html = page1(run, "run", "calls", { initialCalls: calls });
+  has(html, "never-connected call named", "never connected");
+  has(html, "never-connected call carries its error", "dial: connection timed out");
+  check("empty heard_text is not shown as misheard", !html.includes("heard as: “”"));
+  has(html, "node named on the turn", "TURN 1 · number");
+  has(html, "missed expectation shown", "Expected reply not met: said none of");
+  has(html, "round trip shown when measured", "round trip 13ms");
+  has(html, "takeaway counts calls that never connected", "1 call never connected");
+  has(html, "call logs question", "What was actually said?");
+  has(html, "caller line", "four four eight one two");
+  has(html, "heard-as line shows the mishearing", "heard as: “Sure, it&#x27;s four four eight two.”");
+  has(html, "agent reply", "order four four eight two");
+  has(html, "failed turn named", "no audio within 8s");
+  has(html, "dead air marked", "dead air");
+  has(html, "barge-in yield shown", "yielded in 410ms");
+  has(html, "step filter", "All steps");
+  has(html, "search box", "Search what was said");
+  has(html, "takeaway counts the calls", "4 calls and 4 turns");
+  has(html, "takeaway counts the mishearing", "1 was heard differently");
+  has(html, "next step names the slowest turn", "turn 1, 2400ms to first audio");
+  has(page1(run, "run", "calls", { initialCalls: null }), "missing calls file says so", "No calls file for this run");
+  has(page1(run, "run", "calls"), "loading state", "Loading the calls file");
+  const judged = JSON.parse(JSON.stringify(run));
+  judged.judge = { backend: "t", judged: 1, passed: 0, errored: 0, criteria: ["Confirms the order number"],
+    misses: [{ criterion: "Confirms the order number", judged: 1, missed: 1 }], calls: [], correlation: {},
+    judgements: [{ step: run.steps[0].name, request_id: "aaaa1111-0000", outcomes: [{ criterion: "Confirms the order number", met: false, evidence: "turn 1: \"agent: Thank you, order four four eight two.\"" }] }] };
+  const jh = page1(judged, "judged", "calls", { initialCalls: calls });
+  has(jh, "judge's verdict attached to the turn it quotes", 'class="judged-lines"');
+  has(jh, "call badge shows the miss", "missed 1 of 1");
+  has(drawer("evidence", judged, "judged", "calls"), "call-log evidence carries the judgements", "1 graded conversations");
+
+  // The representative slow turn in the latency evidence: the slowest real
+  // turn at the selected step, with its stages and its words.
+  const ev = render(mod.Report, { rep: { ...run, id: "run" }, id: "run", refs: REFS, runs: index, prev: null, initialTab: "load", initialDrawer: "evidence", initialCalls: calls, onOpenRuns() {} });
+  has(ev, "slow turn card", "ONE REPRESENTATIVE SLOW TURN");
+  has(ev, "slow turn asks about the selected step", `What happens at ${run.steps[0].concurrency} concurrent call`);
+  has(ev, "stage bar drawn", 'class="trace-bar"');
+  has(ev, "endpointing row", "Endpointing</span><strong>220ms");
+  has(ev, "think/speak row", "Think / speak</span><strong>420ms");
+  has(ev, "speaking row", "Agent speaking</span><strong>1800ms");
+  has(ev, "total row", "Total turn</span><strong>2440ms");
+  has(ev, "the turn's words", "order four four eight two");
+  has(ev, "what to investigate", "What to investigate");
+  has(ev, "jump to the call log", "Read the whole call in the log");
+  // The timeline: every call on the run's own clock, with a recovery step
+  // that came back, drawn from the timestamped report shape.
+  const timed = JSON.parse(JSON.stringify(run));
+  const t0 = Date.parse("2026-09-13T10:00:00Z");
+  timed.steps.forEach((s, i) => {
+    s.started_at = new Date(t0 + i * 60000).toISOString();
+    s.ended_at = new Date(t0 + i * 60000 + 50000).toISOString();
+    s.timeline = Array.from({ length: 12 }, (_, k) => ({ at: new Date(t0 + i * 60000 + k * 4000).toISOString(), ttfa_ms: 600 + k * (i === 1 ? 40 : 2), ...(k === 5 && i === 0 ? { failed: true } : {}) }));
+  });
+  timed.steps[0].timeline.push({ at: new Date(t0 + 49000).toISOString() });
+  const rec = timed.steps[timed.steps.length - 1];
+  rec.phase = { kind: "recovery", drift: "steady", held_s: 50, back_to_normal: true, back_to_normal_after_s: 12.5, recovered: true };
+  const tl = render(mod.Report, { rep: { ...timed, id: "timed" }, id: "timed", refs: REFS, runs: index, prev: null, initialTab: "load", initialDrawer: "evidence", initialCalls: null, onOpenRuns() {} });
+  has(tl, "timeline card", "Every call on the run&#x27;s own clock");
+  has(tl, "step bands labelled", `${timed.steps[0].name}</text>`);
+  has(tl, "recovery marked", "back to normal · 13s");
+  has(tl, "a call with no timed turn drawn as a cross", "✕</text>");
+  const dots = (tl.match(/<circle[^>]*r="2.6"/g) || []).length;
+  check(`${dots} timeline dots (want ${timed.steps.length * 12})`, dots === timed.steps.length * 12);
+  has(tl, "timeline reading names the recovery time", "came back 13s after the load dropped");
+  has(tl, "timeline surfaces the harness-suspect flag", "these dots measure the");
+  has(tl, "band labels clip to their band", "clip-path=\"url(#tl-0)\"");
+  const immediate = JSON.parse(JSON.stringify(timed));
+  immediate.steps[immediate.steps.length - 1].phase = { kind: "recovery", drift: "steady", held_s: 50, back_to_normal: true, recovered: true };
+  has(render(mod.Report, { rep: { ...immediate, id: "im" }, id: "im", refs: REFS, runs: index, prev: null, initialTab: "load", initialDrawer: "evidence", initialCalls: null, onOpenRuns() {} }),
+    "a recovery with no delay is read as immediate, not as 0s", "back to normal from the first call after the load dropped");
+  check("timeline absent on a run without one", !drawer("evidence", run, "run", "load").includes("Every call on the run&#x27;s own clock"));
+  const drifting = JSON.parse(JSON.stringify(timed)); drifting.steps.pop();
+  has(render(mod.Report, { rep: { ...drifting, id: "d" }, id: "d", refs: REFS, runs: index, prev: null, initialTab: "load", initialDrawer: "evidence", initialCalls: null, onOpenRuns() {} }),
+    "timeline reading catches a step that drifts across its own points", `${timed.steps[1].name} got slower across its own`);
+
+  // The event log and per-turn instants on the newer calls shape.
+  const eventful = [{ step: run.steps[0].name, request_id: "eeee5555-0000", started_at: "2026-09-13T10:00:01Z", ended_at: "2026-09-13T10:00:31Z",
+    events: [{ t_ms: 0, kind: "connect" }, { t_ms: 1000, kind: "ping", text: "rtt 0.52ms" }, { t_ms: 5600, kind: "caller_end", turn: 1 }, { t_ms: 6102, kind: "first_audio", turn: 1, bytes: 3200 }],
+    turns: [{ turn: 1, started_at: "2026-09-13T10:00:01Z", caller_text: "Hi there.", agent_text: "Hello.", heard_text: "Hi there.", failed: false, ttfa_ms: 502, endpointing_ms: 200, think_speak_ms: 302, caller_start_ms: 0, caller_end_ms: 5600, heard_ms: 5800, first_audio_ms: 6102, playout_end_ms: 8102, agent_speech_ms: 2000, turn_latency_ms: 2502, pacing_drift_ms: 3, transport_rtt_ms: 0, transport_rtt_measured: true }] }];
+  const eh = page1(run, "run", "calls", { initialCalls: eventful });
+  has(eh, "call header carries its start and length", "· 30s");
+  has(eh, "event log offered", "4 events on the call&#x27;s clock");
+  {
+    // A judged run: graded calls carry a verdict, the rest say they were not graded.
+    const jrun = JSON.parse(JSON.stringify(run));
+    jrun.judge = { backend: "t", judged: 1, passed: 1, errored: 0, criteria: ["c"], misses: [], calls: [], correlation: {},
+      judgements: [{ step: run.steps[0].name, request_id: "aaaa1111-0000", outcomes: [{ criterion: "c", met: true, evidence: "turn 1" }] }] };
+    const jh = page1(jrun, "jrun", "calls", { initialCalls: calls });
+    has(jh, "graded call carries its verdict", "did the job");
+    has(jh, "ungraded call says so", "not graded");
+  }
+  has(eh, "event rows", "rtt 0.52ms");
+  has(eh, "event bytes", "3200 bytes");
+  has(eh, "per-turn instants on the call's clock", "first audio at 6.10s");
+  const callerClock = new Date(Date.parse("2026-09-13T10:00:01Z")).toLocaleTimeString();
+  const agentClock = new Date(Date.parse("2026-09-13T10:00:01Z") + 6102).toLocaleTimeString();
+  has(eh, "caller line carries its wall-clock time", `CALLER · ${callerClock} · TURN 1`);
+  has(eh, "agent reply carries its wall-clock time (first audio)", `AGENT · ${agentClock} · 502ms to first audio`);
+  check("a file without instants shows no clock on the turn", page1(run, "run", "calls", { initialCalls: calls }).includes("CALLER · TURN 1"));
+  has(eh, "a measured zero round trip is shown as zero", "round trip 0ms");
+  const flagOnly = [{ step: run.steps[0].name, request_id: "ffff6666-0000", turns: [{ turn: 1, caller_text: "Hi.", agent_text: "Hello.", failed: false, ttfa_ms: 500, endpointing_ms: 200, think_speak_ms: 300, transport_rtt_measured: true }] }];
+  // Older files dropped a real zero through omitempty: the flag alone means 0ms.
+  has(page1(run, "run", "calls", { initialCalls: flagOnly }), "a measured flag with no number is read as a zero round trip", "round trip 0ms");
+  const evNone = render(mod.Report, { rep: { ...run, id: "run" }, id: "run", refs: REFS, runs: index, prev: null, initialTab: "load", initialDrawer: "evidence", initialCalls: null, onOpenRuns() {} });
+  has(evNone, "slow turn absent-file state", "No calls file for this run");
+  has(drawer("evidence", run, "run", "load"), "slow turn loading state", "Reading the calls file");
+}
+
+// Network on the matrix: the grid in the chart area, and the drawer's commands.
+{
+  const html = page1(matrix, "matrix", "network");
+  has(html, "question", "Does a bad line break it before load does?");
+  const cells = (html.match(/class="hm"/g) || []).length;
+  const want = matrix.matrix.cohorts.reduce((a, c) => a + (c.steps || []).length, 0);
+  check(`${cells} heatmap cells in the chart area (want ${want})`, cells === want);
+  has(html, "metric picker", "p95 × clean");
+  has(html, "worst cohort observation", "WORST COHORT");
+  const ev = drawer("evidence", matrix, "matrix", "network");
+  has(ev, "the command as run", "tc qdisc");
+  check("node scores rendered or explained", ev.includes("Which part of the conversation gave way") || ev.includes("No node was scored"));
+  has(page1(run, "run", "network"), "unimpaired run says so", "unimpaired network");
+}
+
+// Cost: the line and the projection to real money.
+{
+  const html = page1(run, "run", "cost");
+  has(html, "question", "Is each call costing more under load?");
+  has(html, "cost polyline present", "<polyline");
+  has(html, "cost takeaway projects to real money", "a month");
+  // The readings are spliced in verbatim; a String.replace once ate their "$$".
+  check("cost reading keeps its dollar signs", /A turn cost\s*\$\d/.test(html));
+  const ev = drawer("evidence", run, "run", "cost");
+  has(ev, "cost card", "Where the billed minutes go");
+  has(ev, "cost table", "Per turn");
+}
+
+// Pricing from connection time: a run the harness never priced, with calls
+// that carry start and end instants, priced at Deepgram's published rate.
+{
+  const unpriced = JSON.parse(JSON.stringify(run));
+  for (const s of unpriced.steps) { delete s.cost; s.calls_attempted = 2; }
+  unpriced.started_at = "2026-09-13T16:44:09Z";
+  const t0 = Date.parse("2026-09-13T16:44:09Z");
+  const calls = unpriced.steps.flatMap((s, i) => [0, 1].map(k => ({
+    step: s.name, request_id: `p${i}${k}`, started_at: new Date(t0 + i * 120000 + k * 1000).toISOString(),
+    ended_at: new Date(t0 + i * 120000 + k * 1000 + 60000).toISOString(), turns: [] })));
+  const html = page1(unpriced, "unpriced", "cost", { initialCalls: calls });
+  has(html, "priced from connection time", "priced from each call&#x27;s connection time");
+  has(html, "promotional rate in force on the run's date", "$0.056 per minute");
+  has(html, "tier picker", "Deepgram tier");
+  has(html, "rate is editable", 'type="number"');
+  has(html, "cost line drawn from the estimate", "<polyline");
+  // 2 calls × 1 minute per step at $0.056: $0.112 a step, $0.056 a call.
+  has(html, "per-call figure on the glance", "$0.056");
+  has(html, "observation counts connected minutes", "2.0 connected minutes across 2 calls");
+  has(html, "takeaway is the cost reading", "a month");
+  const ev = render(mod.Report, { rep: { ...unpriced, id: "unpriced" }, id: "unpriced", refs: REFS, runs: index, prev: null, initialTab: "cost", initialDrawer: "evidence", initialCalls: calls, onOpenRuns() {}, onPick() {} });
+  has(ev, "evidence card is the estimate", "Priced from connection time");
+  has(ev, "evidence cites the source", "deepgram.com/pricing");
+  has(ev, "evidence totals the run", `$${(0.112 * unpriced.steps.length).toFixed(2)}`);
+  has(page1(unpriced, "unpriced", "cost"), "cost tab waits for the calls file", "Reading the calls file to price this run");
+  has(page1(unpriced, "unpriced", "cost", { initialCalls: null }), "no calls file falls back to the unpriced note", "predates cost accounting");
+  const later = JSON.parse(JSON.stringify(unpriced)); later.started_at = "2026-10-01T10:00:00Z";
+  has(page1(later, "later", "cost", { initialCalls: calls }), "list rate after the promotion ends", "$0.075 per minute");
+}
+
+// Phases: the shape table appears in the evidence only when the run has one.
+{
+  has(drawer("evidence", phases, "phases", "load"), "phase table", "What each phase did over its own duration");
+  check("phase table absent on a run of plain ramps", !drawer("evidence", run, "run", "load").includes("What each phase did"));
+}
+
+// A run recorded before these fields existed: the empty states say something.
+{
+  const old = JSON.parse(JSON.stringify(run));
+  for (const s of old.steps) { delete s.conversation; delete s.cost; }
+  has(page1(old, "old", "conversation"), "legacy run explains missing conversation data", "predates talk ratio");
+  has(page1(old, "old", "cost"), "legacy run explains missing cost data", "predates cost accounting");
+  has(drawer("evidence", old, "old", "load"), "legacy run still draws the component split", "Anatomy of the wait");
+}
+
+// The findings drawer: every reading the run supports, each naming its tab.
+{
+  const items = mod.findings(run, REFS);
+  // The call-log tab reads its takeaway from the calls file, not the report.
+  check(`findings cover every report tab (${items.length})`, mod.TABS.filter(t => t.id !== "calls").every(t => items.some(f => f.tab === t.id)));
+  const html = drawer("findings", run, "run", "load");
+  has(html, "findings heading counts", "things to look at.");
+  check("one finding row per finding", (html.match(/class="finding-row"/g) || []).length === items.length);
+}
+
+// The run chooser and the frame around it.
+{
+  const list = render(mod.RunList, { runs: index, sel: "r1", onPick() {} });
+  has(list, "runs listed", `${run.profile} · ${run.scenario}`);
+  has(list, "selected run marked", "✓ Selected");
+  has(list, "verdict badges", "cs-badge-danger");
+  has(list, "breakpoint flagged", "breaks at stress at 30 concurrent");
+  has(list, "judged flagged", "judged 5/6");
+  has(render(mod.Trend, { runs: index }), "trend drawn", "WORST P95 · LAST 3 RUNS");
+  has(render(mod.RunList, { runs: [], sel: null, onPick() {} }), "empty history says so", "No runs yet");
+  const side = render(mod.Sidebar, { count: 3, target: "ws://agent.example:8080/v1", who: "Yaksh Gandhi", onOverview() {}, onRuns() {}, onAbout() {} });
+  has(side, "sidebar nav counts runs", "Test history");
+  has(side, "sidebar workspace host", "agent.example:8080");
+}
+
+// Suites: several runs shown as one test, in the history and above the report.
+{
+  const suite = "deepgram-full-test";
+  const parts = [
+    { id: "s1", suite, profile: "sweep-deepgram-30", scenario: "refund-escalation", started_at: "2026-09-13T16:44:00Z", verdict: "pass", steps: 5, peak_concurrency: 40, worst_p95_ms: 1200, judged: 20, passed: 19, target: "t" },
+    { id: "s2", suite, profile: "sweep-deepgram-30", scenario: "refund-bargein", started_at: "2026-09-13T17:10:00Z", verdict: "fail", steps: 5, peak_concurrency: 40, worst_p95_ms: 3100, breakpoint: "c40 at 40 concurrent", judged: 20, passed: 16, target: "t" },
+    { id: "s3", suite, profile: "impair-ref", scenario: "refund-escalation", started_at: "2026-09-13T17:40:00Z", verdict: "pass", steps: 2, peak_concurrency: 8, worst_p95_ms: 600, cohorts: 4, network_breaks: ["severe at c2"], harness_degraded: true, target: "t" },
+  ];
+  const withSuite = [parts[2], parts[1], parts[0], ...index];
+  const list = render(mod.RunList, { runs: withSuite, sel: "s2", onPick() {} });
+  has(list, "suite folded into one history entry", `Suite · ${suite}`);
+  check("suite entry appears once", (list.match(/Suite · deepgram-full-test/g) || []).length === 1);
+  has(list, "suite carries the worst verdict", 'class="run-suite selected"');
+  has(list, "suite sums judged counts", "judged 35/40");
+  has(list, "suite counts parts that found a limit", "2 found a limit");
+  has(list, "parts listed in run order", "Part 1 · sweep-deepgram-30 · refund-escalation");
+  has(list, "network part listed", "Part 3 · impair-ref");
+  const groups = mod.groupRuns(withSuite);
+  check(`history has ${groups.length} entries for ${withSuite.length} runs`, groups.length === withSuite.length - 2);
+
+  const rep = { ...run, id: "s2", profile: "sweep-deepgram-30", scenario: "refund-bargein", started_at: "2026-09-13T17:10:00Z" };
+  const page = render(mod.Report, { rep, id: "s2", refs: REFS, runs: withSuite, prev: null, onOpenRuns() {}, onPick() {} });
+  has(page, "suite strip above the report", `SUITE · ${suite}`);
+  has(page, "suite strip counts parts", "3 parts, one test");
+  has(page, "suite strip names the limits found", "refund-bargein on sweep-deepgram-30 at c40 at 40 concurrent");
+  has(page, "suite strip names the network limit", "impair-ref at severe at c2");
+  has(page, "open part marked", "2 · open");
+  has(page, "suspect part flagged in the strip", "⚠ harness suspect");
+  has(page, "suite reading names the suspect part", "1 of 3 parts drifted past the 100ms pacing limit");
+  has(list, "suite entry counts suspect parts", "1 harness suspect");
+  has(page, "run picker names the part", "Suite part 2 of 3");
+  check("no suite strip on a plain run", !page1(run, "run", "load").includes("SUITE ·"));
+}
+
+// The written analysis: a model's reading of the run, every number checked,
+// dropped claims counted; on a run above the questions, on a suite under the parts.
+{
+  const analysis = {
+    kind: "run", subject: "run", runs: ["run"], generated_at: "2026-09-13T20:00:00Z", model: "gemini-3.5-flash",
+    headline: "The agent holds its baseline to 15 concurrent calls but talks over the caller once in eight turns.",
+    insights: [
+      { title: "Think/speak grows with load, endpointing does not", category: "latency", severity: "medium",
+        evidence: ["think/speak p95 rose from 420ms at c1 to 640ms at c15", "endpointing p95 held between 200ms and 230ms"],
+        finding: "The reply, not the listening, is what slows down.", why_it_matters: "A faster silence threshold would change nothing.", next_step: "Stream the voice so audio starts before the sentence is finished." },
+      { title: "Every graded call did the job", category: "quality", severity: "info", evidence: ["20 of 20 met every criterion"], finding: "Task success is not the limit here.", why_it_matters: "", next_step: "" },
+    ],
+    rejected: [{ title: "Setup success fell to 90% at c15", reason: "the data holds 100% setup success at every step" }],
+  };
+  const html = page1(run, "run", "load", { initialInsights: analysis });
+  has(html, "analysis headline", "talks over the caller once in eight turns");
+  has(html, "model named", "GEMINI-3.5-FLASH");
+  has(html, "insight title", "Think/speak grows with load, endpointing does not");
+  has(html, "severity badge", 'class="cs-badge cs-badge-warning">medium');
+  has(html, "evidence listed", "endpointing p95 held between 200ms and 230ms");
+  has(html, "next step", "Stream the voice so audio starts");
+  has(html, "dropped claims counted", "Dropped: 1 claim that could not be checked");
+  has(html, "dropped claim reason", "the data holds 100% setup success at every step");
+  check("analysis sits above the questions", html.indexOf("talks over the caller") < html.indexOf("What would you like to understand?"));
+  has(page1(run, "run", "load", { initialInsights: null }), "no analysis says how to get one", "No written analysis for this run");
+  has(page1(run, "run", "load"), "analysis loading state", "Looking for a written analysis");
+  // On a suite, the suite's analysis sits under the parts table.
+  const suite = "deepgram-full-test";
+  const parts = [
+    { id: "s1", suite, profile: "sweep", scenario: "a", started_at: "2026-09-13T16:44:00Z", verdict: "pass", steps: 5, peak_concurrency: 40, worst_p95_ms: 1200, target: "t" },
+    { id: "s2", suite, profile: "sweep", scenario: "b", started_at: "2026-09-13T17:10:00Z", verdict: "fail", steps: 5, peak_concurrency: 40, worst_p95_ms: 3100, breakpoint: "c40 at 40 concurrent", target: "t" },
+  ];
+  const sa = { ...analysis, kind: "suite", subject: suite, runs: ["s1", "s2"], headline: "Two of five scenarios break at five concurrent calls.", rejected: [] };
+  const sp = render(mod.Report, { rep: { ...run, id: "s2", profile: "sweep", scenario: "b" }, id: "s2", refs: REFS, runs: [parts[1], parts[0], ...index], prev: null, initialInsights: null, initialSuiteInsights: sa, onOpenRuns() {}, onPick() {} });
+  has(sp, "suite analysis headline", "Two of five scenarios break at five concurrent calls.");
+  check("suite analysis sits under the parts table", sp.indexOf("Two of five scenarios") > sp.indexOf("parts, one test") && sp.indexOf("Two of five scenarios") < sp.indexOf("AT A GLANCE"));
+  has(sp, "suite analysis notes its run count", "from 2 runs");
+}
+
+// The plain-language questions: the same answers as the classic page, one-liners
+// as an index, each opening to the full answer and its chart.
+{
+  const html = page1(run, "run", "load");
+  has(html, "questions section", "questions answered, in plain words");
+  has(html, "capacity question asked", "How many calls at the same time can it take before callers notice it getting slower?");
+  has(html, "capacity group", "HOW MUCH IT CAN TAKE");
+  has(html, "a one-liner answer", "at once");
+  has(html, "a full answer", 'class="q-answer"');
+  has(html, "a method line", "The slowest callers means the wait that 95 turns in 100 beat");
+  has(html, "a chart of the evidence", 'class="qchart"');
+  has(html, "an unanswered question says what it would take", "Not answered by this run.");
+  has(html, "what the test cannot tell you", "What this kind of test can&#x27;t tell you");
+  check("no answer failed to compute", !html.includes("could not be worked out"));
+  check("questions sit between the analysis and the evidence tabs",
+    html.indexOf("questions answered, in plain words") < html.indexOf("What would you like to understand?"));
+  const qs = (html.match(/<details class="q/g) || []).length;
+  check("only answered questions appear individually, plus the test limitations", qs === mod.buildQuestions(run, index, "run").filter(q => !q.missing).length + 1);
+  has(html, "the newer questions carried over", "Does it get worse at the job before it gets too slow?");
+  has(page1(phases, "phases", "load"), "recovery question answered on a run with a recovery step", "After a rush ends, how long does it take to get back to normal?");
+}
+
+// The reference sections the original page opens with, kept on the page.
+{
+  const gl = render(mod.Glossary, {});
+  has(gl, "glossary card", "What each number catches");
+  has(gl, "glossary defines TTFA in plain words", "how long the line stays dead");
+  has(gl, "glossary explains p95 vs p50", "worse than 95% of the rest");
+  const ab = render(mod.About, {});
+  has(ab, "the two questions", "stop meeting its own baseline?");
+  has(ab, "the thesis", "stamps every instant on both");
+  has(ab, "capabilities", "Prometheus native histograms");
+  has(ab, "the foundation", "calibrated against known answers");
+  const ap = render(mod.Appendix, { refs: REFS });
+  has(ap, "appendix", "How every number is computed");
+  has(ap, "boundary table", "Whose boundary each number spans");
+}
+
+
+// Values are stage-specific; absent measurements must not become zero.
+{
+  const v = mod.appendixValues(run, run.steps[0], run.steps, REFS, null, null);
+  has(render(mod.ComputedAppendix, {rep:run, refs:REFS}), "calculation selector", 'aria-label="Calculation table test stage"');
+  check("TTFA table uses selected stage", v.TTFA.includes(Math.round(run.steps[0].ttfa.p95_ms) + "ms"));
+  check("reference table uses numeric percentile and correct clock", !v["Reference line"].includes("measured -"));
+  const empty = mod.appendixValues({steps:[{}]}, {}, [{}], [], null, null);
+  check("missing RTT stays missing", empty["Round trip"] === "Not measured");
+  const zero = mod.appendixValues({steps:[]}, {transport_rtt:{n:2,p50_ms:0,p95_ms:0}}, [], [], null, null);
+  check("measured zero RTT remains zero", zero["Round trip"].includes("p95 0ms"));
+  const e = {rate:.056,rows:[{name:run.steps[0].name,cost:{usd:.112,agent_minutes:2}}]};
+  const unpriced = {...run,steps:run.steps.map(s=>({...s,cost:undefined}))};
+  const priced = mod.appendixValues(unpriced, unpriced.steps[0], unpriced.steps, [], e, null);
+  check("estimated formula substitutes connection minutes and rate", priced.Cost.includes("2 min × $0.056/min = $0.112"));
+  const grouped = render(mod.Questions,{rep:run,runs:index,id:"run"});
+  check("missing questions aggregated after answered questions", grouped.indexOf('class="unanswered-questions') > grouped.lastIndexOf('class="q-body"'));
+  const qualityRun = {...run, steps:run.steps.map(s => ({...s,quality:{verdict:"pass",compared:["failed turns"]}}))};
+  const qualityQuestions = mod.buildQuestions(qualityRun, index, "run");
+  check("quality comparisons render with Calm badges", !qualityQuestions.some(q => q.id.startsWith("failed-")));
+  const chart = render(mod.ComponentShare,{rep:run});
+  check("wait bar segments have visible millisecond labels", /text-anchor="middle"[^>]*>\d+ms<\/text>/.test(chart));
+}
+
+check(`no React warnings (${warnings.length})`, warnings.length === 0);
+for (const w of warnings) console.log("   ", w.slice(0, 300));
+
+console.log(bad === 0 ? "\nall checks passed" : `\n${bad} check(s) failed`);
 process.exit(bad === 0 ? 0 : 1);

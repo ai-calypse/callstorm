@@ -97,12 +97,16 @@ func exportStatic(runsDir, dst string) error {
 		return err
 	}
 
-	page, err := ui.ReadFile("ui/index.html")
-	if err != nil {
-		return err
-	}
-	if err := os.WriteFile(filepath.Join(dst, "index.html"), page, 0o644); err != nil {
-		return err
+	// The page and the stylesheets it links beside it: the design kit's
+	// theme and components, and the dashboard's own layout on top of them.
+	for _, name := range []string{"index.html", "theme.css", "components.css", "dashboard.css", "clarity.css"} {
+		b, err := ui.ReadFile("ui/" + name)
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(dst, name), b, 0o644); err != nil {
+			return err
+		}
 	}
 	// GitHub Pages otherwise runs the output through Jekyll, which drops files
 	// and directories whose names begin with an underscore.
