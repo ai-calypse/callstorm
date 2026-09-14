@@ -8,6 +8,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"math"
@@ -1169,13 +1170,18 @@ func writeInsights(ctx context.Context, o opts, reportPaths []string, suites map
 	if !ok {
 		return
 	}
+	type job struct {
+		d    insights.Digest
+		path string
+	}
+	var jobs []job
 	for _, p := range reportPaths {
 		d, err := insights.ForRun(p)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "insights: %v\n", err)
 			continue
 		}
-		saveInsights(ctx, o, m, d, insights.PathForRun(p))
+		jobs = append(jobs, job{d, insights.PathForRun(p)})
 	}
 	for suite, dir := range suites {
 		d, err := insights.ForSuite(dir, suite)
@@ -1183,26 +1189,37 @@ func writeInsights(ctx context.Context, o opts, reportPaths []string, suites map
 			fmt.Fprintf(os.Stderr, "insights: %v\n", err)
 			continue
 		}
-		saveInsights(ctx, o, m, d, insights.PathForSuite(dir, suite))
+		jobs = append(jobs, job{d, insights.PathForSuite(dir, suite)})
+	}
+	for i, j := range jobs {
+		if err := saveInsights(ctx, o, m, j.d, j.path); errors.Is(err, insights.ErrLimited) {
+			// Analyses already written stay as they were, and a later run
+			// skips every one that is up to date, so rerunning costs only the
+			// ones left.
+			fmt.Fprintf(os.Stderr, "insights: stopped with %d analyses not written; run -insights again once Gemini's limit resets\n", len(jobs)-i)
+			return
+		}
 	}
 }
 
-func saveInsights(ctx context.Context, o opts, m insights.Model, d insights.Digest, path string) {
+// saveInsights writes one analysis. The error is returned only so a batch can
+// stop at a rate limit; it has already been reported.
+func saveInsights(ctx context.Context, o opts, m insights.Model, d insights.Digest, path string) error {
 	if insights.Unchanged(path, o.insightsModel, d) {
 		fmt.Printf("\ninsights     %s %s already analysed from this data with these instructions; kept as it is\n", d.Kind, d.Subject)
-		return
+		return nil
 	}
 	fmt.Printf("\ninsights     writing the analysis of %s %s with %s\n", d.Kind, d.Subject, o.insightsModel)
 	r, err := insights.Generate(ctx, m, o.insightsModel, d)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "insights: %s %s: %v\n", d.Kind, d.Subject, err)
-		return
+		return err
 	}
 	if err := r.Write(path); err != nil {
 		fmt.Fprintf(os.Stderr, "insights: %v\n", err)
-		return
+		return err
 	}
-	fmt.Printf("insights     %d kept, %d dropped by the number check  %s\n", len(r.Insights), len(r.Rejected), path)
+	fmt.Printf("insights     %d kept, %d dropped as unchecked or repeated  %s\n", len(r.Insights), len(r.Rejected), path)
 	if r.Headline != "" {
 		fmt.Printf("             %s\n", r.Headline)
 	}
@@ -1212,6 +1229,7 @@ func saveInsights(ctx context.Context, o opts, m insights.Model, d insights.Dige
 	for _, rj := range r.Rejected {
 		fmt.Printf("  dropped %s: %s\n", rj.Title, rj.Reason)
 	}
+	return nil
 }
 
 // runInsights is -insights: the analysis of one report and its suite, or of
