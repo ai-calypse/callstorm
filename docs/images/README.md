@@ -1,6 +1,8 @@
 # README screenshots
 
 - `callstorm-overview.png`: the dashboard's result summary and overview.
+- `callstorm-tour.gif`: a 28-second scripted tour of the live GitHub Pages site
+  through every view, recorded headless at 1440×900 and encoded at 8 fps.
 - `callstorm-evidence.png`: speed and capacity evidence, including the
   relative-baseline verdict and the test-timing caveat.
 

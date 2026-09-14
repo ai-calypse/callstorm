@@ -12,7 +12,7 @@
 [![Pages](https://img.shields.io/github/actions/workflow/status/ai-calypse/callstorm/pages.yml?branch=main&style=for-the-badge&label=deploy)](https://github.com/ai-calypse/callstorm/actions/workflows/pages.yml)
 [![Go 1.25+](https://img.shields.io/badge/Go-1.25%2B-00ADD8?style=for-the-badge&logo=go&logoColor=white)](go.mod)
 [![Deepgram Voice Agent](https://img.shields.io/badge/Target-Deepgram_Voice_Agent-13EF93?style=for-the-badge)](https://developers.deepgram.com/docs/voice-agent)
-[![Real calls](https://img.shields.io/badge/Real_calls_in_repo-270-blueviolet?style=for-the-badge)](runs/)
+[![Real calls](https://img.shields.io/badge/Real_calls_in_repo-1320-blueviolet?style=for-the-badge)](runs/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-236a59?style=for-the-badge)](LICENSE)
 
 <br/>
@@ -64,7 +64,7 @@ Reply time says nothing about the reply. An agent that endpoints early answers q
 
 ### 2. Connected, but the job never got done
 
-A 100 percent connection rate is the floor, not the result. Across the 27 judged calls in this repository, **18 met every requirement of the refund scenario**. Connection rate cannot tell you which nine did not, or why.
+A connection rate is the floor, not the result. Of the 1,075 judged calls in this repository, **1,059 completed the task**. A connection rate cannot tell you which sixteen did not, or why.
 
 ### 3. Measured once, on a clock that starts too late
 
@@ -85,34 +85,43 @@ A clock that starts after the agent detects end of speech hides the part of the 
 
 # 📊 Evidence from the repository
 
-These numbers are read from the committed reports under [`runs/`](runs/). The dashboard links each one to the calls behind it.
+Every number here is read from a committed report under [`runs/`](runs/), and the [live dashboard](https://ai-calypse.github.io/callstorm/) links each one to the calls behind it.
 
-### Deepgram Voice Agent, 160 calls, 1 to 40 concurrent
+### One agent, five scenarios, 1,050 calls in an afternoon
 
-From [`20260912-225650-sweep-deepgram`](runs/20260912-225650-sweep-deepgram.json): five steps, every call connected, no failed turns, 800 turns in total.
+The suite under [`runs/deepgram-full-20260913-1644/`](runs/deepgram-full-20260913-1644/) runs five refund scenarios against the same Deepgram Voice Agent, each from 1 to 40 concurrent callers. Every call connected. No turn failed. A Claude judge read every transcript.
+
+| Scenario | Task completed | TTFA p95 at 1 caller | Worst p95 under load | Verdict trail |
+| --- | ---: | ---: | ---: | --- |
+| refund-escalation | 210 / 210 | 1.15 s | **3.15 s** at 20 | pass · fail · fail · fail · warn |
+| refund-hesitant | 210 / 210 | 0.95 s | 1.94 s at 5 | pass · fail · pass · pass · pass |
+| refund-bargein | 210 / 210 | 2.35 s | 1.61 s at 5 | pass at every step |
+| refund-branching | 207 / 210 | 1.15 s | 1.30 s at 40 | pass at every step |
+| graph-reference | 204 / 210 | 3.50 s | 3.56 s at 5 | pass, with the harness flagged in 3 stages |
+
+The same agent, the same afternoon, the same load. One scenario's tail grew to almost three times its baseline at ten callers, and another's did not move. That is the finding a single-scenario test cannot make.
 
 ```text
-TTFA p95 by concurrency (ms)
+refund-escalation · TTFA p95 by concurrency (ms)
 
-baseline  1 at once   ████████████████████████  2406
-c5        5 at once   ███████████               1149
-c10      10 at once   ████████████              1240
-c20      20 at once   ████████████              1155
-c40      40 at once   █████████████             1351
+baseline   1 at once   ████████████                      1150   pass
+c5         5 at once   █████████████████████████         2544   fail
+c10       10 at once   ███████████████████████████████   3109   fail
+c20       20 at once   ████████████████████████████████  3152   fail
+c40       40 at once   ████████████████████              1954   warn  ⚠ harness drift 147 ms
 
-TTFA p50 stayed between 824 and 855 ms at every step.
+TTFA p50 stayed between 847 and 877 ms at every step. The median never moved. The tail did.
 ```
 
-The tail is not a load story. The slowest step was the one with a single caller. Under the 2× rule every step passed against its baseline, and the report says so. The same report also flags **harness drift of up to 1037 ms at 40 concurrent**, which is the tool admitting its own clock slipped, and the dashboard shows that caveat beside the verdict rather than under it.
+The verdicts are relative to the scenario's own baseline, which is why the barge-in scenario passes with a slower tail than the one that fails: it was slow at one caller too. Where the harness itself fell behind, the report says so beside the verdict rather than under it.
 
 | Measured | Result |
 | --- | ---: |
-| 📞 Real calls placed against Deepgram across all runs | **270** |
-| 🔁 Turns timed in those calls | **1,278** |
-| 🔌 Connection rate in the 160-call sweep | **160 / 160** |
-| ❌ Failed turns in that sweep | **0** |
-| 📝 Mean word error rate, caller lines as heard by the agent | **2.3 to 3.2 percent** per step |
-| ✅ Judged calls that met every scenario requirement | **18 / 27** |
+| 📞 Real calls placed against Deepgram across all committed runs | **1,320** |
+| 🔁 Turns timed in those calls | **6,318** |
+| 🔌 Calls that connected | **1,312 / 1,320** |
+| ✅ Judged calls that completed the task | **1,059 / 1,075** |
+| 📝 Mean word error rate, caller lines as heard by the agent, 160-call sweep | **2.3 to 3.2 percent** per step |
 | 🎯 Reference agent calibration, 500 ms injected delay | reads back as **p95 509 ms** |
 
 ### Kill a worker mid-step
@@ -233,7 +242,9 @@ Taken from [`20260912-225650-sweep-deepgram-judgements.json`](runs/20260912-2256
 
 # 🖥️ The dashboard
 
-![Callstorm dashboard showing task completion, tested concurrency, reply time, cost, and a test-timing caveat.](docs/images/callstorm-overview.png)
+![A tour of the Callstorm dashboard: overview, caller experience, task results, scenario comparison, findings and evidence.](docs/images/callstorm-tour.gif)
+
+**[Open it live →](https://ai-calypse.github.io/callstorm/)** The recording above is the same site.
 
 A test is organised around the questions someone would actually ask:
 
