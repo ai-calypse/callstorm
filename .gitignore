@@ -8,3 +8,5 @@ dist/
 # Stray build output. Binaries belong in bin/ or a container, never at the root.
 *.exe
 node_modules/
+repurposed/
+portfolio/
