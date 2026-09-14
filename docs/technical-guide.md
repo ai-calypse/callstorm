@@ -128,7 +128,7 @@ flowchart LR
     T -->|consumer group| W["worker pods<br/>6 call slots each"]
     W -->|"publish result, then commit"| R[["callstorm.results"]]
     R --> D
-    T -.->|"lag: calls handed out, not yet taken"| K["KEDA ScaledObject<br/>lag threshold 1 · 2 to 8 replicas"]
+    T -.->|"lag: calls handed out, not yet taken"| K["KEDA ScaledObject<br/>lag threshold 6 · 2 to 8 replicas"]
     K -->|scale| W
     H["HPA on CPU 60%<br/>fallback without KEDA"] -.->|scale| W
 ```
@@ -141,7 +141,20 @@ measurement held across the scale-out: 72 calls at 24 concurrent over 8 pods,
 100% setup, p95 509ms against an injected 500ms. Lag only appears when a step
 out-runs the fleet, so a step smaller than the fleet scales nothing.
 
-**An assignment commits only after its result is published.** A pod killed
+That scale-out was measured with a lag threshold of 1 and per-call commits.
+The threshold is now 6, one pod's worth of slots, and a worker takes and
+commits its slots as one batch, so a new replica joins the group only once the
+running batches finish: scale-out lags a step by about one call's duration.
+
+**A batch commits only after every call in it has published its result.**
+Workers run a batch's calls concurrently, and Kafka commits an offset, not a
+record: acknowledging offset 11 acknowledges 10 with it. Committing each call
+as it finished therefore let a fast call 11 commit past an unfinished call 10,
+and a crash at that moment lost call 10 for good. A worker now takes at most
+`-slots` records per poll, holds the partition assignment until all of them
+have completed, and commits the batch once. Any batch that cannot be committed,
+including one that contains an unreadable assignment, closes the worker so a
+replacement replays the whole batch. A pod killed
 mid-call leaves it uncommitted and the group hands that call to a survivor.
 Force-killing a pod mid-step, no grace period: the step finished at 100% setup
 with no failed turns, and the reference agent recorded 18 connections for a

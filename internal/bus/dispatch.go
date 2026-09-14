@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/twmb/franz-go/pkg/kadm"
@@ -91,10 +92,9 @@ func NewDispatcher(ctx context.Context, brokers []string, run string) (*Dispatch
 	cl, err := kgo.NewClient(
 		kgo.SeedBrokers(brokers...),
 		kgo.ConsumeTopics(ResultTopic),
-		// Results are consumed by this one dispatcher for this one run, so it
-		// reads from the end: an earlier run's leftovers are not this run's
-		// calls, and counting them would end a step early.
-		kgo.ConsumeResetOffset(kgo.NewOffset().AtEnd()),
+		// Read retained results and filter by run ID. Starting at the end can
+		// skip fast results produced before the first results poll initializes.
+		kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()),
 		kgo.AllowAutoTopicCreation(),
 	)
 	if err != nil {
@@ -219,8 +219,11 @@ func (d *Dispatcher) Close() { d.client.Close() }
 
 // Worker is the other end: it takes assignments and reports what happened.
 type Worker struct {
-	client *kgo.Client
-	name   string
+	client   *kgo.Client
+	name     string
+	mu       sync.Mutex
+	pending  map[*kgo.Record]bool
+	batchErr error
 }
 
 // NewWorker joins the consumer group that shares out a run's calls.
@@ -237,6 +240,10 @@ func NewWorker(brokers []string, group, name string) (*Worker, error) {
 		kgo.ConsumerGroup(group),
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()),
 		kgo.DisableAutoCommit(),
+		// One bounded batch is processed before allowing partition revocation.
+		// Calls run concurrently, but no offset crosses an unfinished record.
+		kgo.BlockRebalanceOnPoll(),
+		kgo.RebalanceTimeout(5*time.Minute),
 		// Deliberately not AllowAutoTopicCreation. Workers start before the
 		// dispatcher, and a consumer that auto-creates its topic gets the
 		// broker default of one partition -- which a consumer group hands to
@@ -247,7 +254,7 @@ func NewWorker(brokers []string, group, name string) (*Worker, error) {
 	if err != nil {
 		return nil, fmt.Errorf("kafka worker: %w", err)
 	}
-	return &Worker{client: cl, name: name}, nil
+	return &Worker{client: cl, name: name, pending: make(map[*kgo.Record]bool)}, nil
 }
 
 // Job is one assignment together with the broker record that carried it, so
@@ -260,8 +267,16 @@ type Job struct {
 }
 
 // Next blocks until assignments arrive or ctx ends.
-func (w *Worker) Next(ctx context.Context) ([]Job, error) {
-	fetches := w.client.PollFetches(ctx)
+func (w *Worker) Next(ctx context.Context, slots int) ([]Job, error) {
+	if slots < 1 {
+		return nil, errors.New("worker slots must be positive")
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if len(w.pending) != 0 {
+		return nil, errors.New("previous batch is not committed")
+	}
+	fetches := w.client.PollRecords(ctx, slots)
 	if err := fetches.Err(); err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return nil, nil
@@ -270,24 +285,28 @@ func (w *Worker) Next(ctx context.Context) ([]Job, error) {
 	}
 
 	var jobs []Job
-	var undecodable []*kgo.Record
+	var decodeErr error
 	fetches.EachRecord(func(r *kgo.Record) {
 		var a Assignment
 		if err := json.Unmarshal(r.Value, &a); err != nil {
-			// Work that cannot be read is still work taken off the queue.
-			// Committing it stops it being redelivered forever.
-			undecodable = append(undecodable, r)
+			// Fail closed: never commit past an unreadable assignment.
+			decodeErr = fmt.Errorf("decode assignment %s/%d/%d: %w", r.Topic, r.Partition, r.Offset, err)
 			return
 		}
 		jobs = append(jobs, Job{Assignment: a, rec: r})
+		w.pending[r] = false
 	})
-	if len(undecodable) > 0 {
-		_ = w.client.CommitRecords(ctx, undecodable...)
+	if decodeErr != nil {
+		w.batchErr = decodeErr
+		return nil, decodeErr
+	}
+	if len(jobs) == 0 {
+		w.client.AllowRebalance()
 	}
 	return jobs, nil
 }
 
-// Complete publishes a result and only then marks the assignment done.
+// Complete publishes a result and marks it eligible for the batch commit.
 func (w *Worker) Complete(ctx context.Context, res CallResult, job Job) error {
 	res.Worker = w.name
 	b, err := json.Marshal(res)
@@ -300,10 +319,41 @@ func (w *Worker) Complete(ctx context.Context, res CallResult, job Job) error {
 		return fmt.Errorf("publish result: %w", err)
 	}
 	if job.rec != nil {
-		return w.client.CommitRecords(ctx, job.rec)
+		w.mu.Lock()
+		defer w.mu.Unlock()
+		if _, ok := w.pending[job.rec]; !ok {
+			return errors.New("job is not in current batch")
+		}
+		w.pending[job.rec] = true
 	}
 	return nil
 }
 
+// CommitBatch is called after all calls and result publications finish. A
+// failed batch must close the worker, leaving every assignment replayable.
+// Replayed results are deduplicated by the dispatcher; calls are at-least-once.
+func (w *Worker) CommitBatch(ctx context.Context) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.batchErr != nil {
+		return w.batchErr
+	}
+	var records []*kgo.Record
+	for record, done := range w.pending {
+		if !done {
+			return errors.New("batch contains unfinished assignments")
+		}
+		records = append(records, record)
+	}
+	if len(records) > 0 {
+		if err := w.client.CommitRecords(ctx, records...); err != nil {
+			return err
+		}
+	}
+	clear(w.pending)
+	w.client.AllowRebalance()
+	return nil
+}
+
 func (w *Worker) Name() string { return w.name }
-func (w *Worker) Close()       { w.client.Close() }
+func (w *Worker) Close()       { w.client.CloseAllowingRebalance() }

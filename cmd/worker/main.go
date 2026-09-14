@@ -44,6 +44,9 @@ func main() {
 		envPath     = flag.String("env", "", "optional KEY=VALUE credentials file")
 	)
 	flag.Parse()
+	if *slots < 1 {
+		log.Fatal("slots must be positive")
+	}
 
 	if *envPath != "" {
 		if _, err := config.LoadDotEnv(*envPath); err != nil {
@@ -69,10 +72,28 @@ func main() {
 	// call.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	// Stop polling immediately on SIGTERM, but give active calls 70 seconds
+	// to finish, leaving time to publish/commit inside the pod's 90s grace.
+	callCtx, cancelCalls := context.WithCancel(context.Background())
+	defer cancelCalls()
+	go func() {
+		select {
+		case <-ctx.Done():
+		case <-callCtx.Done():
+			return
+		}
+		timer := time.NewTimer(70 * time.Second)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+			cancelCalls()
+		case <-callCtx.Done():
+		}
+	}()
 
 	mx := telemetry.New()
 	go func() {
-		if err := mx.Serve(ctx, *metricsAddr); err != nil {
+		if err := mx.Serve(callCtx, *metricsAddr); err != nil {
 			log.Printf("metrics: %v", err)
 		}
 	}()
@@ -90,27 +111,30 @@ func main() {
 
 	var (
 		wg        sync.WaitGroup
-		sem       = make(chan struct{}, *slots)
 		placed    atomic.Int64
 		failures  atomic.Int64
 		abandoned atomic.Int64
 	)
 
 	for ctx.Err() == nil {
-		jobs, err := w.Next(ctx)
+		jobs, err := w.Next(ctx, *slots)
 		if err != nil {
 			log.Printf("poll: %v", err)
-			time.Sleep(time.Second)
+			return // Leave uncommitted work for a replacement worker.
+		}
+		if len(jobs) == 0 {
 			continue
 		}
+		// Keep the processing boundary below Kafka's five-minute rebalance
+		// timeout, including result publication and offset commits.
+		batchCtx, cancelBatch := context.WithTimeout(callCtx, 4*time.Minute)
 		for _, job := range jobs {
 			wg.Add(1)
-			sem <- struct{}{}
 			go func(job bus.Job) {
 				defer wg.Done()
-				defer func() { <-sem }()
 
-				res := place(ctx, job.Assignment, apiKey, synth, mx)
+				log.Printf("start assignment run=%s step=%s seq=%d", job.Assignment.Run, job.Assignment.Step, job.Assignment.Seq)
+				res := place(batchCtx, job.Assignment, apiKey, synth, mx)
 
 				// A call that died because this worker is shutting down did
 				// not fail: nothing was learned about the agent. Reporting it
@@ -120,7 +144,7 @@ func main() {
 				// So say nothing and commit nothing. The assignment stays
 				// uncommitted and the group hands it to a surviving pod, which
 				// is the whole reason commits are manual.
-				if ctx.Err() != nil && !complete(res) {
+				if batchCtx.Err() != nil && !complete(res) {
 					abandoned.Add(1)
 					log.Printf("abandoning %s/%d for redelivery: worker is shutting down",
 						res.Step, res.Seq)
@@ -143,10 +167,17 @@ func main() {
 				}
 			}(job)
 		}
+		wg.Wait()
+		cancelBatch()
+		done, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		err = w.CommitBatch(done)
+		cancel()
+		if err != nil {
+			log.Printf("batch not committed; closing for redelivery: %v", err)
+			return
+		}
 	}
 
-	log.Printf("worker %s draining %d in flight", *name, len(sem))
-	wg.Wait()
 	log.Printf("worker %s done: %d calls placed, %d failed, %d abandoned for redelivery",
 		*name, placed.Load(), failures.Load(), abandoned.Load())
 }
