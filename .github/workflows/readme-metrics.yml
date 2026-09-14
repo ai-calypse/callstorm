@@ -1,0 +1,43 @@
+# Keep the README's latest-measurements table in step with runs/.
+#
+# Whenever a report lands on main, regenerate the table from the newest
+# real-agent run and commit the README if it changed. Pushes made with the
+# workflow token do not trigger further workflow runs, so this cannot loop.
+name: readme-metrics
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'runs/**'
+      - 'scripts/readme-metrics.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: readme-metrics
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Regenerate the table
+        run: python scripts/readme-metrics.py
+      - name: Commit the README if it changed
+        run: |
+          if git diff --quiet README.md; then
+            echo "README already current"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "docs: refresh the latest-measurements table from runs/"
+          git push
