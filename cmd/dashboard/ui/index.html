@@ -1364,14 +1364,14 @@ function qRepeats(rep, L) {
   const rate = s => s.conversation.repeated_replies / s.conversation.turns;
   const chart = html`<${LineChart} labels=${rows.map(s => String(s.concurrency))} xTitle="calls at the same time" yFmt=${one}
       series=${[{ name: "replies that repeated an earlier one in the call", color: SERIES.main, values: rows.map(rate) }]}
-      refs=${[{ value: 0.03, label: "3%: Hamming's line for repeated questions" }]}/>`;
+      refs=${[{ value: 0.03, label: "3%: under it, Hamming rates repeated questions excellent" }]}/>`;
   const how = "A reply counts as repeated when its words match a reply the agent already gave in the same call, ignoring case and punctuation, or when it shares at least 80% of its distinct words with one. A conversation stuck in a loop shows here before any timing moves.";
   if (rows.every(s => s.conversation.repeated_replies === 0)) {
     return { ...q, how, chart, short: "No: it never repeated itself.",
       answer: html`<b>No.</b> At every load, no reply repeated one the agent had already given in the same call.` };
   }
   const a = rows[0], b = rows[rows.length - 1];
-  const over = rate(b) > 0.03 ? " That is past the 3% Hamming treats as a problem for repeated questions." : "";
+  const over = rate(b) > 0.03 ? " That is past 3%, the line under which Hamming rates repeated questions excellent." : "";
   return rate(b) - rate(a) >= 0.02
     ? { ...q, how, chart, short: `Yes: from ${one(rate(a))} of replies to ${one(rate(b))}.`,
         answer: html`<b>Yes.</b> ${one(rate(a))} of replies repeated an earlier one at ${atOnce(a.concurrency)}, and ${one(rate(b))} at ${b.concurrency}, in ${b.conversation.calls_with_repeats} calls.${over}` }
@@ -3800,6 +3800,62 @@ function Appendix({ refs }) {
     </section>`;
 }
 
+// Every outside page a line on this dashboard is credited to, and what
+// Callstorm takes from it: the reference lines, and also the quality lines,
+// wait bands, onset definition, judge prompt, limits and prices.
+// [publisher, [[title, date, url, what Callstorm takes from it]]]
+const SOURCES = [
+  ["Hamming", [
+    ["Voice AI Latency: What's Fast, What's Slow, and How to Fix It", "2026-01-12", "https://hamming.ai/resources/voice-ai-latency-whats-fast-whats-slow-how-to-fix-it", "The 800ms target for the wait after a caller stops, and the 1.4s to 1.7s median it reports for production agents."],
+    ["Voice Agent Analytics & Post-Call Metrics: Definitions, Formulas & Dashboards", "2026-02-10", "https://hamming.ai/resources/voice-agent-analytics-post-call-metrics-definitions-formulas-dashboards", "Time to first word from VAD silence detection, breakdown past 800ms, under 300ms reading as natural, and interruptions above 10% of turns rated poor."],
+    ["Voice Agent Load Testing Guide", "2026-05-17", "https://hamming.ai/resources/voice-agent-load-testing-guide", "Task completion under load: within 5% of baseline passes, a 5% to 10% drop warns, more than 10% fails."],
+    ["Voice Agent Testing Guide: Methods, Regression, Load & Compliance (2026)", "2026-01-23", "https://hamming.ai/resources/voice-agent-testing-guide", "A ±2% tolerance on word error rate before a change counts as a regression."],
+    ["Voice Agent Evaluation Metrics: Definitions, Formulas & Benchmarks", "2026-01-18", "https://hamming.ai/resources/voice-agent-evaluation-metrics-guide", "Word error rate above 15% rated poor."],
+    ["Testing Voice Agents: Load, Regression, and A/B Evaluation for Production Reliability", "2025-12-31", "https://hamming.ai/resources/testing-voice-agents-production-reliability", "Error-rate bands for failed turns: under 0.5% good, under 1% acceptable, above 1% critical."],
+    ["Voice Agent Drop-Off Analysis: How to Measure and Reduce Call Abandonment (2026)", "2026-01-28", "https://hamming.ai/resources/voice-agent-drop-off-analysis-abandonment-framework", "Each 100ms past 800ms costing 4% to 6% of task completion, which the slow-calls split checks on this agent."],
+    ["How to Measure Conversational Flow in Voice Agents: The 5-Dimension Framework", "2025-12-29", "https://hamming.ai/resources/conversational-flow-measurement-voice-agents", "Repeated questions under 3% rated excellent, the line on the repeated-replies chart."],
+  ]],
+  ["Coval", [
+    ["Voice Load Testing: How to Simulate 10,000 Concurrent Calls", "2026-03-07", "https://www.coval.ai/blog/voice-load-testing-methodology", "The latency fail line, p95 no more than 2× baseline at peak load, which it gives as a common industry benchmark; and p95 under 2s."],
+    ["Voice AI Latency: What Causes Delays and How to Fix Them", "2026-03-03", "https://www.coval.ai/blog/voice-ai-latency", "Past 1,200ms callers start repeating themselves, talking over the agent or hanging up."],
+    ["Time to First Audio, Measured Right: How a Benchmark Change Made TTS Faster", "2026-09-08", "https://www.coval.ai/blog/time-to-first-audio-ttfa-benchmark", "Where audible sound starts: the first 10ms window, stepped 1ms, with RMS above 0.01. One provider sent a median 225ms of silence first."],
+    ["Statistical Metrics (docs)", "", "https://docs.coval.ai/concepts/metrics/types/statistical", "Loop Detection and Agent Repeats Itself: repeated agent replies as a sign of a stuck conversation."],
+    ["Write judge prompts (docs)", "", "https://docs.coval.ai/concepts/metrics/writing-judge-prompts", "How the task judge is prompted."],
+  ]],
+  ["Cekura", [
+    ["Voice AI Latency: How to Monitor and Improve Every Layer", "2026-09-03", "https://www.cekura.ai/blogs/voice-ai-latency-guide", "The boundary table in the appendix, the 208ms human reply gap, and why a clock that starts after endpointing hides part of the wait."],
+  ]],
+  ["Stivers et al.", [
+    ["Universals and cultural variation in turn-taking in conversation (PNAS)", "2009", "https://doi.org/10.1073/pnas.0903616106", "The study behind the 208ms mean gap between speakers across languages."],
+  ]],
+  ["Deepgram", [
+    ["Pricing", "read 2026-09-13", "https://deepgram.com/pricing", "Voice Agent rates, billed by connection time, used to price a run that was not given a rate."],
+    ["API Rate Limits", "", "https://developers.deepgram.com/reference/api-rate-limits", "Voice Agent concurrency limits behind the preflight's cap on calls at once."],
+    ["Voice Agent API", "", "https://developers.deepgram.com/docs/voice-agent", "The WebSocket protocol Callstorm speaks, and its default target."],
+    ["Text-to-Speech", "", "https://developers.deepgram.com/docs/text-to-speech", "The voices that synthesize the caller's lines."],
+  ]],
+];
+
+function Sources() {
+  return html`
+    <section className="ref-card" id="sources">
+      <span className="eyebrow">SOURCES</span>
+      <h2>Where the published lines come from</h2>
+      <p className="lede">Every line this page credits to another company or a study, with the page that states it. The date is the one the page gave when it was read.</p>
+      <div className="tablewrap gloss">
+        <table>
+          <thead><tr><th>Source</th><th>What Callstorm takes from it</th></tr></thead>
+          <tbody>
+            ${SOURCES.flatMap(([who, pages]) => pages.map(([title, date, url, use]) => html`<tr key=${url}>
+              <td><b>${who}</b><span className="quote"><a className="cs-link" href=${url}>${title}</a>${date ? `, ${date}` : ""}</span></td>
+              <td>${use}</td>
+            </tr>`))}
+          </tbody>
+        </table>
+      </div>
+    </section>`;
+}
+
 // ---- The page ---------------------------------------------------------------
 
 function Tabs({ tab, setTab }) {
@@ -3920,6 +3976,131 @@ function ComputedAppendix({ rep, refs, estimate }) {
       ${APPENDIX.map(([name,formula,scope]) => html`<tr key=${name}><th scope="row">${name}</th><td>${values[name] || "Not measured: no stage recorded"}</td><td><code>${name === "Cost" && values.Cost?.startsWith("Connection-time estimate") ? "Σ(call closed − call opened) ÷ 60 × rate per minute" : formula}</code></td><td>${scope}</td></tr>`)}
     </tbody></table></div>
   </section>`;
+}
+
+// Priority views: keep denominators visible and keep stages/cohorts separate.
+const WAIT_BANDS = [
+  ["up_to_800ms", "Within 0.8 sec", "#527052"],
+  ["800_to_1200ms", "0.8–1.2 sec", "#8da9c4"],
+  ["1200_to_2000ms", "1.2–2 sec", "#c19754"],
+  ["over_2000ms", "Over 2 sec", "#9e5650"],
+];
+const measuredRatio = (a,b) => Number.isFinite(a) && b > 0 ? `${pct(a/b)} · ${a}/${b}` : "Not measured";
+function stageJudged(rep, step, cohort) {
+  return (rep.judge?.calls || []).filter(c => c.judged && c.step === step.name &&
+    (cohort ? c.cohort === cohort : !c.cohort));
+}
+function validWaits(s) {
+  const w = s.waits;
+  return w && w.turns > 0 && WAIT_BANDS.every(([k]) => Number.isFinite(w[k]) && w[k] >= 0) &&
+    WAIT_BANDS.reduce((n,[k]) => n + w[k],0) === w.turns ? w : null;
+}
+function matchingTest(a,b) {
+  if (!b) return "No earlier report is available to compare.";
+  if (!a.scenario_hash || !b.scenario_hash || !a.profile_hash || !b.profile_hash)
+    return "The reports do not both record scenario and test-profile fingerprints, so matching conditions cannot be verified.";
+  if (a.scenario_hash !== b.scenario_hash || a.profile_hash !== b.profile_hash || a.target !== b.target)
+    return "The scenario, test profile, or assistant target differs. A direct improvement comparison would be misleading.";
+  const shape = r => JSON.stringify((r.matrix?.cohorts || [{steps:sel.steps(r)}]).map(g => ({
+    impairment:g.impairment || null, steps:(g.steps || []).map(s=>[s.name,s.concurrency,s.phase?.kind || "ramp"])
+  })));
+  return shape(a) === shape(b) ? null : "The tested stages or connection conditions differ. Compare matching test conditions first.";
+}
+function comparisonMetrics(rep) {
+  const ss=sel.steps(rep), sum=k=>ss.reduce((n,s)=>n+(s[k] || 0),0);
+  const attempts=ss.reduce((n,s)=>n+(s.calls_attempted ?? s.calls ?? 0),0);
+  const allWaits=ss.length && ss.every(validWaits), waits=allWaits ? ss.reduce((n,s)=>n+s.waits.turns,0) : 0;
+  const late=allWaits ? ss.reduce((n,s)=>n+s.waits['1200_to_2000ms']+s.waits.over_2000ms,0) : 0;
+  const prices=ss.length && ss.every(s=>s.cost && Number.isFinite(s.cost.usd) && s.cost.agent_minutes > 0);
+  return [
+    {name:"Tasks completed", value:rep.judge?.judged > 0 ? rep.judge.passed/rep.judge.judged : null, count:rep.judge?.judged || 0, unit:"reviewed calls", higher:true},
+    {name:"Replies taking over 1.2 sec", value:waits ? late/waits : null, count:waits, unit:"timed replies"},
+    {name:"Calls that did not connect", value:attempts && ss.every(s=>Number.isFinite(s.calls_connected)) ? (attempts-sum("calls_connected"))/attempts : null, count:attempts, unit:"call attempts"},
+    {name:"Cost per call attempt", value:prices && attempts ? ss.reduce((n,s)=>n+s.cost.usd,0)/attempts : null, count:attempts, unit:"call attempts", money:true,
+      rates:prices ? [...new Set(ss.map(s=>(s.cost.usd/s.cost.agent_minutes).toFixed(6)))].sort().join(",") : null},
+  ];
+}
+function PreviousTest({rep,prev,onHistory}) {
+  const reason=matchingTest(rep,prev), now=comparisonMetrics(rep), before=prev ? comparisonMetrics(prev) : [];
+  const fmt=(v,money)=>v === null ? "Not measured" : money ? "$"+v.toFixed(3) : pct(v);
+  return html`<section className="priority-panel" aria-labelledby="previous-test-title">
+    <h2 id="previous-test-title">Did the last change help?</h2>
+    <p className="quiet">${reason || `Same scenario and test configuration. Previous test: ${when(prev.started_at)}. Differences describe the two tests; they do not prove a change caused them.`}</p>
+    ${reason ? html`<button className="outline" onClick=${onHistory}>Choose another test</button>` : html`<${Frag}>
+      ${(sel.steps(rep).some(s=>s.harness_degraded) || sel.steps(prev).some(s=>s.harness_degraded)) && html`<p className="comparison-caution">The test system fell behind in at least one report. Treat the comparison as provisional.</p>`}
+      <div className="tablewrap"><table className="comparison-table"><thead><tr><th>Measure</th><th>Previous test</th><th>This test</th><th>Difference</th></tr></thead><tbody>
+        ${now.map((m,i)=>{
+          const p=before[i];
+          const reason=m.name === "Tasks completed" && (rep.judge?.backend !== prev.judge?.backend || JSON.stringify(rep.judge?.criteria) !== JSON.stringify(prev.judge?.criteria))
+            ? "Review criteria or reviewer changed" : m.money && m.rates !== p.rates ? "Pricing differs or is unavailable" : null;
+          const comparable=!reason && m.value !== null && p.value !== null;
+          const d=comparable ? m.value-p.value : null;
+          const better=d !== null && (m.higher ? d>0 : d<0);
+          return html`<tr key=${m.name}><th scope="row">${m.name}</th><td>${fmt(p.value,m.money)}<small>${p.count} ${p.unit}</small></td><td>${fmt(m.value,m.money)}<small>${m.count} ${m.unit}</small></td>
+            <td className=${d === null || d === 0 ? "" : better ? "good" : "bad"}>${d === null ? reason || (m.money ? "Recorded pricing needed in both tests" : "Not measured in both tests") : d === 0 ? "Unchanged" : `${better ? "Improved" : "Worsened"}: ${m.money ? "$"+Math.abs(d).toFixed(3) : (Math.abs(d)*100).toFixed(1)+" percentage points"}`}</td></tr>`;
+        })}
+      </tbody></table></div><p className="quiet">Rates use the sample counts shown. Small samples can move substantially between tests. Cost comparisons use recorded prices on the same billing basis, not an estimate mixed with a recorded bill.</p><//>`}
+  </section>`;
+}
+function PriorityViews({rep,prev,onExplore,onCall,onHistory}) {
+  const groups=rep.matrix?.cohorts?.length ? rep.matrix.cohorts : [{steps:sel.steps(rep)}];
+  const [groupIndex,setGroupIndex]=useState(0);
+  const group=groups[groupIndex] || groups[0], steps=group.steps || [];
+  const cohort=groupIndex > 0 ? group.impairment?.name : "";
+  const [heatMetric,setHeatMetric]=useState("p95_ms");
+  const [heatPick,setHeatPick]=useState(null);
+  const turns=[...new Set(steps.flatMap(s=>(s.turns || []).map(t=>t.turn)))].sort((a,b)=>a-b);
+  const maxWait=Math.max(1,...steps.flatMap(s=>(s.turns || []).filter(t=>t.ttfa?.n > 0).map(t=>t.ttfa[heatMetric] || 0)));
+  const picked=heatPick && steps.find(s=>s.name === heatPick.step)?.turns?.find(t=>t.turn === heatPick.turn);
+  const misses=(rep.judge?.misses || []).filter(m=>m.judged>0).slice().sort((a,b)=>b.missed-a.missed || a.criterion.localeCompare(b.criterion));
+  const judgedTotal=rep.judge?.judged || 0;
+  return html`<div className="priority-views">
+    <section className="priority-panel" aria-labelledby="load-results-title">
+      <div className="priority-heading"><div><h2 id="load-results-title">What changed as more people called?</h2><p className="quiet">Read across a row to see task completion, reliability, speed, and conversation issues together.</p></div>
+      ${groups.length>1 && html`<label className="stage-picker">Connection conditions<select className="cs-input" value=${groupIndex} onChange=${e=>{setGroupIndex(Number(e.target.value));setHeatPick(null);}}>${groups.map((g,i)=>html`<option key=${i} value=${i}>${g.impairment?.name || "Standard connection"}</option>`)}</select></label>`}</div>
+      ${steps.length ? html`<div className="tablewrap"><table className="results-grid"><thead><tr><th>Calls at once</th><th>Tasks completed</th><th>Calls connected</th><th>Reply wait</th><th>Conversation issues</th></tr></thead><tbody>
+        ${steps.map(s=>{
+          const judged=stageJudged(rep,s,cohort), c=s.conversation;
+          return html`<tr key=${s.name}><th scope="row">${s.concurrency}<small>${s.name}${s.harness_degraded ? " · test timing suspect" : ""}</small></th>
+            <td>${judged.length ? measuredRatio(judged.filter(c=>c.met).length,judged.length) : "Not reviewed"}<small>reviewed calls meeting all requirements</small></td>
+            <td>${measuredRatio(s.calls_connected,s.calls_attempted ?? s.calls)}<small>call attempts</small></td>
+            <td>${s.ttfa?.n > 0 ? ms(s.ttfa.p95_ms) : "Not measured"}<small>${s.ttfa?.n || 0} replies · 95% were this fast or faster</small></td>
+            <td>${c?.turns > 0 ? html`<${Frag}><span>${c.interruptions ?? "Not recorded"} talked-over replies / ${c.turns}</span><small>${c.dead_air_turns ?? "Not recorded"} waits over 2 sec</small><//>` : "Not measured"}${Number.isFinite(s.turns_failed) && html`<small>${s.turns_failed} failed replies / ${s.turns_total || 0}</small>`}</td></tr>`;
+        })}
+      </tbody></table></div>` : html`<p className="cs-notice">No test stages were recorded.</p>`}
+      <p className="quiet">Task review and connection success are different checks. A fast, connected call can still miss the task. Reviewed samples can be much smaller than the total call count.</p>
+    </section>
+
+    <section className="priority-panel" aria-labelledby="wait-frequency-title"><h2 id="wait-frequency-title">How often did callers have to wait?</h2>
+      <p className="quiet">Each bar contains all timed replies at that call load. Width shows the share in each wait band; counts are shown underneath.</p>
+      <div className="wait-key">${WAIT_BANDS.map(([k,label,color])=>html`<span key=${k}><i style=${{background:color}}></i>${label}</span>`)}</div>
+      ${steps.length ? steps.map(s=>{const w=validWaits(s);return html`<div key=${s.name} className="wait-frequency-row"><div><strong>${s.concurrency} at once</strong><small>${s.name}</small></div><div>
+        ${w ? html`<${Frag}><div className="wait-stack" role="img" aria-label=${`${s.name}: `+WAIT_BANDS.map(([k,label])=>`${label}: ${w[k]} of ${w.turns} replies`).join(", ")}>
+          ${WAIT_BANDS.filter(([k])=>w[k]>0).map(([k,label,color])=>html`<span key=${k} style=${{width:(w[k]/w.turns*100)+"%",background:color,color:k === "800_to_1200ms" || k === "1200_to_2000ms" ? "#182018" : "#ffffff"}} title=${`${label}: ${w[k]} replies (${pct(w[k]/w.turns)})`}>${w[k]/w.turns>=.12 ? pct(w[k]/w.turns) : ""}</span>`)}
+        </div><div className="wait-counts">${WAIT_BANDS.map(([k,label])=>html`<span key=${k}>${label}: <b>${w[k]}</b></span>`)}<span>Total: ${w.turns}</span></div><//>` : html`<p className="quiet">Wait bands not recorded for this stage.</p>`}
+      </div></div>`;}) : html`<p className="cs-notice">No timed replies recorded.</p>`}
+    </section>
+
+    <section className="priority-panel" aria-labelledby="conversation-heat-title"><div className="priority-heading"><div><h2 id="conversation-heat-title">Where in the conversation did things slow down?</h2><p className="quiet">Rows are reply positions, columns are call loads. Darker cells mean a longer wait. Select a cell to read the caller’s line.</p></div>
+      <label className="stage-picker">Reply time<select className="cs-input" aria-label="Conversation heatmap measure" value=${heatMetric} onChange=${e=>setHeatMetric(e.target.value)}><option value="p95_ms">Slow replies (95th percentile)</option><option value="p50_ms">Typical reply (median)</option></select></label></div>
+      ${turns.length ? html`<${Frag}><div className="tablewrap"><table className="conversation-heatmap"><thead><tr><th>Conversation moment</th>${steps.map(s=>html`<th key=${s.name}>${s.concurrency} at once<small>${s.name}</small></th>`)}</tr></thead><tbody>
+        ${turns.map(n=>html`<tr key=${n}><th scope="row">Reply ${n}</th>${steps.map(s=>{const t=(s.turns || []).find(t=>t.turn===n), value=t?.ttfa?.n>0 ? t.ttfa[heatMetric] : null;return html`<td key=${s.name}>${Number.isFinite(value) ? html`<button aria-pressed=${!!(heatPick?.step === s.name && heatPick?.turn === n)} aria-label=${`Reply ${n}, ${s.concurrency} calls at once, ${ms(value)}, ${t.ttfa.n} samples`} style=${{background:`color-mix(in srgb, var(--cs-lavender) ${Math.round(15+85*Math.max(0,value)/maxWait)}%, white)`}} onClick=${()=>setHeatPick({step:s.name,turn:n})}>${ms(value)}<small>${t.ttfa.n} samples</small></button>` : html`<span className="quiet">Not measured</span>`}</td>`;})}</tr>`)}
+      </tbody></table></div><p className="heat-selection" aria-live="polite">${picked ? `Reply ${picked.turn} at ${heatPick.step}: ${picked.caller_line || "Caller text was not recorded."}` : "Select a measured cell for its conversation context."}</p>
+      <p className="quiet">For branching conversations, the same reply position can contain different tasks. The report stores the most common caller line, not timing by scenario node, so these rows are not treated as identical tasks. Color scales to the selected connection group.</p><//>` : html`<p className="cs-notice">Reply-position timings were not recorded in this report.</p>`}
+    </section>
+
+    <section className="priority-panel" aria-labelledby="missed-requirements-title"><h2 id="missed-requirements-title">Which requirements were missed?</h2><p className="quiet">Most frequently missed first. Counts cover reviewed calls across the whole run, including all connection conditions.</p>
+      ${misses.length ? html`<${Frag}><div className="requirements-ranking">${misses.map(m=>{
+        const example=(rep.judge?.judgements || []).find(c=>(c.outcomes || []).some(o=>o.criterion === m.criterion && !o.met && o.evidence));
+        const outcome=example?.outcomes.find(o=>o.criterion === m.criterion && !o.met && o.evidence);
+        return html`<div className="requirement-row" key=${m.criterion}><div className="requirement-title"><strong>${m.criterion}</strong><span>${m.missed} of ${m.judged} missed (${pct(m.missed/m.judged)})</span></div>
+          <div className="requirement-track" role="img" aria-label=${`${m.missed} of ${m.judged} reviews missed this requirement`}><span style=${{width:(m.missed/m.judged*100)+"%"}}></span></div>
+          ${example ? html`<details><summary>Read an example of a missed requirement</summary><blockquote>${outcome.evidence}</blockquote><button className="text-button" onClick=${()=>onCall(example.request_id)}>Open this conversation →</button></details>` : html`<p className="quiet">${m.missed ? "No quoted example recorded." : "No misses in the reviewed sample."}</p>`}
+        </div>`;
+      })}</div><button className="outline" onClick=${()=>onExplore("quality")}>Explore task evidence</button><//>` : html`<p className="cs-notice">${judgedTotal ? "Individual requirement results were not recorded." : "Task completion was not reviewed in this run."}</p>`}
+    </section>
+    <${PreviousTest} rep=${rep} prev=${prev} onHistory=${onHistory}/>
+  </div>`;
 }
 
 function ClearOverview({ rep, g, onExplore }) {
@@ -4056,7 +4237,10 @@ function Report({ rep, id, refs, runs, prev, initialTab, initialDrawer, initialC
 
   const prevIndex = runs.find(r => r.id !== id && r.profile === rep.profile && r.scenario === rep.scenario &&
     new Date(r.started_at) < new Date(rep.started_at)) || null;
-  const lines = rep.references || refs;
+  // A report keeps the lines it was read against; their citations come from the
+  // current file, so a link found later reaches older reports too.
+  const cited = new Map((refs || []).map(r => [r.id, r.cites]));
+  const lines = rep.references ? rep.references.map(r => cited.has(r.id) ? { ...r, cites: cited.get(r.id) } : r) : refs;
   const g = glance(rep, prevIndex, prev, estimate);
   if (unpriced && calls === undefined && g.stats[2].value === "—") {
     g.stats[2] = { ...g.stats[2], value: "Calculating…", note: "Loading connection times to estimate this run’s cost." };
@@ -4100,6 +4284,8 @@ function Report({ rep, id, refs, runs, prev, initialTab, initialDrawer, initialC
       ${parts.length > 0 && html`<details className="supporting-details suite-context"><summary>Part ${parts.findIndex(p => p.id === id) + 1} of ${parts.length} in this test group <span>Results below are for the selected part. View all parts</span></summary><${SuiteStrip} suite=${me.suite} parts=${parts} selected=${id} onPick=${onPick} insights=${suiteInsights}/></details>`}
 
       <${ClearOverview} rep=${rep} g=${g} onExplore=${t => { setTab(t); requestAnimationFrame(() => document.getElementById("explore-results").scrollIntoView({block: "start"})); }}/>
+
+      <${PriorityViews} rep=${rep} prev=${prev} onHistory=${onOpenRuns} onCall=${requestId => { openCall(requestId); requestAnimationFrame(() => document.getElementById("explore-results").scrollIntoView({block:"start"})); }} onExplore=${t => { setTab(t); requestAnimationFrame(() => document.getElementById("explore-results").scrollIntoView({block:"start"})); }}/>
 
       <details className="supporting-details">
         <summary>Written analysis & more questions answered <span>Explore the supporting findings</span></summary>
@@ -4327,7 +4513,7 @@ function App() {
       </div>
       <${Dialog} open=${definitionsOpen} className="drawer" label="Definitions & how this test works" onClose=${closeDefinitions}>
         <div className="drawer-top"><h2>Definitions & how this test works</h2><button className="icon-button" onClick=${closeDefinitions} aria-label="Close definitions">×</button></div>
-        <div className="drawer-content"><${Glossary}/><${About}/><${Appendix} refs=${refs}/></div>
+        <div className="drawer-content"><${Glossary}/><${About}/><${Appendix} refs=${refs}/><${Sources}/></div>
       <//>
       <${Dialog} open=${runsOpen} className="run-dialog" label="Evaluation runs" onClose=${closeRuns}>
         <div className="dialog-title">

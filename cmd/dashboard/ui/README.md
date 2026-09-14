@@ -10,6 +10,14 @@ Open http://localhost:8090/ after starting:
 go run ./cmd/dashboard -runs runs
 ```
 
+The overview also includes five views in priority order: combined results by
+call load, timed-reply wait bands, an interactive reply-position heatmap,
+ranked missed requirements with quoted call evidence, and a previous-test
+comparison. Missing measurements remain explicit. Network groups can be
+selected independently. Comparisons require matching scenario/profile hashes,
+targets, stages and connection conditions; task and cost deltas additionally
+require matching review settings and recorded pricing respectively.
+
 The page leads with task completion, four explained results, the sequence
 from attempted calls to reviewed tasks, and prioritised next steps. The
 written analysis and the question library expand on demand. Six evidence

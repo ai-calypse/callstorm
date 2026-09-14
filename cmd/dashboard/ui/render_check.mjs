@@ -37,7 +37,7 @@ globalThis.React = React;
 globalThis.ReactDOM = { createRoot: () => ({ render() {} }) };
 globalThis.fetch = async () => { throw new Error("fetch during render"); };
 
-const mod = new Function(src + "\n;return { Report, Evidence, Method, Findings, RunList, Trend, Sidebar, Glossary, About, Appendix, TABS, glance, findings, groupRuns, buildQuestions, appendixValues, ComputedAppendix, Questions, ComponentShare };")();
+const mod = new Function(src + "\n;return { Report, Evidence, Method, Findings, RunList, Trend, Sidebar, Glossary, About, Appendix, Sources, TABS, glance, findings, groupRuns, buildQuestions, appendixValues, ComputedAppendix, Questions, ComponentShare, PriorityViews, PreviousTest, matchingTest, comparisonMetrics, validWaits, stageJudged };")();
 const render = (C, props) => ReactDOMServer.renderToStaticMarkup(React.createElement(C, props));
 
 let bad = 0;
@@ -128,7 +128,8 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
     check("does not also claim the other half", !ev.includes("Endpointing is the half that saturates"));
   }
   const cites = REFS.flatMap(r => r.cites);
-  const named = cites.filter(c => ev.includes(`${c.source}, ${c.title}`) && ev.includes(c.published) &&
+  const escaped = s => s.replace(/&/g, "&amp;").replace(/'/g, "&#x27;");
+  const named = cites.filter(c => ev.includes(escaped(`${c.source}, ${c.title}`)) && ev.includes(c.published) &&
     (!c.url || ev.includes(`href="${c.url.replace(/&/g, "&amp;")}"`))).length;
   check(`${named} of ${cites.length} citations named with their date`, cites.length > 0 && named === cites.length);
 
@@ -521,6 +522,11 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
   const ap = render(mod.Appendix, { refs: REFS });
   has(ap, "appendix", "How every number is computed");
   has(ap, "boundary table", "Whose boundary each number spans");
+  const so = render(mod.Sources, {});
+  const sourceRows = (so.match(/<tr>/g) || []).length - 1;
+  const sourceLinks = (so.match(/<a class="cs-link" href="https:\/\//g) || []).length;
+  check(`${sourceLinks} of ${sourceRows} sources linked`, sourceRows > 0 && sourceLinks === sourceRows);
+  check("every cited reference page is listed in sources", REFS.flatMap(r => r.cites).every(c => so.includes(`href="${c.url}"`)));
 }
 
 
@@ -545,6 +551,31 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
   check("quality comparisons render with Calm badges", !qualityQuestions.some(q => q.id.startsWith("failed-")));
   const chart = render(mod.ComponentShare,{rep:run});
   check("wait bar segments have visible millisecond labels", /text-anchor="middle"[^>]*>\d+ms<\/text>/.test(chart));
+}
+
+
+{
+  const callbacks={onExplore(){},onCall(){},onHistory(){}};
+  const rich={...run,scenario_hash:"scenario-v1",profile_hash:"profile-v1",steps:run.steps.map(s=>({...s,
+    waits:{turns:10,up_to_800ms:5,"800_to_1200ms":2,"1200_to_2000ms":2,over_2000ms:1},
+    turns:[{turn:1,caller_line:"Please check my order",ttfa:{n:10,p50_ms:300,p95_ms:900}}]})),
+    judge:{judged:2,passed:1,criteria:["Confirm the request"],backend:"test",calls:[
+      {step:run.steps[0].name,judged:true,met:true},{step:run.steps[0].name,judged:false,met:false}],
+      misses:[{criterion:"Confirm the request",judged:2,missed:1}],
+      judgements:[{request_id:"example-call",outcomes:[{criterion:"Confirm the request",met:false,evidence:"The request was not confirmed."}]}]}};
+  const previous={...rich,started_at:"2026-01-01T00:00:00Z"};
+  const output=render(mod.PriorityViews,{rep:rich,prev:previous,...callbacks});
+  for(const title of ["What changed as more people called?","How often did callers have to wait?","Where in the conversation did things slow down?","Which requirements were missed?","Did the last change help?"]) has(output,"priority view: "+title,title);
+  has(output,"task rate excludes unreviewed calls","100.0% \u00b7 1/1");
+  has(output,"miss example included","The request was not confirmed.");
+  has(output,"heatmap keeps sample counts","10 samples");
+  check("matching fingerprints and stage shapes allow comparison",mod.matchingTest(rich,previous)===null);
+  check("changed scenario fingerprint prevents comparison",mod.matchingTest(rich,{...previous,scenario_hash:"different"})!==null);
+  check("missing fingerprints prevent comparison",mod.matchingTest(run,previous)!==null);
+  check("wait percentages use timed replies",mod.comparisonMetrics(rich)[1].value===.3);
+  check("incomplete wait bands are not invented",mod.validWaits({waits:{turns:10,up_to_800ms:10}})===null);
+  check("different cohorts do not share judged calls",mod.stageJudged(rich,rich.steps[0],"poor-network").length===0);
+  check("all empty priority views render",render(mod.PriorityViews,{rep:{steps:[]},...callbacks}).includes("No test stages were recorded"));
 }
 
 check(`no React warnings (${warnings.length})`, warnings.length === 0);
