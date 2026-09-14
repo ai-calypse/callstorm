@@ -41,3 +41,24 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 @media (max-width: 900px) { .story-grid { grid-template-columns: 1fr; } }
 @media (max-width: 600px) { .result-story { padding: 22px; } .outcome-grid { grid-template-columns: 1fr; } .outcome { border-right: 0; border-bottom: 1px solid var(--cs-border); } .outcome:last-child { border-bottom: 0; } .outcome > strong { font-size: 30px; } .supporting-details > summary > span { display: block; margin-left: 0; } .heading-row { align-items: flex-start; } }
 .suite-context { overflow-x: auto; } .topbar > div { overflow-wrap: anywhere; min-width: 0; }
+.stage-picker { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 14px; margin: 20px 0; }
+.stage-picker select { width: auto; max-width: 100%; min-width: 180px; }
+.slow-turn-selection > .stage-picker { padding: 16px 20px; background: var(--cs-surface-detail); border-radius: 8px; }
+.computed-appendix { margin-top: 32px; min-width: 0; }
+.computed-appendix table { table-layout: fixed; min-width: 900px; width: 100%; }
+.computed-appendix th, .computed-appendix td { white-space: normal; overflow-wrap: anywhere; vertical-align: top; line-height: 1.6; }
+.computed-appendix th:first-child { width: 15%; }
+.computed-appendix th:nth-child(2) { width: 30%; }
+.computed-appendix th:nth-child(3) { width: 28%; }
+.computed-appendix td:nth-child(2) { font-variant-numeric: tabular-nums; color: var(--cs-ink); }
+.call-controls-top { margin: 12px 0 24px; padding-bottom: 18px; border-bottom: 1px solid var(--cs-border); }
+.unanswered-questions dl > div, .out-of-reach dl > div { margin: 20px 0; }
+.unanswered-questions dt, .out-of-reach dt { font-weight: 500; line-height: 1.5; }
+.unanswered-questions dd, .out-of-reach dd { margin: 8px 0 0; font-size: 14px; color: var(--cs-text-secondary); line-height: 1.65; }
+.q-body { padding: 4px 0 22px 32px; }
+.insight-list { grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); }
+@media (max-width: 600px) {
+  .questions, .insights { padding: 16px 12px; }
+  .q-body { padding-left: 0; }
+  .drawer-top h2 { font-size: 20px; }
+}
