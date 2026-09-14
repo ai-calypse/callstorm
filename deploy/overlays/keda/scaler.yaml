@@ -1,7 +1,7 @@
 # Scale on calls waiting to be placed, rather than on CPU.
 #
 # Consumer lag on the assignment topic is the number of calls the dispatcher has
-# handed out that no worker has picked up yet. That is the load, directly: it
+# handed out that have not been committed, including in-flight batches. It
 # rises the moment a step out-runs the fleet and falls the moment the fleet
 # catches up, with none of CPU's blindness to a caller asleep on a socket.
 #
@@ -19,14 +19,18 @@ spec:
   maxReplicaCount: 8
   pollingInterval: 10
   cooldownPeriod: 120
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 120
   triggers:
     - type: kafka
       metadata:
         bootstrapServers: redpanda.callstorm.svc.cluster.local:9092
         consumerGroup: callstorm-workers
         topic: callstorm.assignments
-        # One waiting call per worker is the trigger. Calls are slow -- tens of
-        # seconds each -- so a queue that is even slightly behind is already
-        # costing wall-clock on the run.
-        lagThreshold: "1"
+        # Six outstanding calls per replica matches the configured slots.
+        # Rebalance waits for a bounded batch, so scale-out is not instant.
+        lagThreshold: "6"
         offsetResetPolicy: earliest

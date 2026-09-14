@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: callstorm-runs
+  namespace: callstorm
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests: { storage: 5Gi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: callstorm-reports
+  namespace: callstorm
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app: callstorm-reports }
+  template:
+    metadata:
+      labels: { app: callstorm-reports }
+    spec:
+      automountServiceAccountToken: false
+      # The image's user is the name "nonroot", which the kubelet cannot verify
+      # against runAsNonRoot; pin the uid it maps to.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+      containers:
+        - name: reports
+          image: callstorm:dev
+          imagePullPolicy: IfNotPresent
+          command: [/dashboard]
+          args: [-runs=/runs, -addr=:8090]
+          ports: [{ name: http, containerPort: 8090 }]
+          readinessProbe:
+            httpGet: { path: /api/runs.json, port: http }
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 256Mi }
+          volumeMounts:
+            - { name: runs, mountPath: /runs, readOnly: true }
+      volumes:
+        - name: runs
+          persistentVolumeClaim: { claimName: callstorm-runs }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: callstorm-reports
+  namespace: callstorm
+spec:
+  selector: { app: callstorm-reports }
+  ports: [{ name: http, port: 8090, targetPort: http }]

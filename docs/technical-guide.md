@@ -72,10 +72,59 @@ carries calls out and results back, and nothing else passes between them.
 ## Running a sweep across a fleet
 
 ```bash
-kubectl apply -f deploy/k8s/           # broker, target, workers, autoscaler
+docker build -t callstorm:dev . && kind load docker-image callstorm:dev --name callstorm
+kubectl apply -f deploy/k8s/00-namespace.yaml
+kubectl -n callstorm create secret generic callstorm-credentials \
+    --from-literal=deepgram-api-key="$DEEPGRAM_API_KEY"
+kubectl apply -k deploy/overlays/keda    # broker, target, workers, reports, monitoring, KEDA scaler
 kubectl apply -f deploy/k8s/50-dispatch-job.yaml
-./bin/dashboard -runs runs             # history and report cards on :8090
+kubectl -n callstorm wait --for=condition=complete job/callstorm-dispatch --timeout=30m
 ```
+
+`deploy/` is a kustomization, not a directory to apply wholesale. Pick exactly
+one overlay: `deploy/overlays/keda` scales on assignment lag and needs KEDA
+installed first (see the comment in its `scaler.yaml`); `deploy/overlays/cpu`
+scales on CPU and needs only metrics-server. Both manage a
+HorizontalPodAutoscaler on the same Deployment, so applying both makes them
+fight. `kubectl apply -k deploy` installs the fleet with no autoscaler at all.
+The Jobs under `deploy/k8s/` are never part of a kustomization; each run is
+launched explicitly, as above.
+
+The dispatcher writes the run's report, calls log, CSV and SVG to the
+`callstorm-runs` PersistentVolumeClaim rather than to its own container, so
+they outlive the Job. The `callstorm-reports` Deployment serves that volume
+through the same API and dashboard as a local `./bin/dashboard`:
+
+```bash
+kubectl -n callstorm port-forward svc/callstorm-reports 8090:8090   # dashboard on :8090
+curl -s localhost:8090/api/runs.json | jq -r '.[].id'                # list run ids
+curl -O localhost:8090/api/runs/<run-id>/archive.tar.gz              # report + evidence files
+```
+
+The archive holds the run's JSON report and whichever companion files exist
+(`-calls.jsonl`, `.csv`, `.svg`, `-insights.json`) under their original names,
+so it drops straight into a local `runs/` directory. The volume is
+ReadWriteOnce, which is why the dispatcher Job is pinned to the report server's
+node. Prometheus and Grafana run in the same namespace and are reached the same
+way:
+
+```bash
+kubectl -n callstorm port-forward svc/grafana 3000:3000      # provisioned dashboard, anonymous viewer
+kubectl -n callstorm port-forward svc/prometheus 9090:9090   # Targets page lists every worker pod
+```
+
+Prometheus discovers worker pods through the Kubernetes API (pod role, label
+`app=callstorm-worker`, port named `metrics`), so a pod the autoscaler adds is
+scraped on its next interval without any configuration change. Every replica
+should appear on the Targets page as `up` before a run is trusted; the
+`callstorm_active_calls` gauge is per pod.
+
+`scripts/verify-infrastructure.py` proves all of the above end to end on a
+throwaway kind cluster: it builds the image, applies the kustomization, checks
+every worker is a healthy scrape target and that the anonymous Grafana user
+cannot edit, launches a run, SIGKILLs the busiest worker mid-step, and then
+confirms the report shows every call received exactly once and that the archive
+is still served after the Job is deleted and the report server restarted.
 
 On a machine where Smart App Control or another application-control policy
 refuses freshly built, unsigned binaries, run the dashboard in a container

@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources: [resources.yaml]
+configMapGenerator:
+  - name: callstorm-prometheus
+    files: [prometheus.yml]
+  - name: callstorm-grafana-datasources
+    files: [prometheus.yml=grafana/provisioning/datasources/prometheus.yml]
+  - name: callstorm-grafana-provider
+    files: [dashboards.yml=grafana/provisioning/dashboards/dashboards.yml]
+  - name: callstorm-grafana-dashboard
+    files: [callstorm.json=grafana/provisioning/dashboards/callstorm.json]

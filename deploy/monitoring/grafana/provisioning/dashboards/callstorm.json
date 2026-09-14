@@ -71,7 +71,10 @@
       "description": "Concurrent synthetic callers in flight. Should track the profile's current step.",
       "gridPos": { "h": 9, "w": 8, "x": 16, "y": 0 },
       "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "#2a78d6" } } },
-      "targets": [{ "expr": "callstorm_active_calls", "legendFormat": "active" }]
+      "targets": [
+        { "expr": "sum(callstorm_active_calls)", "legendFormat": "fleet total" },
+        { "expr": "callstorm_active_calls", "legendFormat": "{{instance}}" }
+      ]
     },
     {
       "type": "timeseries",

@@ -12,9 +12,19 @@ metadata:
   namespace: callstorm
 spec:
   backoffLimit: 0
+  activeDeadlineSeconds: 1800
   template:
     spec:
       restartPolicy: Never
+      securityContext:
+        fsGroup: 65532
+      # The demo uses a ReadWriteOnce volume shared with the report server.
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels: { app: callstorm-reports }
+              topologyKey: kubernetes.io/hostname
       containers:
         - name: dispatch
           image: callstorm:dev
@@ -22,11 +32,11 @@ spec:
           command: ["/callstorm"]
           args:
             - -profile=/profiles/k8s-demo.json
-            - -scenario=/scenarios/refund.json
+            - -scenario=/scenarios/infrastructure.json
             - -distributed
             - -kafka=redpanda.callstorm.svc.cluster.local:9092
             - -target=ws://refagent.callstorm.svc.cluster.local:8080/v1/agent/converse
-            - -out=/tmp/runs
+            - -out=/runs
             - -cache=/cache
             - -env=
           env:
@@ -36,3 +46,8 @@ spec:
           resources:
             requests: { cpu: 100m, memory: 128Mi }
             limits:   { memory: 512Mi }
+          volumeMounts:
+            - { name: runs, mountPath: /runs }
+      volumes:
+        - name: runs
+          persistentVolumeClaim: { claimName: callstorm-runs }

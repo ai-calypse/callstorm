@@ -6,11 +6,11 @@
 # means this autoscaler actually runs rather than being aspirational YAML.
 #
 # The measurement that really describes the load is Kafka consumer lag -- calls
-# waiting for a worker to take them. deploy/k8s/41-keda-scaledobject.yaml scales
+# waiting for a worker to take them. deploy/overlays/keda/scaler.yaml scales
 # on that instead, and both have now been run: lag reached 8 replicas within 20
 # seconds of the queue appearing, CPU took about two minutes to reach 7. Prefer
-# the KEDA one wherever KEDA can be installed, and delete this autoscaler when
-# you do -- two of them on one Deployment fight.
+# the KEDA overlay wherever KEDA can be installed, and apply only one overlay:
+# two autoscalers on one Deployment fight.
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
