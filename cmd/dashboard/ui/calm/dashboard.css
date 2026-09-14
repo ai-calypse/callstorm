@@ -564,3 +564,5 @@ td.wrapcell { white-space: normal; min-width: 22ch; line-height: 1.5; color: var
   .q-body { padding-left: 0; }
   .questions .section-top .quiet { display: none; }
 }
+.caveat .notes p { margin: 0; }
+.caveat .notes p + p { margin-top: 8px; }

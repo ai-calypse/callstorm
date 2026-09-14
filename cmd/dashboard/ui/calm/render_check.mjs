@@ -37,7 +37,7 @@ globalThis.React = React;
 globalThis.ReactDOM = { createRoot: () => ({ render() {} }) };
 globalThis.fetch = async () => { throw new Error("fetch during render"); };
 
-const mod = new Function(src + "\n;return { Report, Evidence, Method, Findings, RunList, Trend, Sidebar, Glossary, About, Appendix, TABS, glance, findings, groupRuns };")();
+const mod = new Function(src + "\n;return { Report, Evidence, Method, Findings, RunList, Trend, Sidebar, Glossary, About, Appendix, TABS, glance, findings, groupRuns, buildQuestions, appendixValues, ComputedAppendix, Questions, ComponentShare };")();
 const render = (C, props) => ReactDOMServer.renderToStaticMarkup(React.createElement(C, props));
 
 let bad = 0;
@@ -467,7 +467,7 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
   has(html, "severity badge", 'class="cs-badge cs-badge-warning">medium');
   has(html, "evidence listed", "endpointing p95 held between 200ms and 230ms");
   has(html, "next step", "Stream the voice so audio starts");
-  has(html, "dropped claims counted", "1 claim dropped for citing numbers the data does not hold");
+  has(html, "dropped claims counted", "Dropped: 1 claim that could not be checked");
   has(html, "dropped claim reason", "the data holds 100% setup success at every step");
   check("analysis sits above the questions", html.indexOf("talks over the caller") < html.indexOf("What would you like to understand?"));
   has(page1(run, "run", "load", { initialInsights: null }), "no analysis says how to get one", "No written analysis for this run");
@@ -502,7 +502,8 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
   check("questions sit between the analysis and the evidence tabs",
     html.indexOf("questions answered, in plain words") < html.indexOf("What would you like to understand?"));
   const qs = (html.match(/<details class="q/g) || []).length;
-  check(`${qs} questions rendered (want 17: 16 plus what the test cannot answer)`, qs === 17);
+  check("only answered questions appear individually, plus the test limitations", qs === mod.buildQuestions(run, index, "run").filter(q => !q.missing).length + 1);
+  has(html, "the newer questions carried over", "Does it get worse at the job before it gets too slow?");
   has(page1(phases, "phases", "load"), "recovery question answered on a run with a recovery step", "After a rush ends, how long does it take to get back to normal?");
 }
 
@@ -520,6 +521,30 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
   const ap = render(mod.Appendix, { refs: REFS });
   has(ap, "appendix", "How every number is computed");
   has(ap, "boundary table", "Whose boundary each number spans");
+}
+
+
+// Values are stage-specific; absent measurements must not become zero.
+{
+  const v = mod.appendixValues(run, run.steps[0], run.steps, REFS, null, null);
+  has(render(mod.ComputedAppendix, {rep:run, refs:REFS}), "calculation selector", 'aria-label="Calculation table test stage"');
+  check("TTFA table uses selected stage", v.TTFA.includes(Math.round(run.steps[0].ttfa.p95_ms) + "ms"));
+  check("reference table uses numeric percentile and correct clock", !v["Reference line"].includes("measured -"));
+  const empty = mod.appendixValues({steps:[{}]}, {}, [{}], [], null, null);
+  check("missing RTT stays missing", empty["Round trip"] === "Not measured");
+  const zero = mod.appendixValues({steps:[]}, {transport_rtt:{n:2,p50_ms:0,p95_ms:0}}, [], [], null, null);
+  check("measured zero RTT remains zero", zero["Round trip"].includes("p95 0ms"));
+  const e = {rate:.056,rows:[{name:run.steps[0].name,cost:{usd:.112,agent_minutes:2}}]};
+  const unpriced = {...run,steps:run.steps.map(s=>({...s,cost:undefined}))};
+  const priced = mod.appendixValues(unpriced, unpriced.steps[0], unpriced.steps, [], e, null);
+  check("estimated formula substitutes connection minutes and rate", priced.Cost.includes("2 min × $0.056/min = $0.112"));
+  const grouped = render(mod.Questions,{rep:run,runs:index,id:"run"});
+  check("missing questions aggregated after answered questions", grouped.indexOf('class="unanswered-questions') > grouped.lastIndexOf('class="q-body"'));
+  const qualityRun = {...run, steps:run.steps.map(s => ({...s,quality:{verdict:"pass",compared:["failed turns"]}}))};
+  const qualityQuestions = mod.buildQuestions(qualityRun, index, "run");
+  check("quality comparisons render with Calm badges", !qualityQuestions.some(q => q.id.startsWith("failed-")));
+  const chart = render(mod.ComponentShare,{rep:run});
+  check("wait bar segments have visible millisecond labels", /text-anchor="middle"[^>]*>\d+ms<\/text>/.test(chart));
 }
 
 check(`no React warnings (${warnings.length})`, warnings.length === 0);
