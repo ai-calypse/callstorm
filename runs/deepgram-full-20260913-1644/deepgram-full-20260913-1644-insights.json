@@ -8,104 +8,77 @@
     "20260913-183723-sweep-deepgram-30",
     "20260913-191409-sweep-deepgram-30"
   ],
-  "generated_at": "2026-09-13T22:20:16.3174465Z",
-  "model": "gemini-3.5-flash",
-  "prompt_hash": "9c9d8c617b73",
-  "data_hash": "1b9230afab7e",
-  "headline": "While baseline latency beats industry benchmarks with excellent response quality, tail latency breaks under moderate concurrent load due to downstream thinking delays.",
+  "generated_at": "2026-09-14T06:34:23.188744Z",
+  "model": "claude-opus-5",
+  "prompt_hash": "91de29b7d245",
+  "data_hash": "e5df842d54b3",
+  "headline": "Adding calls did not slow the agent's typical reply in any of the five scenarios; the problems to fix are multi-second stalls after the caller's closing thank-you in every scenario, and a barge-in test that never interrupted the agent.",
   "insights": [
     {
-      "title": "Tail Latency Degrades Severely Under Load in refund-escalation Scenario",
+      "title": "Every scenario stalls on the caller's closing thank-you, even with one call at a time, but not for the same reason",
       "category": "latency",
       "severity": "high",
       "evidence": [
-        "refund-escalation, step baseline: ttfa p50_ms 847.1",
-        "refund-escalation, step baseline: ttfa p95_ms 1149.5",
-        "refund-escalation, step c5: ttfa p50_ms 860",
-        "refund-escalation, step c5: ttfa p95_ms 2543.9",
-        "refund-escalation, step c10: ttfa p50_ms 877.4",
-        "refund-escalation, step c10: ttfa p95_ms 3108.9",
-        "refund-escalation, step c20: ttfa p50_ms 868.4",
-        "refund-escalation, step c20: ttfa p95_ms 3151.6"
+        "refund-escalation, step baseline (one call at a time), turn 5: ttfa p95_ms 3150.9",
+        "refund-escalation, turn 5: heard_cut_short 10, ttfa_p50_ms_cut_short 3203.3, ttfa_p50_ms_heard_in_full 848.9, think_speak_p50_ms 562.2",
+        "refund-bargein, turn 5: heard_cut_short 6, ttfa_p50_ms_cut_short 3157.7, ttfa_p50_ms_heard_in_full 826.1",
+        "refund-branching, turn 5: heard_cut_short 8, ttfa_p50_ms_cut_short 3152.8, ttfa_p50_ms_heard_in_full 754.4",
+        "refund-hesitant, turn 5: heard_cut_short 6, ttfa_p50_ms_cut_short 775.5, ttfa_p50_ms_heard_in_full 735.2, ttfa_p95_ms 3181.8",
+        "graph-reference, turn 4: ttfa_p50_ms 3164, think_speak_p50_ms 2926.2, heard_cut_short 24, ttfa_p50_ms_cut_short 5448.7",
+        "graph-reference, step c40, turn 4: ttfa p50_ms 3147.6, think_speak_p50_ms 2923"
       ],
-      "finding": "In the refund-escalation scenario, the median wait time remains stable under concurrency, but the p95 tail latency degrades heavily starting at 5 concurrent calls, failing the speed threshold.",
-      "why_it_matters": "A flat median alongside a ballooning p95 suggests that while typical calls are handled quickly, a significant portion of callers experience extreme queueing or delays, making the experience highly inconsistent.",
-      "next_step": "Investigate system concurrency limits and database lookup performance during the refund-escalation flow."
+      "finding": "In all five scenarios the long waits pile up on the same caller line, \"Alright, that works. Thanks for sorting it out.\" This shows at the baseline step, where only one call runs at a time, so load did not cause it. The pattern behind it differs by scenario. In refund-escalation, refund-bargein and refund-branching, the slow closing turns are mostly the ones the agent heard cut short, meaning its transcript held under half of the caller's words. On those turns the median wait (the typical, middle value) is above 3 seconds, against well under a second when the line was heard in full. refund-hesitant does not fit this pattern. Its cut-short turns were not slow (775.5 against 735.2), yet its p95 is still 3181.8. The p95 is the wait that only the slowest 5 in 100 turns exceed. So mishearing cannot be the whole story. graph-reference is slow on this turn even for the typical call, and the time goes to thinking up the reply rather than to hearing. Its steps baseline, c5 and c10 had harness_degraded true, meaning they measured the test machine, so no conclusion is drawn from them. Its c40 step was not degraded and shows the same slow thinking. One possibility is that a short closing line gets dropped by speech recognition and the agent waits for a timeout. For graph-reference, one possibility is its longer closing reply, \"You're welcome! Your refund will be processed shortly.\"",
+      "why_it_matters": "The last thing a caller experiences is a pause of several seconds after saying thanks, in every flow tested. Adding capacity would not fix it, because it happens with a single call.",
+      "next_step": "Pull the recordings and transcripts of the cut-short closing turns in refund-escalation and trace, event by event, where the time goes between the caller stopping and the agent's first audio."
     },
     {
-      "title": "Thinking and Processing is the Primary Latency Bottleneck",
-      "category": "latency",
-      "severity": "high",
-      "evidence": [
-        "refund-escalation, step c20: transport_rtt p95_ms 90",
-        "refund-escalation, step c20: endpointing p95_ms 375.4",
-        "refund-escalation, step c20: think_speak p95_ms 2893.8"
-      ],
-      "finding": "Outlier latency is caused almost entirely by the agent thinking and preparing its verbal response rather than network transmission or noticing when the caller stops talking.",
-      "why_it_matters": "Knowing the bottleneck is inside the thinking/speaking generation phase helps the team avoid wasting effort optimizing network connections or speech detection VAD thresholds.",
-      "next_step": "Profile LLM and speech generation performance under concurrent loads to reduce think-speak execution times."
-    },
-    {
-      "title": "Test Harness Resource Exhaustion Invalidates Step Results",
+      "title": "The scenarios test less than their names suggest, and graph-reference's checks look for placeholder text",
       "category": "test",
-      "severity": "medium",
-      "evidence": [
-        "refund-escalation, step c40: harness_degraded true",
-        "refund-bargein, step c40: harness_degraded true",
-        "refund-branching, step c40: harness_degraded true",
-        "graph-reference, step baseline: harness_degraded true",
-        "graph-reference, step c5: harness_degraded true",
-        "graph-reference, step c10: harness_degraded true"
-      ],
-      "finding": "Multiple high-load steps are marked with a degraded test harness, which means the test infrastructure itself was overloaded, not necessarily the agent.",
-      "why_it_matters": "Drawing performance conclusions from degraded runs can lead to false architectural fixes or mask real performance bottlenecks.",
-      "next_step": "Upgrade the testing machine resources and repeat the high-concurrency steps to get clean measurements."
-    },
-    {
-      "title": "Closing Turn (Turn 5) Has Consistently High Outlier Latency",
-      "category": "latency",
-      "severity": "medium",
-      "evidence": [
-        "refund-escalation, step baseline: turn 5 ttfa p95_ms 3150.9",
-        "refund-escalation, step baseline: turn 1 ttfa p95_ms 960.9",
-        "refund-bargein, step baseline: turn 5 ttfa p95_ms 3688.2",
-        "refund-bargein, step baseline: turn 1 ttfa p95_ms 1847.6",
-        "refund-branching, step baseline: turn 5 ttfa p95_ms 3205.3",
-        "refund-branching, step baseline: turn 1 ttfa p95_ms 1085.7"
-      ],
-      "finding": "Across different runs, the final turn where the customer says goodbye or expresses thanks triggers significantly longer outlier delays than the opening turn.",
-      "why_it_matters": "A massive delay on the very last turn leaves callers hanging on a silent line right as they try to finish the call, leaving a poor final impression.",
-      "next_step": "Optimize prompt routing or context processing for final polite exchanges to ensure they return fast replies."
-    },
-    {
-      "title": "Excellent Task Accuracy and Word Recognition Maintained Under Load",
-      "category": "quality",
-      "severity": "low",
-      "evidence": [
-        "refund-escalation, step baseline: wer mean 0.029577464788732393",
-        "refund-escalation, step c20: wer mean 0.03556338028169014"
-      ],
-      "finding": "The agent maintains excellent conversational quality under load, with a baseline mean word error rate of 3.0% rising only slightly to 3.6% at c20.",
-      "why_it_matters": "The system successfully understands callers and executes requested jobs accurately (100.0% task success on judged calls) even when the system is heavily loaded.",
-      "next_step": "Preserve the active configuration of transcription and prompt logic, focusing strictly on speed optimization rather than accuracy fixes."
-    },
-    {
-      "title": "Severe Systemic Delay in graph-reference Turn 4",
-      "category": "latency",
       "severity": "high",
       "evidence": [
-        "graph-reference, step c20: turn 4 ttfa p50_ms 3151.1",
-        "graph-reference, step c20: turn 4 ttfa p95_ms 5448.7"
+        "refund-bargein, step c40: barge_in turns 0, conversation interruptions 0",
+        "refund-hesitant, turn 3: caller_line \"I'd rather not wait around for another shipment, honestly. Can I just get my money back instead?\", the same line as refund-bargein, turn 3",
+        "refund-escalation, step baseline: conversation caller_speech_seconds 706.8",
+        "refund-hesitant, step baseline: conversation caller_speech_seconds 706.8",
+        "graph-reference, step c40: node open pass_rate 0 and node number pass_rate 0, miss \"said none of [\\\"reference reply\\\"]\", quality verdict pass",
+        "graph-reference, step c40: node close checked 0"
       ],
-      "finding": "In the graph-reference scenario, the final turn (Turn 4) displays extremely high median and outlier latency, exceeding 3 seconds for half of the callers.",
-      "why_it_matters": "A median of 3151.1 ms means almost every caller experiences a noticeable, uncomfortable multi-second gap of dead air, indicating a systemic logic bottleneck rather than an occasional glitch.",
-      "next_step": "Examine the backend operation or external integration running on Turn 4 in the graph-reference scenario to resolve the systemic 3-second block."
-    }
-  ],
-  "rejected": [
+      "finding": "The four refund-* scenarios play the caller the same lines, with the same amount of caller speech. A barge-in is when the caller talks over the agent. refund-bargein produced none at any step, so this suite never tested whether the agent stops talking when interrupted, and refund-hesitant's caller was no more hesitant than the others. graph-reference is the only scenario with checks at each point of the conversation. Its open and number checks require the literal words \"reference reply\", which reads like unfilled placeholder text, so they fail on every call. Even so, the step's quality verdict still says pass. Its close check never ran.",
+      "why_it_matters": "Five scenarios look like broad coverage, but most of them repeat one conversation. The quality verdict also passes checks that could not have passed, so a green result here says less than it appears to.",
+      "next_step": "Give refund-bargein a caller line that starts while the agent is still speaking, and replace the \"reference reply\" placeholder in graph-reference's open and number checks with the replies the agent is expected to give."
+    },
     {
-      "title": "Other Scenarios Greatly Outperform Escalation Under Load",
-      "reason": "repeats \"Tail Latency Degrades Severely Under Load in refund-escalation Scenario\""
+      "title": "Only two scenarios failed the task, and mishearing explains one but not the other",
+      "category": "quality",
+      "severity": "medium",
+      "evidence": [
+        "graph-reference, judge correlation: misheard_calls 44 with misheard_pass_rate 86.4%, clean_calls 166 with clean_pass_rate 100.0%",
+        "graph-reference, step c20: wer mean 5.4%",
+        "refund-escalation, step c20: wer mean 3.6%",
+        "graph-reference, judge misses: \"The assistant confirms a refund, AND does so after the user asks for their money back\" missed 6",
+        "refund-branching, judge correlation: median_wer_failed 1.5%, median_wer_passed 2.8%",
+        "refund-branching, judge misses: \"The assistant confirms a refund at any point in the call\" missed 3, evidence \"assistant turns only discuss a 'replacement shipment'\"",
+        "refund-hesitant, judge: passed 210 of judged 210"
+      ],
+      "finding": "refund-escalation, refund-bargein and refund-hesitant did the job on every judged call. The two scenarios that lost calls failed in different ways. Word error rate (wer) is the share of the caller's words the agent got wrong. In graph-reference it runs higher than in the other scenarios, and every failure came from calls where the agent misheard the caller. In refund-branching, the failed calls were heard more accurately than the passing ones. There, the judge found that the agent kept offering a replacement and never confirmed a refund. That points to how the agent chooses its reply, not to hearing.",
+      "why_it_matters": "Better speech recognition might recover graph-reference's failures but would not touch refund-branching's, so a single fix for both would miss one of them.",
+      "next_step": "Review the failed refund-branching transcripts alongside the prompt logic that decides between a replacement and a refund."
+    },
+    {
+      "title": "Load does not drive the slow steps, except possibly in refund-escalation",
+      "category": "capacity",
+      "severity": "medium",
+      "evidence": [
+        "refund-escalation, steps baseline, c5, c10, c20: ttfa p95_ms 1149.5, 2543.9, 3108.9, 3151.6, verdict fail at c5, c10 and c20",
+        "refund-escalation, steps baseline and c20: ttfa p50_ms 847.1 and 868.4",
+        "refund-hesitant, steps c5, c10, c20: ttfa p95_ms 1939.9, 1252.6, 985.5, verdict fail at c5 then pass",
+        "refund-bargein, steps baseline and c40: ttfa p95_ms 2348.8 and 1228.1",
+        "graph-reference, steps c20 and c40: ttfa p95_ms 3435 and 3355.2",
+        "refund-escalation and refund-branching, step c40: harness_degraded true"
+      ],
+      "finding": "In every scenario the typical wait barely moves as calls are added. refund-escalation is the only scenario whose p95 wait rises at each step up to 20 calls at once, and it is the first to cross Coval's published line of 2000ms for p95 under load. That line is another company's target, not this team's service level. In the other scenarios the p95 does not follow load. refund-hesitant fails at 5 calls, then passes at 10 and 20. refund-bargein is faster at 40 calls than with one call. graph-reference stays above the Coval line at both of its trustworthy steps, but its p95 is flat. So most pass and fail verdicts between steps reflect a handful of slow turns landing in a step, not the agent running out of room. The c40 steps of refund-escalation and refund-branching measured the test machine rather than the agent, so no conclusion is drawn from them. For those two scenarios, 20 calls at once is the busiest step that can be read.",
+      "why_it_matters": "The step verdicts make the agent look capacity-limited when mostly it is not. refund-escalation is the one scenario where a real load limit may exist.",
+      "next_step": "Repeat the refund-escalation sweep, on a test machine that stays healthy at 40 calls, to see whether its p95 climb from baseline to c20 happens again."
     }
   ]
 }

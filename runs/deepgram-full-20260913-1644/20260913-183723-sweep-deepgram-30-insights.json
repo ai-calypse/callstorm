@@ -4,87 +4,59 @@
   "runs": [
     "20260913-183723-sweep-deepgram-30"
   ],
-  "generated_at": "2026-09-13T22:16:29.4371957Z",
-  "model": "gemini-3.5-flash",
-  "prompt_hash": "9c9d8c617b73",
-  "data_hash": "c3eccb93c992",
-  "headline": "The voice agent demonstrates excellent responsiveness and accuracy under load, meeting core production benchmarks, but suffers from isolated tail latency spikes during the final closing turn.",
+  "generated_at": "2026-09-14T06:04:48.639663Z",
+  "model": "claude-opus-5",
+  "prompt_hash": "91de29b7d245",
+  "data_hash": "e4c931830c26",
+  "headline": "The agent held its typical reply speed up to 40 calls at once, and the thing to fix first is the closing thank-you turn: its slowest replies stall at every load, and those stalls made the 5-call step the run's only failure.",
   "insights": [
     {
-      "title": "Severe Tail Latency Spikes on the Final Closing Turn",
+      "title": "The closing thank-you turn stalls at every load, and those stalls made the 5-call step the only failure",
       "category": "latency",
       "severity": "high",
       "evidence": [
-        "refund-hesitant, turn 5: ttfa_p95_ms 3181.8",
-        "refund-hesitant, step baseline: turn 5 ttfa p95_ms 3166.9",
-        "refund-hesitant, step c40: turn 5 ttfa p95_ms 3116.2"
+        "refund-hesitant, step baseline, turn 5: ttfa p50_ms 735.2, p95_ms 3166.9",
+        "refund-hesitant, step c40, turn 5: ttfa p50_ms 734.8, p95_ms 3116.2",
+        "refund-hesitant, step baseline: endpointing p99_ms 387.4, think_speak p99_ms 2922.4",
+        "refund-hesitant, step c5: verdict fail, p95_ratio 2.04, ttfa p95_ms 1939.9",
+        "refund-hesitant, step c5, turn 5: ttfa p90_ms 3190; turn 2: ttfa max_ms 1283",
+        "refund-hesitant, step c5: endpointing p99_ms 3177.1",
+        "refund-hesitant, steps c10, c20, c40: p95_ratio 1.32, 1.04, 1.08",
+        "refund-hesitant, calls log turn 5: heard_cut_short 6, ttfa_p50_ms_cut_short 775.5, ttfa_p50_ms_heard_in_full 735.2"
       ],
-      "finding": "The agent experiences a severe response delay during the final conversational turn (turn 5, where the caller says goodbye), even at a baseline concurrency of 1 call.",
-      "why_it_matters": "When a caller finishes a transaction and says goodbye, they are left waiting in silence for over 3116.2 ms under heavy load and 3166.9 ms at baseline before the agent begins speaking, creating awkward dead air at the end of the call.",
-      "next_step": "Analyze the prompt and LLM termination handling for turn 5 to determine why response generation stalls regardless of load."
+      "finding": "The wait before the agent starts speaking (ttfa) behaves oddly on the last turn, where the caller says \"Alright, that works. Thanks for sorting it out.\" Its median (p50, the typical turn) is the lowest of any turn in each step. Its p95, the slowest 5% of turns, lands between 3116.2 and 3594.2 ms at every step. That includes the baseline, where only one call ran at a time, so load does not create the stall. At baseline the slow end sits in thinking up the reply (think_speak p99 2922.4), while noticing the caller stopped (endpointing) stays at 387.4. The 5-call step (c5) is the only step that failed, and its slow end did not grow with load: c10, c20 and c40 all came back close to baseline. Within c5, turn 5 has a p90 of 3190, while no other turn passed 1283 ms. So c5's 3177.1 ms endpointing stall can only have fallen on the closing turn. At that step, some closing stalls were in hearing the caller stop, not only in thinking. Mishearing does not explain it: on this turn the median barely moves between callers heard in full and callers cut short.",
+      "why_it_matters": "This one short goodbye turn produces the worst waits in the run, and it happens with a single caller. Adding servers will not fix it. It also means the c5 failure is most likely not a capacity problem. Reading it as one would send the team after the wrong fix.",
+      "next_step": "Pull the traces for every turn-5 reply at baseline and c5 whose ttfa passed 2000 ms, and check whether the time went to endpointing, to the model's first token, or to the speech engine's first audio."
     },
     {
-      "title": "Transient Latency Spikes at Low Concurrency",
-      "category": "capacity",
-      "severity": "medium",
-      "evidence": [
-        "refund-hesitant, step c5: verdict fail",
-        "refund-hesitant, step c5: ttfa p95_ms 1939.9",
-        "refund-hesitant, step c40: verdict pass",
-        "refund-hesitant, step c40: ttfa p95_ms 1029.2"
-      ],
-      "finding": "The test step at 5 concurrent calls failed its latency criteria with a p95 response time of 1939.9 ms, whereas the step at 40 concurrent calls passed successfully with a faster p95 of 1029.2 ms.",
-      "why_it_matters": "Because latency metrics improved significantly as load increased to 40 concurrent calls, the failure at 5 concurrent calls was likely caused by a transient platform or network glitch rather than a systemic capacity bottleneck.",
-      "next_step": "Investigate underlying hosting or dependency stability during the time of the c5 test step to rule out external resource contention."
-    },
-    {
-      "title": "Response Generation is the Primary Latency Component",
-      "category": "latency",
-      "severity": "medium",
-      "evidence": [
-        "refund-hesitant, step baseline: think_speak p50_ms 472.6",
-        "refund-hesitant, step baseline: endpointing p50_ms 301.4",
-        "refund-hesitant, step baseline: transport_rtt p50_ms 81.5"
-      ],
-      "finding": "The majority of the wait time before the agent speaks is spent thinking up the reply (think_speak), rather than waiting to detect the caller has stopped speaking (endpointing) or transmitting packets over the network (transport_rtt).",
-      "why_it_matters": "To make the conversation feel more natural, developers must focus optimization efforts on the LLM's response generation speed (think_speak), as endpointing and network transit times are already fast.",
-      "next_step": "Profile the LLM response-generation pipeline to identify potential speedups in the thinking step."
-    },
-    {
-      "title": "Excellent Response Times Relative to Production Standards",
-      "category": "latency",
-      "severity": "info",
-      "evidence": [
-        "refund-hesitant, step c40: ttfa p50_ms 784.7",
-        "refund-hesitant, run: references hamming-observed-production-p50 1400"
-      ],
-      "finding": "Even under the maximum tested load of 40 concurrent calls, the agent's median response time (784.7 ms) remains far speedier than the production median benchmark range of 1400 ms to 1700 ms.",
-      "why_it_matters": "The agent provides an exceptionally fast response in typical scenarios, surpassing established industry benchmarks for natural conversation.",
-      "next_step": "Maintain the current low-latency baseline architecture as concurrency scales up."
-    },
-    {
-      "title": "Transcription Accuracy Remains Intact Under High Load",
-      "category": "quality",
-      "severity": "info",
-      "evidence": [
-        "refund-hesitant, step baseline: wer mean 0.02535211267605634",
-        "refund-hesitant, step c40: wer mean 0.0329225352112676"
-      ],
-      "finding": "The agent's Word Error Rate (WER) — representing how often words are misheard — is exceptionally low at 2.5% during single-call baseline tests and only rises slightly to 3.3% under 40 concurrent calls.",
-      "why_it_matters": "The system's ability to accurately transcribe and understand caller speech is highly resilient to concurrent call load, ensuring callers are not misheard when the system is busy.",
-      "next_step": "Preserve the current speech-to-text configuration since it maintains high accuracy up to 40 concurrent calls."
-    },
-    {
-      "title": "Fragile Sample Sizes for Quality Evaluation",
+      "title": "The task-success judge passed every call, so the quality verdict cannot show quality slipping under load",
       "category": "test",
+      "severity": "medium",
+      "evidence": [
+        "refund-hesitant, judge: judged 210, passed 210, errored 0",
+        "refund-hesitant, judge misses: both criteria missed 0 of 210",
+        "refund-hesitant, judge correlation: misheard_calls 8, misheard_passed 8",
+        "refund-hesitant, step c40: wer mean 3.3%, worst 100.0%, deletions 179, substitutions 6, insertions 2"
+      ],
+      "finding": "An AI judge grades whether each call did the job, using two criteria. It passed all 210 calls, and neither criterion failed once. It also passed all 8 calls where the agent's transcript misheard the caller. At c40, the agent's hearing lost a whole turn's words at worst (word error rate, or WER, worst 100.0%), and nearly all errors were dropped words (179 deletions). Even so, the task still counted as done. Every step's quality verdict is pass, but it rests on criteria this agent never failed.",
+      "why_it_matters": "A check that never fails cannot tell the team when quality starts to give way as calls increase. The pass at c40 tells us little about whether busy periods hurt the caller's outcome.",
+      "next_step": "Add a judge criterion the agent could plausibly miss, such as \"The assistant tells the caller how long the refund takes to reach their card\", then rejudge this run's calls."
+    },
+    {
+      "title": "No capacity limit was reached by 40 calls at once, but the first turn and the network show early strain there",
+      "category": "capacity",
       "severity": "low",
       "evidence": [
-        "refund-hesitant, run: judge judged 20",
-        "refund-hesitant, run: integrity dispatch received 210"
+        "refund-hesitant, step baseline: ttfa p50_ms 781.8; step c40: ttfa p50_ms 784.7",
+        "refund-hesitant, step c40: ttfa p95_ms 1029.2",
+        "refund-hesitant, step c40, turn 1: think_speak_p50_ms 526.7; turn 4: think_speak_p50_ms 512.9",
+        "refund-hesitant, step baseline, turn 1: think_speak_p50_ms 472.6; turn 4: think_speak_p50_ms 497.3",
+        "refund-hesitant, step baseline: transport_rtt p99_ms 90.8; step c40: transport_rtt p99_ms 110.3, max_ms 185.1",
+        "refund-hesitant, step c40: think_speak max_ms 5293"
       ],
-      "finding": "The automated LLM judge evaluated only 20 calls out of 210 total dispatched calls across the entire test suite.",
-      "why_it_matters": "Although all 20 judged calls successfully passed the functional evaluation, the small sample size means quality and task success rates are fragile and may not represent the full test population.",
-      "next_step": "Adjust the test configuration to judge a larger portion of the dispatched calls in future load tests."
+      "finding": "At 40 calls at once, the typical wait matches baseline, and ttfa p95 stays below Coval's published 2000 ms load line. That line is another company's target, not this team's. The test stopped before finding where the agent breaks. Small signs appear at c40. Within c40, the opening turn has the slowest median thinking time. Within baseline, the opening turn is faster than turn 4. One possible cause is many calls opening together. The network round trip's p99, the slowest 1%, is higher at c40 than at baseline. The single slowest thinking time in the run also falls at c40.",
+      "why_it_matters": "The team knows the agent holds at 40 calls at once, but not how much headroom remains. The first signs of strain are in the opening turn and the network, not in the median a dashboard would show.",
+      "next_step": "Rerun the ramp with steps above 40 calls at once, and watch the turn-1 think_speak median and the transport_rtt p99 for the first step where they keep climbing."
     }
   ]
 }

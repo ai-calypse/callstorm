@@ -4,78 +4,73 @@
   "runs": [
     "20260913-172146-sweep-deepgram-30"
   ],
-  "generated_at": "2026-09-13T22:08:08.2855437Z",
-  "model": "gemini-3.5-flash",
-  "prompt_hash": "9c9d8c617b73",
-  "data_hash": "9705de432687",
-  "headline": "The agent handles up to 40 concurrent calls with high transcription accuracy and low median latency, but experiences a severe tail latency spike on the final turn of conversations.",
+  "generated_at": "2026-09-14T06:01:21.7079545Z",
+  "model": "claude-opus-5",
+  "prompt_hash": "91de29b7d245",
+  "data_hash": "eeaa56d976fd",
+  "headline": "The agent handled up to 40 calls at once without slowing and completed every refund, but its longest silences come from mishearing the caller's goodbye, and the barge-in this test is named for never happened.",
   "insights": [
     {
-      "title": "Final Turn Tail Latency Spike",
-      "category": "latency",
-      "severity": "high",
-      "evidence": [
-        "20260913-172146-sweep-deepgram-30, turn 5: ttfa_p95_ms 3168.6",
-        "20260913-172146-sweep-deepgram-30, turn 1: ttfa_p95_ms 1103.4",
-        "20260913-172146-sweep-deepgram-30, turn 4: ttfa_p95_ms 1223.6"
-      ],
-      "finding": "The final turn of the conversation, where the caller says goodbye, experiences a severe tail latency spike. The p95 time to first audio (ttfa), which measures the wait before the agent starts speaking, rises to 3168.6 ms, while other turns remain under 1223.6 ms.",
-      "why_it_matters": "A delay of over three seconds at the end of a conversation creates awkward dead air right before the call ends, leaving callers uncertain if the agent has disconnected or failed.",
-      "next_step": "Analyze Turn 5 logs to see if post-refund API calls or final closing state transitions are stalling the agent response."
-    },
-    {
-      "title": "Slow Final Turn Hidden by Aggregated Step Latency",
-      "category": "latency",
-      "severity": "high",
-      "evidence": [
-        "20260913-172146-sweep-deepgram-30, step c40: ttfa p95_ms 1228.1",
-        "20260913-172146-sweep-deepgram-30, step c40: turn 5 ttfa p95_ms 3157.7"
-      ],
-      "finding": "Overall step latencies mask individual turn issues. In step c40, the step's overall p95 TTFA is 1228.1 ms, but the Turn 5 p95 TTFA within that same step spikes to 3157.7 ms.",
-      "why_it_matters": "Relying on aggregated performance metrics can hide critical design flaws, giving a false impression that the entire load test successfully met target guidelines.",
-      "next_step": "Add turn-level alerts to the CI pipeline to flag when any individual turn breaches the target limit, even if the overall step passes."
-    },
-    {
-      "title": "Median Latency Comfortably Beats Industry Standard",
-      "category": "latency",
-      "severity": "info",
-      "evidence": [
-        "20260913-172146-sweep-deepgram-30, step baseline: ttfa p50_ms 877.1",
-        "20260913-172146-sweep-deepgram-30, step c40: ttfa p50_ms 870.5"
-      ],
-      "finding": "The median TTFA across both baseline and high concurrency steps stays between 870.5 ms and 877.1 ms, remaining significantly faster than the Hamming observed production median of 1400 ms.",
-      "why_it_matters": "For the typical user, the agent is highly responsive, providing a natural conversational flow that beats standard production averages.",
-      "next_step": "Maintain current infrastructure settings since the median performance is highly competitive."
-    },
-    {
-      "title": "Low Word Error Rate Maintained Under Load",
-      "category": "quality",
-      "severity": "info",
-      "evidence": [
-        "20260913-172146-sweep-deepgram-30, step baseline: wer mean 0.02910798122065728",
-        "20260913-172146-sweep-deepgram-30, step c40: wer mean 0.029753521126760562"
-      ],
-      "finding": "The agent's Word Error Rate (WER), measuring words misheard, remains steady at 2.9% during baseline and 3.0% at concurrency 40.",
-      "why_it_matters": "Speech recognition accuracy does not degrade as concurrent call volume increases, ensuring that user requests are understood reliably under heavy traffic.",
-      "next_step": "Retain Deepgram as the speech-to-text provider for this voice agent configuration."
-    },
-    {
-      "title": "Small Judge Sample Size Affects Quality Confidence",
+      "title": "The barge-in scenario never had a caller talk over the agent",
       "category": "test",
-      "severity": "low",
+      "severity": "high",
       "evidence": [
-        "20260913-172146-sweep-deepgram-30, judge: judged 20",
-        "20260913-172146-sweep-deepgram-30, calls: calls 210"
+        "refund-bargein, step baseline: barge_in turns 0",
+        "refund-bargein, step c40: barge_in turns 0",
+        "refund-bargein, step c40: conversation interruptions 0",
+        "refund-bargein, step c40: turns_yielded 0",
+        "refund-bargein, step c40: audible_ttfa n 0",
+        "refund-bargein, step c40: leading_silence n 0"
       ],
-      "finding": "Only 20 calls out of 210 total load test calls were graded by the LLM judge, making the 100.0% pass rate positive but statistically fragile.",
-      "why_it_matters": "Grading a small fraction of the total call volume increases the risk of missing rare logic errors or task failures that might only surface under higher stress.",
-      "next_step": "Increase the portion of calls that are judged to obtain statistically robust quality metrics across larger runs."
-    }
-  ],
-  "rejected": [
+      "finding": "This scenario is named for barge-in, which is when a caller starts talking while the agent is still speaking. No step recorded a single barge-in turn, and the agent never stopped talking to yield to a caller. Two other figures were also not measured. One is audible_ttfa, the wait until a caller could actually hear sound. The other is leading_silence, the quiet at the start of each reply. Both have zero samples.",
+      "why_it_matters": "The run says nothing about how the agent behaves when it is interrupted, which is the one behaviour this scenario exists to test. The clean interruption figures elsewhere on the page come from no interruptions at all. They are not evidence of good handling.",
+      "next_step": "Fix the refund-bargein script so the caller speaks over the agent's reply, then rerun the baseline step and confirm barge_in turns is above 0 before using this scenario to judge interruption handling."
+    },
     {
-      "title": "Latency Decreases as Call Concurrency Rises",
-      "reason": "repeats \"Slow Final Turn Hidden by Aggregated Step Latency\""
+      "title": "The long silences on the goodbye come from the agent mishearing it, not from slow thinking",
+      "category": "latency",
+      "severity": "medium",
+      "evidence": [
+        "refund-bargein, calls log turn 5: heard_cut_short 6",
+        "refund-bargein, calls log turn 5: ttfa_p50_ms_cut_short 3157.7",
+        "refund-bargein, calls log turn 5: ttfa_p50_ms_heard_in_full 826.1",
+        "refund-bargein, step baseline: endpointing p99_ms 3091",
+        "refund-bargein, step c10: endpointing max_ms 737",
+        "refund-bargein, step c10: think_speak p99_ms 2929.1",
+        "refund-bargein, step c40: wer deletions 164, substitutions 4"
+      ],
+      "finding": "On 6 closing turns, the agent's transcript held less than half of what the caller said. The median wait on those turns was 3157.7ms, against 826.1ms when the caller was heard in full. The time before the agent starts speaking is called ttfa. It is split into two parts: endpointing, which is noticing the caller has stopped, and think_speak, which is producing the reply. The part holding the roughly 3-second wait changes between steps. At baseline, endpointing p99 (the slowest 1 in 100 turns) is 3091. From c10 onward, endpointing never passes 737, and the same-sized wait shows up in think_speak instead, at p99 2929.1. Misheard words are almost all dropped words, not swapped ones: at c40 there were 164 deletions against 4 substitutions. A possible cause, not shown by the data, is a fixed timeout that fires when a partial transcript stalls. That timeout would be booked under different segments at different times.",
+      "why_it_matters": "The fix is in hearing and turn detection, not in the model that writes replies. A team tuning think_speak because that is where the wait appears at busy steps would be working on the wrong part.",
+      "next_step": "Pull the recordings and speech-to-text events for the 6 cut-short closing turns and find what ends each silence: a timeout, a late final transcript, or the agent's own end-of-turn rule."
+    },
+    {
+      "title": "The judge cannot fail a call, so its 100.0% pass rate says little",
+      "category": "test",
+      "severity": "medium",
+      "evidence": [
+        "refund-bargein, judge: passed 210, judged 210",
+        "refund-bargein, judge correlation: misheard_calls 7, misheard_pass_rate 100.0%",
+        "refund-bargein, judge waits: slow_calls 70, slow_pass_rate 100.0%",
+        "refund-bargein, step c40: nodes turn-1 checked 0"
+      ],
+      "finding": "The judge is an AI grader that reads each call against written criteria. It graded all 210 calls and passed every one, including the 7 calls with misheard words and the 70 calls with a wait past 1200ms. It uses two criteria: whether a refund was confirmed, and whether the refund timing was stated. No per-turn node checks ran on any turn. Every step's quality verdict is therefore built on a grade that did not vary.",
+      "why_it_matters": "A check that never fails cannot show quality slipping under load. Real problems in this run, such as the misheard and silent turns, left no mark on task success.",
+      "next_step": "Add checks on the turn nodes so each reply is graded, not only the refund outcome."
+    },
+    {
+      "title": "Load up to 40 calls at once did not slow the agent; the quietest step had the worst tail",
+      "category": "capacity",
+      "severity": "info",
+      "evidence": [
+        "refund-bargein, step baseline: ttfa p95_ms 2348.8",
+        "refund-bargein, step c40: ttfa p95_ms 1228.1",
+        "refund-bargein, step baseline: ttfa p50_ms 877.1",
+        "refund-bargein, step c40: ttfa p50_ms 870.5",
+        "refund-bargein, step c40: p95_ratio 0.52"
+      ],
+      "finding": "The typical wait (p50, the median) stayed flat from baseline to c40. The slow-caller wait (p95, which 95 in 100 turns stay under) fell as calls were added instead of rising. The single-call baseline had the highest p95 of any step. Measured on the widest clock, the baseline p95 is above Coval's published 2000ms load line and c40 is below it. That line is another company's target, not this team's service level. A slowdown that is worst with the least load was not caused by load. The occasional multi-second stalls look independent of how busy the agent is.",
+      "why_it_matters": "The agent's limit was not reached in this run. Adding capacity will not remove the slow tail, and this sweep cannot say how many calls at once the agent can handle.",
+      "next_step": "Add steps above 40 calls at once to the sweep profile to find where the median or p95 starts to climb."
     }
   ]
 }
