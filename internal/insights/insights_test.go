@@ -143,6 +143,29 @@ func TestDigestTrimsTheReportAndAddsTurnsFromTheCallsLog(t *testing.T) {
 	}
 }
 
+// A turn heard only in part is counted apart, with its wait, so a closing line
+// cut short does not read as slow thinking. A turn with no transcript is left
+// out of both halves.
+func TestDigestCountsTurnsHeardCutShort(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "run-calls.jsonl")
+	line := "Alright, that works. Thanks for sorting it out."
+	body := `{"step":"c1","turns":[{"turn":1,"caller_text":"` + line + `","heard_text":"All","ttfa_ms":5400}]}
+{"step":"c1","turns":[{"turn":1,"caller_text":"` + line + `","heard_text":"` + line + `","ttfa_ms":800}]}
+{"step":"c1","turns":[{"turn":1,"caller_text":"` + line + `","ttfa_ms":900}]}
+`
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cs, err := callStats(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t1 := cs.ByTurn[0]
+	if t1.HeardCutShort != 1 || t1.TTFAP50MsCutShort != 5400 || t1.TTFAP50MsHeardInFull != 800 {
+		t.Errorf("turn 1 cut short %d, waits %v cut and %v in full; want 1, 5400 and 800", t1.HeardCutShort, t1.TTFAP50MsCutShort, t1.TTFAP50MsHeardInFull)
+	}
+}
+
 // Gemini is asked for JSON matching the schema, a rate limit is waited out,
 // and a thought part is not mistaken for the answer.
 func TestGeminiWaitsOutARateLimitAndReturnsTheAnswer(t *testing.T) {

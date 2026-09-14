@@ -42,33 +42,34 @@ import (
 const deepgramConcurrencyCap = 40
 
 type opts struct {
-	scenarioPath   string
-	profilePath    string
-	outDir         string
-	cacheDir       string
-	sampleRate     int
-	turnTimeout    time.Duration
-	targetURL      string
-	maxConcurrency int
-	envPath        string
-	metricsAddr    string
-	metricsLinger  time.Duration
-	kafkaBrokers   string
-	kafkaTopic     string
-	ratePerMinute  float64
-	distributed    bool
-	judge          bool
-	judgeCalls     int
-	judgeBackend   string
-	judgeModel     string
-	impairments    string
-	impairDev      string
-	suite          string
-	rejudge        string
-	labels         string
-	insightsPath   string
-	insightsModel  string
-	refresh        string
+	scenarioPath    string
+	profilePath     string
+	outDir          string
+	cacheDir        string
+	sampleRate      int
+	turnTimeout     time.Duration
+	targetURL       string
+	maxConcurrency  int
+	envPath         string
+	metricsAddr     string
+	metricsLinger   time.Duration
+	kafkaBrokers    string
+	kafkaTopic      string
+	ratePerMinute   float64
+	distributed     bool
+	judge           bool
+	judgeCalls      int
+	judgeBackend    string
+	judgeModel      string
+	impairments     string
+	impairDev       string
+	suite           string
+	rejudge         string
+	labels          string
+	insightsPath    string
+	insightsModel   string
+	insightsBackend string
+	refresh         string
 }
 
 func main() {
@@ -111,9 +112,15 @@ func main() {
 		"write the analysis of a run report, or of every suite and run in a directory, with Gemini, instead of placing calls")
 	flag.StringVar(&o.insightsModel, "insights-model", insights.DefaultModel,
 		"Gemini model that writes run analyses; analyses are written after every run when GEMINI_API_KEY is set")
+	flag.StringVar(&o.insightsBackend, "insights-backend", "gemini",
+		"who writes analyses: gemini (needs GEMINI_API_KEY) or claude-code (the Claude Code CLI, no key)")
 	flag.StringVar(&o.refresh, "refresh", "",
 		"recompute turn waits, wait bands, repeated replies and quality from the calls log of a report, or of every report in a directory, instead of placing calls")
 	flag.Parse()
+	// A Gemini model name means nothing to Claude Code.
+	if o.insightsBackend == "claude-code" && o.insightsModel == insights.DefaultModel {
+		o.insightsModel = insights.DefaultClaudeModel
+	}
 
 	if err := run(o); err != nil {
 		fmt.Fprintf(os.Stderr, "\ncallstorm: %v\n", err)
@@ -1153,9 +1160,13 @@ func printAgreement(t *loadgen.TaskSuccess, labelsPath string) error {
 	return nil
 }
 
-// geminiModel returns the model that writes analyses, and false when there is
-// no key: a run without one is not an error, only a run without an analysis.
-func geminiModel(o opts) (insights.Model, bool) {
+// analysisModel returns the model that writes analyses, and false when Gemini
+// is asked for and there is no key: a run without one is not an error, only a
+// run without an analysis. Claude Code needs no key.
+func analysisModel(o opts) (insights.Model, bool) {
+	if o.insightsBackend == "claude-code" {
+		return insights.ClaudeCode{Model: o.insightsModel}, true
+	}
 	key := os.Getenv("GEMINI_API_KEY")
 	if key == "" {
 		return nil, false
@@ -1167,7 +1178,7 @@ func geminiModel(o opts) (insights.Model, bool) {
 // as name to directory. An analysis that cannot be written is reported and
 // does not fail the run: the measurements stand without it.
 func writeInsights(ctx context.Context, o opts, reportPaths []string, suites map[string]string) {
-	m, ok := geminiModel(o)
+	m, ok := analysisModel(o)
 	if !ok {
 		return
 	}
@@ -1238,8 +1249,8 @@ func saveInsights(ctx context.Context, o opts, m insights.Model, d insights.Dige
 // existed get one, and how every analysis is rewritten when the instructions
 // change.
 func runInsights(ctx context.Context, o opts) error {
-	if _, ok := geminiModel(o); !ok {
-		return fmt.Errorf("-insights needs GEMINI_API_KEY in %s or the environment", o.envPath)
+	if _, ok := analysisModel(o); !ok {
+		return fmt.Errorf("-insights needs GEMINI_API_KEY in %s or the environment, or -insights-backend claude-code", o.envPath)
 	}
 	info, err := os.Stat(o.insightsPath)
 	if err != nil {
