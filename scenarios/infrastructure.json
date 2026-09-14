@@ -1,0 +1,17 @@
+{
+  "name": "infrastructure-tones",
+  "persona": "Synthetic tone caller for infrastructure tests only; no speech or task evaluation.",
+  "caller_voice": "callstorm-synthetic",
+  "target": {
+    "prompt": "Reference agent infrastructure test",
+    "greeting": "Ready",
+    "voice": "aura-2-apollo-en",
+    "think_model": "gpt-4o-mini",
+    "listen_model": "nova-3"
+  },
+  "turns": [
+    { "say": "fixture tone one" },
+    { "say": "fixture tone two" },
+    { "say": "fixture tone three" }
+  ]
+}

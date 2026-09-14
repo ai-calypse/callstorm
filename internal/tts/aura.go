@@ -10,10 +10,12 @@ package tts
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -68,6 +70,19 @@ func New(apiKey string, sampleRate int, cacheDir string) *Client {
 // reports whether it came from cache. The returned slice is shared across
 // callers and must not be modified.
 func (c *Client) Synthesize(voice, text string) (pcm []byte, cached bool, err error) {
+	// Explicit fixture voice for reference-agent infrastructure tests. These
+	// are tones, not synthesized speech, and never contact a provider.
+	if voice == "callstorm-synthetic" {
+		if c.SampleRate < 1 {
+			return nil, false, fmt.Errorf("invalid sample rate")
+		}
+		pcm := make([]byte, c.SampleRate*2)
+		for i := 0; i < c.SampleRate; i++ {
+			v := int16(6000 * math.Sin(2*math.Pi*440*float64(i)/float64(c.SampleRate)))
+			binary.LittleEndian.PutUint16(pcm[i*2:], uint16(v))
+		}
+		return pcm, false, nil
+	}
 	key := cacheKey(voice, c.SampleRate, text)
 
 	if b, ok := memGet(key); ok {

@@ -1,0 +1,5 @@
+{
+  "name": "k8s-recovery",
+  "baseline": "recovery",
+  "steps": [{ "name": "recovery", "concurrency": 12, "calls": 48 }]
+}

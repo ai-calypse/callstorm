@@ -20,6 +20,8 @@ RUN CGO_ENABLED=0 go build -trimpath -o /out/worker ./cmd/worker && \
     CGO_ENABLED=0 go build -trimpath -o /out/callstorm ./cmd/callstorm && \
     CGO_ENABLED=0 go build -trimpath -o /out/dashboard ./cmd/dashboard
 
+RUN mkdir -p /out/cache
+
 # The impairment matrix image: build with --target impair.
 #
 # netem is driven by tc, which distroless does not carry, and changing a pod's
@@ -38,7 +40,7 @@ RUN apt-get update && \
 COPY --from=build /out/callstorm /callstorm
 COPY --from=build /src/scenarios /scenarios
 COPY --from=build /src/profiles /profiles
-COPY .audiocache /cache
+COPY --from=build /out/cache /cache
 
 ENTRYPOINT ["/callstorm"]
 
@@ -56,7 +58,7 @@ COPY --from=build /src/profiles /profiles
 
 # Pre-synthesized caller audio. Keyed by a hash of voice, sample rate and text,
 # so a worker finds it without knowing it was put there ahead of time.
-COPY --chown=nonroot:nonroot .audiocache /cache
+COPY --from=build --chown=nonroot:nonroot /out/cache /cache
 
 USER nonroot
 ENTRYPOINT ["/worker"]

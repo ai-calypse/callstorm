@@ -1,4 +1,11 @@
 runs/
 bin/
 .git/
+.env
+.env.*
+.audiocache/
+node_modules/
+**/node_modules/
+portfolio/
+repurposed/
 *.wav
