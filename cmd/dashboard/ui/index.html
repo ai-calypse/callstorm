@@ -3623,9 +3623,11 @@ function groupRuns(runs) {
     out.push({ kind: "suite", suite: r.suite, newest: r, parts, verdict: worstVerdict(parts),
       judged: parts.reduce((a, p) => a + (p.judged || 0), 0), passed: parts.reduce((a, p) => a + (p.passed || 0), 0) });
   }
-  return out;
+  // Pinned entries lead; each group keeps its newest-first order.
+  const pinned = e => ((e.kind === "run" ? e.run.pinned : e.parts.some(p => p.pinned)) ? 0 : 1);
+  return out.sort((a, b) => pinned(a) - pinned(b));
 }
-const suiteParts = (runs, r) => (r && r.suite ? runs.filter(x => x.suite === r.suite).slice().sort((a, b) => new Date(a.started_at) - new Date(b.started_at)) : []);
+const suiteParts =(runs, r) => (r && r.suite ? runs.filter(x => x.suite === r.suite).slice().sort((a, b) => new Date(a.started_at) - new Date(b.started_at)) : []);
 
 function SuiteStrip({ suite, parts, selected, onPick, insights }) {
   const broke = parts.filter(p => p.breakpoint || (p.network_breaks && p.network_breaks.length));
@@ -3756,7 +3758,7 @@ function RunRow({ r, selected, onPick, part }) {
   return html`
     <button className=${"run-row" + (r.id === selected ? " selected" : "") + (part ? " part" : "")} onClick=${() => onPick(r.id)} aria-current=${r.id === selected ? "true" : "false"}>
       <span>
-        <span className="run-title">${part ? `Part ${part} · ` : ""}${r.profile} · ${r.scenario} <${Badge} v=${r.verdict}/></span>
+        <span className="run-title">${part ? `Part ${part} · ` : ""}${r.profile} · ${r.scenario} <${Badge} v=${r.verdict}/>${r.pinned && !part ? html`<span className="cs-badge pinned">pinned</span>` : ""}</span>
         <small>${when(r.started_at)} · ${r.id} · ${r.steps} steps · peak ${r.peak_concurrency} · worst p95 ${ms(r.worst_p95_ms)}${r.wer_mean > 0 ? ` · WER ${pct(r.wer_mean)}` : ""}</small>
         ${runFlags(r).length > 0 && html`<small className="run-flags">${runFlags(r).join(" · ")}</small>`}
       </span>
@@ -3764,22 +3766,44 @@ function RunRow({ r, selected, onPick, part }) {
     </button>`;
 }
 
+// The history entries a search keeps: a suite whose own name matches keeps every
+// part, any other suite only the parts that match.
+function filterRunGroups(groups, query) {
+  const q = query.trim().toLowerCase();
+  if (!q) return groups;
+  const hit = r => [r.id, r.suite, r.scenario, r.profile, r.target, r.verdict].some(v => String(v || "").toLowerCase().includes(q));
+  return groups.flatMap(e => {
+    if (e.kind === "run") return hit(e.run) ? [e] : [];
+    if (e.suite.toLowerCase().includes(q)) return [e];
+    const shown = e.parts.filter(hit);
+    return shown.length ? [{ ...e, shown }] : [];
+  });
+}
+
 function RunList({ runs, sel: selected, onPick }) {
+  const [query, setQuery] = useState("");
   if (runs.length === 0) return html`<p className="quiet">No runs yet. Place one with <code>callstorm</code> and it appears here.</p>`;
+  const groups = filterRunGroups(groupRuns(runs), query);
   return html`
     <div className="runlist">
-      ${groupRuns(runs).map(e => e.kind === "run"
+      <label className="run-search">
+        <span className="cs-label">Search runs</span>
+        <input className="cs-input" type="search" value=${query} placeholder="suite, scenario, profile, run id or verdict" onChange=${e => setQuery(e.target.value)}/>
+      </label>
+      ${groups.length === 0 && html`<p className="quiet">No run matches “${query}”.</p>`}
+      ${groups.map(e => e.kind === "run"
         ? html`<${RunRow} key=${e.run.id} r=${e.run} selected=${selected} onPick=${onPick}/>`
         : html`
-          <div key=${"suite-" + e.suite} className=${"run-suite" + (e.parts.some(p => p.id === selected) ? " selected" : "")}>
-            <div className="suite-row">
+          <details key=${"suite-" + e.suite} className=${"run-suite" + (e.parts.some(p => p.id === selected) ? " selected" : "")} open=${!!query.trim() || e.parts.some(p => p.id === selected)}>
+            <summary className="suite-row">
               <span>
-                <span className="run-title">Suite · ${e.suite} <${Badge} v=${e.verdict}/></span>
+                <span className="run-title">Suite · ${e.suite} <${Badge} v=${e.verdict}/>${e.parts.some(p => p.pinned) ? html`<span className="cs-badge pinned">pinned</span>` : ""}</span>
                 <small>${e.parts.length} ${e.parts.length === 1 ? "part" : "parts"} · newest ${when(e.newest.started_at)}${e.judged ? ` · judged ${e.passed}/${e.judged}` : ""}${e.parts.some(p => p.breakpoint || (p.network_breaks && p.network_breaks.length)) ? ` · ${e.parts.filter(p => p.breakpoint || (p.network_breaks && p.network_breaks.length)).length} found a limit` : ""}${e.parts.some(p => p.harness_degraded) ? ` · ${e.parts.filter(p => p.harness_degraded).length} harness suspect` : ""}</small>
               </span>
-            </div>
-            ${e.parts.map((p, i) => html`<${RunRow} key=${p.id} r=${p} selected=${selected} onPick=${onPick} part=${i + 1}/>`)}
-          </div>`)}
+              <span className="suite-toggle" aria-hidden="true">⌄</span>
+            </summary>
+            ${(e.shown || e.parts).map(p => html`<${RunRow} key=${p.id} r=${p} selected=${selected} onPick=${onPick} part=${e.parts.indexOf(p) + 1}/>`)}
+          </details>`)}
     </div>`;
 }
 
@@ -4935,7 +4959,7 @@ function App() {
         setRuns(rs);
         setUpdated(new Date());
         // Keep the selection across a refresh unless the run has gone.
-        setSelected(s => (s && rs.some(r => r.id === s)) ? s : (rs.length ? rs[0].id : null));
+        setSelected(s => (s && rs.some(r => r.id === s)) ? s : (rs.length ? (rs.find(r => r.pinned) || rs[0]).id : null));
       })
       .catch(e => setErr(String(e.message || e)))
       .finally(() => setLoading(false));
@@ -4991,7 +5015,7 @@ function App() {
           </div>
           <button className="icon-button" onClick=${closeRuns} aria-label="Close run history">✕</button>
         </div>
-        <p className="quiet">Every sweep, newest first. One run tells you how an agent behaved once; the shape across runs is what says whether it is getting worse.</p>
+        <p className="quiet">Every sweep, newest first, after any suite pinned in runs/pinned.txt. One run tells you how an agent behaved once; the shape across runs is what says whether it is getting worse.</p>
         <${Trend} runs=${runs}/>
         <${RunList} runs=${runs} sel=${selected} onPick=${id => { setSelected(id); setRunsOpen(false); top(); }}/>
       <//>

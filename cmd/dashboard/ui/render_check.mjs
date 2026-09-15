@@ -37,7 +37,7 @@ globalThis.React = React;
 globalThis.ReactDOM = { createRoot: () => ({ render() {} }) };
 globalThis.fetch = async () => { throw new Error("fetch during render"); };
 
-const mod = new Function(src + "\n;return { Report, Evidence, Method, Findings, RunList, Trend, Sidebar, Glossary, About, Appendix, Sources, TABS, glance, findings, groupRuns, buildQuestions, appendixValues, ComputedAppendix, Questions, ComponentShare, PriorityViews, PreviousTest, matchingTest, comparisonMetrics, validWaits, stageJudged, StudioSummary, StudioTrend, StudioBrief, ScenarioCompare, wilson, filterCalls, judgeIndex };")();
+const mod = new Function(src + "\n;return { Report, Evidence, Method, Findings, RunList, Trend, Sidebar, Glossary, About, Appendix, Sources, TABS, glance, findings, groupRuns, buildQuestions, appendixValues, ComputedAppendix, Questions, ComponentShare, PriorityViews, PreviousTest, matchingTest, comparisonMetrics, validWaits, stageJudged, StudioSummary, StudioTrend, StudioBrief, ScenarioCompare, wilson, filterCalls, judgeIndex, filterRunGroups };")();
 const render = (C, props) => ReactDOMServer.renderToStaticMarkup(React.createElement(C, props));
 
 let bad = 0;
@@ -441,6 +441,15 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
   has(list, "suite counts parts that found a limit", "2 found a limit");
   has(list, "parts listed in run order", "Part 1 · sweep-deepgram-30 · refund-escalation");
   has(list, "network part listed", "Part 3 · impair-ref");
+  has(list, "history can be searched", "Search runs");
+  has(list, "a suite card folds behind its summary", '<summary class="suite-row">');
+  const bargein = mod.filterRunGroups(mod.groupRuns(withSuite), "bargein").find(e => e.kind === "suite");
+  check("search keeps only a suite's matching parts", bargein && bargein.shown.map(p => p.id).join() === "s2");
+  const byName = mod.filterRunGroups(mod.groupRuns(withSuite), "deepgram-full-test").find(e => e.kind === "suite");
+  check("search by suite name keeps every part", byName && !byName.shown && byName.parts.length === 3);
+  const pinnedRuns = [...index, ...parts.map(p => ({ ...p, pinned: true }))];
+  check("a pinned suite leads the history", mod.groupRuns(pinnedRuns)[0].suite === suite);
+  has(render(mod.RunList, { runs: pinnedRuns, sel: null, onPick() {} }), "a pinned suite is labelled", "pinned</span>");
   const groups = mod.groupRuns(withSuite);
   check(`history has ${groups.length} entries for ${withSuite.length} runs`, groups.length === withSuite.length - 2);
 

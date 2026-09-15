@@ -192,6 +192,7 @@ func collect(dir string) []summary {
 	nested, _ := filepath.Glob(filepath.Join(dir, "*", "*.json"))
 	reports = append(reports, nested...)
 
+	pinned := readPinned(dir)
 	out := []summary{}
 	for _, p := range reports {
 		if strings.HasSuffix(p, "-judgements.json") || strings.HasSuffix(p, "-insights.json") {
@@ -201,7 +202,9 @@ func collect(dir string) []summary {
 		if err != nil || rep.Profile == "" {
 			continue
 		}
-		out = append(out, summarize(p, rep))
+		s := summarize(p, rep)
+		s.Pinned = pinned[s.Suite] || pinned[s.ID]
+		out = append(out, s)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].StartedAt.After(out[j].StartedAt) })
 	return out
@@ -254,6 +257,29 @@ type summary struct {
 	// Suite names the load test this run was one part of, so the history can
 	// show a test that spans several runs as one entry.
 	Suite string `json:"suite,omitempty"`
+
+	// Pinned says pinned.txt names this run or its suite, so the history lists
+	// it first.
+	Pinned bool `json:"pinned,omitempty"`
+}
+
+// readPinned reads pinned.txt in the run directory: suites or runs, one per
+// line, that the history shows first. Start time cannot say which of several
+// copies to read -- a suite judged again keeps the instants its calls were
+// placed -- so the choice is written down. # starts a comment.
+func readPinned(dir string) map[string]bool {
+	b, err := os.ReadFile(filepath.Join(dir, "pinned.txt"))
+	if err != nil {
+		return nil
+	}
+	out := map[string]bool{}
+	for _, line := range strings.Split(string(b), "\n") {
+		name, _, _ := strings.Cut(line, "#")
+		if name = strings.TrimSpace(name); name != "" {
+			out[name] = true
+		}
+	}
+	return out
 }
 
 func listRuns(dir string) http.HandlerFunc {

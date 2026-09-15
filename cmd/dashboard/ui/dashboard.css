@@ -492,6 +492,13 @@ dialog::backdrop { background: #22282045; backdrop-filter: blur(3px); }
 .suite-row { padding: 4px 5px 8px; font-size: 14px; }
 .suite-row small { display: block; color: var(--cs-text-caption); margin-top: 6px; font-size: 12px; line-height: 1.5; }
 .run-row.part { margin: 8px 0; }
+.run-suite > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.run-suite > summary::-webkit-details-marker { display: none; }
+.suite-toggle { flex-shrink: 0; font-size: 18px; line-height: 1; color: var(--cs-text-secondary); transition: transform .15s; }
+.run-suite[open] .suite-toggle { transform: rotate(180deg); }
+.run-search { display: grid; gap: 6px; margin: 18px 0 4px; }
+.run-search .cs-input { width: 100%; }
+.cs-badge.pinned { margin-left: 6px; }
 .reasoning { display: block; margin-top: 4px; font-size: 12px; line-height: 1.5; color: var(--cs-text-caption); font-style: italic; }
 .cs-badge.ungraded { background: var(--cs-canvas); color: var(--cs-text-caption); border: 1px solid var(--cs-border); }
 
