@@ -37,7 +37,7 @@ globalThis.React = React;
 globalThis.ReactDOM = { createRoot: () => ({ render() {} }) };
 globalThis.fetch = async () => { throw new Error("fetch during render"); };
 
-const mod = new Function(src + "\n;return { Report, Evidence, Method, Findings, RunList, Trend, Sidebar, Glossary, About, Appendix, Sources, TABS, glance, findings, groupRuns, buildQuestions, appendixValues, ComputedAppendix, Questions, ComponentShare, PriorityViews, PreviousTest, matchingTest, comparisonMetrics, validWaits, stageJudged, StudioSummary, StudioTrend, StudioBrief, ScenarioCompare, wilson };")();
+const mod = new Function(src + "\n;return { Report, Evidence, Method, Findings, RunList, Trend, Sidebar, Glossary, About, Appendix, Sources, TABS, glance, findings, groupRuns, buildQuestions, appendixValues, ComputedAppendix, Questions, ComponentShare, PriorityViews, PreviousTest, matchingTest, comparisonMetrics, validWaits, stageJudged, StudioSummary, StudioTrend, StudioBrief, ScenarioCompare, wilson, filterCalls, judgeIndex };")();
 const render = (C, props) => ReactDOMServer.renderToStaticMarkup(React.createElement(C, props));
 
 let bad = 0;
@@ -176,6 +176,10 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
   has(jh, "criteria bars", 'class="scenario"');
   has(jh, "criterion met rate", "67%");
   has(jh, "observation quotes the judge", "Missed at turn 2");
+  has(jh, "selected criterion counts the calls that missed it", "1 call missed this criterion");
+  has(jh, "missed call is tagged with its step and id", "c1 · bbbb2222");
+  has(jh, "missed call carries the judge's reason", "no replacement was offered before it");
+  has(jh, "missed call opens its transcript", "Open transcript");
   has(jh, "task success stat is a rate", "66.7");
   has(jh, "headline counts the job", "2 of 3 reviewed calls completed the task.");
   const ev = drawer("evidence", judged, "judged", "quality");
@@ -237,6 +241,13 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
   has(jh, "judge's verdict attached to the turn it quotes", 'class="judged-lines"');
   has(jh, "call badge shows the miss", "missed 1 of 1");
   has(drawer("evidence", judged, "judged", "calls"), "call-log evidence carries the judgements", "1 graded conversations");
+  const jx = mod.judgeIndex(judged.judge);
+  const ids = outcome => mod.filterCalls(calls, "", "", "", outcome, jx).map(c => c.request_id).join();
+  check("failed-call filter: the unconnected call and the one with a failed turn", ids("failed") === "aaaa1111-0000,cccc3333-0000");
+  check("missed-task filter: only the graded call that missed", ids("missed") === "aaaa1111-0000");
+  check("did-the-job filter: no graded call met every criterion", ids("met") === "");
+  has(jh, "outcome filter offered with counts", "Missed the task · 1");
+  check("unjudged run offers only the failed-call filter", html.includes("Call failed · 2") && !html.includes("Did the job ·"));
 
   // The representative slow turn in the latency evidence: the slowest real
   // turn at the selected step, with its stages and its words.

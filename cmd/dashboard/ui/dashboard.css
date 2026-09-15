@@ -450,6 +450,12 @@ dialog::backdrop { background: #22282045; backdrop-filter: blur(3px); }
 .judged-lines li { display: flex; gap: 6px; line-height: 1.5; }
 .judged-lines .met .mark { color: var(--cs-success-text); }
 .judged-lines .missed .mark { color: var(--cs-danger-text); }
+.criterion-misses { margin-top: 18px; }
+.criterion-misses ul { list-style: none; margin: 8px 0 0; padding: 0; }
+.criterion-misses li { border-top: 1px solid var(--cs-border); padding: 10px 0; }
+.criterion-miss-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.criterion-misses li p { margin: 6px 0 0; font-size: 13px; line-height: 1.6; }
+.criterion-miss-quote { color: var(--cs-text-secondary); overflow-wrap: anywhere; }
 .search { display: block; margin-top: 10px; max-width: 420px; }
 .search .cs-label { margin-bottom: 6px; }
 .more-calls { margin: 6px auto 0; justify-content: center; }

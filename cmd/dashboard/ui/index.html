@@ -2575,9 +2575,22 @@ const agentAt = (callStart, t) => {
   return !isNaN(s) && t.ttfa_ms >= 0 ? clockText(s + (t.caller_speech_ms || 0) + t.ttfa_ms) : null;
 };
 
-function filterCalls(calls, step, cohort, query) {
+// A call failed if it never connected or a turn got no reply. Whether it did the
+// job is the judge's verdict, so only graded calls can match those two.
+const CALL_OUTCOMES = { "": "All calls", failed: "Call failed", met: "Did the job", missed: "Missed the task" };
+function callIs(c, outcome, jx) {
+  const j = jx && jx.get(c.step + "/" + c.request_id);
+  switch (outcome) {
+    case "failed": return !!c.error || turnsOf(c).some(t => t.failed);
+    case "met": return !!j && j.outcomes.every(o => o.met);
+    case "missed": return !!j && j.outcomes.some(o => !o.met);
+    default: return true;
+  }
+}
+
+function filterCalls(calls, step, cohort, query, outcome = "", jx = null) {
   const q = norm(query);
-  return calls.filter(c => (!step || c.step === step) && (!cohort || c.cohort === cohort) &&
+  return calls.filter(c => (!step || c.step === step) && (!cohort || c.cohort === cohort) && callIs(c, outcome, jx) &&
     (!q || String(c.request_id).includes(query.trim()) || norm(c.error).includes(q) ||
       turnsOf(c).some(t => norm(t.caller_text).includes(q) || norm(t.agent_text).includes(q) || norm(t.heard_text).includes(q))));
 }
@@ -2619,15 +2632,15 @@ function readCalls(calls) {
   };
 }
 
-function Transcripts({ calls, judge, step, cohort, query, selected, onSelect, limit, onMore }) {
+function Transcripts({ calls, judge, step, cohort, query, outcome, selected, onSelect, limit, onMore }) {
   const jx = judgeIndex(judge);
-  const shown = filterCalls(calls, step, cohort, query);
+  const shown = filterCalls(calls, step, cohort, query, outcome, jx);
   if (shown.length === 0) {
-    return html`<div className="cs-notice">No call matches${step ? ` in ${step}` : ""}${cohort ? ` on ${cohort}` : ""}${query ? ` for "${query}"` : ""}. Clear the filters to see all ${calls.length}.</div>`;
+    return html`<div className="cs-notice">No call matches${outcome ? ` “${CALL_OUTCOMES[outcome]}”` : ""}${step ? ` in ${step}` : ""}${cohort ? ` on ${cohort}` : ""}${query ? ` for "${query}"` : ""}. Clear the filters to see all ${calls.length}.</div>`;
   }
   return html`
     <div className="transcripts">
-      <p className="quiet">${shown.length} of ${calls.length} calls${step ? ` · ${step}` : ""}${cohort ? ` · ${cohort}` : ""}${query ? ` · matching "${query}"` : ""}</p>
+      <p className="quiet">${shown.length} of ${calls.length} calls${outcome ? ` · ${CALL_OUTCOMES[outcome]}` : ""}${step ? ` · ${step}` : ""}${cohort ? ` · ${cohort}` : ""}${query ? ` · matching "${query}"` : ""}</p>
       ${shown.slice(0, limit).map((c, i) => {
         const key = c.step + "/" + (c.cohort || "") + "/" + c.request_id;
         const j = jx.get(c.step + "/" + c.request_id);
@@ -3046,6 +3059,26 @@ function CriteriaBars({ judge, picked, onPick }) {
     </div>`;
 }
 
+// The calls that missed the selected criterion, each with the judge's reason and
+// the turn it quoted, one click from its transcript.
+function CriterionMisses({ rows, missed, onOpen }) {
+  if (rows.length === 0) {
+    return html`<p className="quiet criterion-misses">${missed > 0 ? "This report kept the judge's totals but not which calls missed this criterion." : "No graded call missed this criterion."}</p>`;
+  }
+  return html`
+    <div className="criterion-misses">
+      <p className="quiet">${rows.length === 1 ? "1 call missed" : `${rows.length} calls missed`} this criterion:</p>
+      <ul>
+        ${rows.map(({ c, o }, i) => html`
+          <li key=${c.step + "/" + c.request_id + "/" + i}>
+            <div className="criterion-miss-head"><span className="cs-badge cs-badge-danger">${c.step + " · " + shortId(c.request_id)}</span><button className="text-button" onClick=${() => onOpen(c.request_id)}>Open transcript →</button></div>
+            ${o.reasoning && html`<p>${o.reasoning}</p>`}
+            ${o.evidence && html`<p className="criterion-miss-quote">${o.evidence}</p>`}
+          </li>`)}
+      </ul>
+    </div>`;
+}
+
 // Cost per turn as concurrency rises.
 function CostLine({ rows, prev, point, onPick }) {
   const n = rows.length;
@@ -3234,7 +3267,7 @@ function glance(rep, prevIndex, prevRep, estimate) {
 // What each tab shows: the question, the chart, the controls, the selected
 // observation, the footnote and which evidence answers it.
 function view(tab, ctx) {
-  const { rep, refs, prev, point, setPoint, criterion, setCriterion, metric, setMetric, compare } = ctx;
+  const { rep, refs, prev, point, setPoint, criterion, setCriterion, metric, setMetric, compare, openCall } = ctx;
   const steps = sel.steps(rep);
   const prevSteps = prev ? sel.steps(prev) : null;
   const range = (items, name) => items.length > 1 && html`
@@ -3300,10 +3333,11 @@ function view(tab, ctx) {
     const k = Math.min(criterion === null ? worstIdx : criterion, Math.max(rows.length - 1, 0)), m = rows[k];
     const example = m && (j.judgements || []).flatMap(c => c.outcomes.filter(o => o.criterion === m.criterion && !o.met && o.evidence)).concat(
       (j.judgements || []).flatMap(c => c.outcomes.filter(o => o.criterion === m.criterion && o.met && o.evidence)))[0];
+    const missedOn = m ? (j.judgements || []).flatMap(c => (c.outcomes || []).filter(o => o.criterion === m.criterion && !o.met).map(o => ({ c, o }))) : [];
     return {
       question: "Where does the agent lose the task?",
       subtitle: `Criteria met across ${j.judged} graded conversations · percent · higher is better · graded by ${j.backend || "unknown"}`,
-      chart: html`<${CriteriaBars} judge=${j} picked=${k} onPick=${setCriterion}/>`,
+      chart: html`<${Frag}><${CriteriaBars} judge=${j} picked=${k} onPick=${setCriterion}/>${m && html`<${CriterionMisses} rows=${missedOn} missed=${m.missed} onOpen=${openCall}/>`}<//>`,
       observation: m ? html`<${Frag}>
         <small>SELECTED CRITERION</small>
         <strong>${m.criterion}</strong>
@@ -3314,7 +3348,7 @@ function view(tab, ctx) {
     };
   }
   if (tab === "calls") {
-    const { calls, callStep, setCallStep, callCohort, setCallCohort, query, setQuery, selectedCall, setSelectedCall, callLimit, setCallLimit } = ctx;
+    const { calls, callStep, setCallStep, callCohort, setCallCohort, callOutcome, setCallOutcome, query, setQuery, selectedCall, setSelectedCall, callLimit, setCallLimit } = ctx;
     const base = { question: "What was actually said?",
       subtitle: "Every call, turn by turn: what the caller said, what the agent heard, what it replied, and how long each took",
       footnote: "Timings are per turn as recorded; the percentiles elsewhere are computed from exactly these turns. A failed turn has no reply and is left out of them." };
@@ -3322,19 +3356,23 @@ function view(tab, ctx) {
     if (calls === null) return { ...base, chart: html`<div className="cs-notice">${keyed(EMPTY.calls.why)}</div>` };
     const names = steps.map(s => s.name).filter(n => calls.some(c => c.step === n));
     const cohorts = [...new Set(calls.map(c => c.cohort).filter(Boolean))];
-    const shown = filterCalls(calls, callStep, callCohort, query);
+    const jx = judgeIndex(rep.judge);
+    const shown = filterCalls(calls, callStep, callCohort, query, callOutcome, jx);
     const c = shown[selectedCall];
-    const j = c && judgeIndex(rep.judge).get(c.step + "/" + c.request_id);
+    const j = c && jx.get(c.step + "/" + c.request_id);
     const worst = c && turnsOf(c).filter(t => !t.failed).reduce((a, t) => Math.max(a, t.ttfa_ms || 0), 0);
     const failed = c && turnsOf(c).filter(t => t.failed).length;
     const wrong = c && turnsOf(c).filter(misheard).length;
     return { ...base,
-      chart: html`<${Transcripts} calls=${calls} judge=${rep.judge} step=${callStep} cohort=${callCohort} query=${query} selected=${selectedCall}
+      chart: html`<${Transcripts} calls=${calls} judge=${rep.judge} step=${callStep} cohort=${callCohort} query=${query} outcome=${callOutcome} selected=${selectedCall}
         onSelect=${setSelectedCall} limit=${callLimit} onMore=${() => setCallLimit(callLimit + 30)}/>`,
       controls: html`<${Frag}>
         <div className="seg" role="group" aria-label="Step">
           <button aria-pressed=${String(!callStep)} onClick=${() => { setCallStep(""); setSelectedCall(0); }}>All steps</button>
           ${names.map(n => html`<button key=${n} aria-pressed=${String(callStep === n)} onClick=${() => { setCallStep(n); setSelectedCall(0); }}>${n}</button>`)}
+        </div>
+        <div className="seg" role="group" aria-label="Call outcome">
+          ${Object.entries(CALL_OUTCOMES).filter(([k]) => k === "" || k === "failed" || jx.size > 0).map(([k, label]) => html`<button key=${k || "all"} aria-pressed=${String(callOutcome === k)} onClick=${() => { setCallOutcome(k); setSelectedCall(0); }}>${k ? `${label} · ${filterCalls(calls, callStep, callCohort, query, k, jx).length}` : label}</button>`)}
         </div>
         ${cohorts.length > 0 && html`
           <div className="seg" role="group" aria-label="Network cohort">
@@ -4539,6 +4577,7 @@ function Report({ rep, id, refs, runs, prev, initialTab, initialDrawer, initialC
   const [calls, setCalls] = useState(initialCalls);
   const [callStep, setCallStep] = useState("");
   const [callCohort, setCallCohort] = useState("");
+  const [callOutcome, setCallOutcome] = useState("");
   const [query, setQuery] = useState("");
   const [selectedCall, setSelectedCall] = useState(0);
   const [callLimit, setCallLimit] = useState(30);
@@ -4564,7 +4603,7 @@ function Report({ rep, id, refs, runs, prev, initialTab, initialDrawer, initialC
       .then(text => setCalls(text.split("\n").filter(l => l.trim()).map(l => JSON.parse(l))))
       .catch(() => setCalls(null));
   }, [needCalls, calls, id]);
-  const openCall = requestId => { setDrawer(null); setTab("calls"); setCallStep(""); setCallCohort(""); setQuery(requestId); setSelectedCall(0); };
+  const openCall = requestId => { setDrawer(null); setTab("calls"); setCallStep(""); setCallCohort(""); setCallOutcome(""); setQuery(requestId); setSelectedCall(0); };
 
   const me = runs.find(r => r.id === id);
   const parts = suiteParts(runs, me);
@@ -4640,7 +4679,7 @@ function Report({ rep, id, refs, runs, prev, initialTab, initialDrawer, initialC
     : (all.find(f => f.tab === tab) || all[0]);
   const v = view(tab, { rep, refs: lines, prev, point, setPoint, criterion, setCriterion, metric, setMetric, compare: compare && !!prev,
     calls, callStep, setCallStep, callCohort, setCallCohort, query, setQuery, selectedCall, setSelectedCall, callLimit, setCallLimit,
-    estimate, setTier, setRate, rateOverride });
+    callOutcome, setCallOutcome, openCall, estimate, setTier, setRate, rateOverride });
   const steps = sel.steps(rep);
   const turns = steps.reduce((a, s) => a + (s.turns_total || 0), 0);
   const callCount = steps.reduce((a, s) => a + (s.calls_attempted || s.calls || 0), 0);
