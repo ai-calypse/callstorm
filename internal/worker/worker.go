@@ -37,8 +37,8 @@ type Config struct {
 	// pointing at it needs nothing more than a different URL.
 	TargetURL string
 
-	// Record keeps the mixed two-sided call audio. Worth it for a single call,
-	// far too expensive at load: the track costs ~2.9MB per minute per caller.
+	// Record keeps the mixed two-sided call audio. Always on for a single call,
+	// opt-in at load: the track costs ~2.9MB per minute per caller.
 	Record bool
 
 	// OnTurn, when set, is called as each turn finishes rather than after the

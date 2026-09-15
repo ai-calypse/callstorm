@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/yakshgandhi/callstorm/internal/audio"
 	"github.com/yakshgandhi/callstorm/internal/bus"
 	"github.com/yakshgandhi/callstorm/internal/metrics"
 	"github.com/yakshgandhi/callstorm/internal/scenario"
@@ -36,6 +38,10 @@ type Config struct {
 	// RatePerMinute prices a run. Zero leaves cost unpriced rather than
 	// guessed: a stale hardcoded rate is worse than no figure at all.
 	RatePerMinute float64
+
+	// RecordDir saves each connected call's mixed two-sided audio there as
+	// <step>-<request id>.wav. Empty disables recording.
+	RecordDir string
 }
 
 // Run executes every step of the profile in order and returns the report.
@@ -148,9 +154,9 @@ func runStep(ctx context.Context, cfg Config, step Step) []callOutcome {
 					SampleRate:  cfg.SampleRate,
 					TurnTimeout: cfg.TurnTimeout,
 					TargetURL:   cfg.TargetURL,
-					// No recording and no per-call chatter under load: a mixed
-					// track costs ~2.9MB per minute per caller.
-					Record: false,
+					// No per-call chatter under load, and no recording unless
+					// asked: a mixed track costs ~2.9MB per minute per caller.
+					Record: cfg.RecordDir != "",
 					Out:    io.Discard,
 
 					// Observed per turn rather than per call so a step's
@@ -169,6 +175,14 @@ func runStep(ctx context.Context, cfg Config, step Step) []callOutcome {
 					o.clockZero, o.callEnded, o.events = res.ClockZero, res.EndedAt, res.Events
 					for _, t := range res.Turns {
 						cfg.Bus.Publish(ctx, bus.NewTurnEvent(cfg.RunID, step.Name, res.RequestID, t))
+					}
+					if cfg.RecordDir != "" {
+						// Written after this call's clock has stopped, so the
+						// disk write is never inside its own measurement.
+						wav := filepath.Join(cfg.RecordDir, step.Name+"-"+res.RequestID+".wav")
+						if werr := audio.WriteWAV(wav, res.Recording, cfg.SampleRate); werr != nil {
+							fmt.Fprintf(cfg.Out, "\nrecord %s: %v\n", wav, werr)
+						}
 					}
 				}
 				mu.Lock()

@@ -23,7 +23,7 @@ func NewRecorder(sampleRate int) *Recorder {
 
 // Add mixes pcm into the track starting at offset at from call start.
 //
-// A nil Recorder is a no-op. Load runs disable recording entirely -- a mixed
+// A nil Recorder is a no-op. Load runs record only when asked -- a mixed
 // track costs ~2.9MB per minute per caller, which is over a gigabyte at 500
 // concurrent callers -- so every call site would otherwise need a nil guard.
 func (r *Recorder) Add(at time.Duration, pcm []byte) {
@@ -39,9 +39,11 @@ func (r *Recorder) Add(at time.Duration, pcm []byte) {
 	}
 	n := len(pcm) / 2
 	if need := start + n; need > len(r.samples) {
-		grown := make([]int16, need)
-		copy(grown, r.samples)
-		r.samples = grown
+		// append grows capacity geometrically. Growing to the exact size copied
+		// the whole track on every chunk, a cost quadratic in call length that
+		// runs inline on the audio pump and the read loop, whose timestamps are
+		// the measurement.
+		r.samples = append(r.samples, make([]int16, need-len(r.samples))...)
 	}
 	for i := 0; i < n; i++ {
 		v := int32(r.samples[start+i]) + int32(int16(binary.LittleEndian.Uint16(pcm[i*2:])))

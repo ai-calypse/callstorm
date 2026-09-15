@@ -57,6 +57,7 @@ type opts struct {
 	kafkaTopic      string
 	ratePerMinute   float64
 	distributed     bool
+	record          bool
 	judge           bool
 	judgeCalls      int
 	judgeBackend    string
@@ -92,6 +93,8 @@ func main() {
 		"price a run at this cost per agent-minute (0 = report usage without dollars)")
 	flag.BoolVar(&o.distributed, "distributed", false,
 		"place calls through a worker fleet over Kafka instead of in this process")
+	flag.BoolVar(&o.record, "record", false,
+		"with -profile: save every call's two-sided audio as <run>-audio/<step>-<request id>.wav (~2.9MB per call-minute)")
 	flag.BoolVar(&o.judge, "judge", false,
 		"score sampled conversations against the scenario's success_criteria")
 	flag.IntVar(&o.judgeCalls, "judge-calls", 1,
@@ -286,6 +289,17 @@ func runLoad(ctx context.Context, o opts, sc *scenario.Scenario, apiKey string) 
 		Bus:           producer,
 		RunID:         runID,
 		RatePerMinute: o.ratePerMinute,
+	}
+	if o.record {
+		// Fleet workers never record, so a distributed run would promise
+		// audio it never writes.
+		if o.distributed {
+			return fmt.Errorf("-record works only for in-process runs, not with -distributed")
+		}
+		lg.RecordDir = filepath.Join(o.outDir, runID+"-audio")
+		if err := os.MkdirAll(lg.RecordDir, 0o755); err != nil {
+			return err
+		}
 	}
 
 	var rep *loadgen.Report
