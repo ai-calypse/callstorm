@@ -269,15 +269,47 @@ Every latency histogram is split this way, so a slow turn can be blamed on turn 
 
 ## The verdict
 
-Each step is compared with the run's own baseline step.
+The verdict grades speed under load and nothing else. Each step is scored against the run's own baseline step, which runs one call at a time. A run takes the worst verdict among its steps, and a suite takes the worst verdict among its runs.
 
-| Verdict | Rule |
-| --- | --- |
-| Pass | p95 is at most 1.5× baseline |
-| Warn | p95 is above 1.5× and at most 2× baseline |
-| Fail | p95 exceeds 2× baseline, or fewer than 97 percent of call attempts connect |
+```mermaid
+flowchart TB
+    STEP(["each step of a run"]) --> SETUP{"fewer than 97% of<br/>call attempts connected?"}
+    SETUP -->|yes| FAIL["FAIL"]
+    SETUP -->|no| TIMED{"baseline step and timed<br/>turns recorded?"}
+    TIMED -->|no| NA["n/a<br/>counts as a pass"]
+    TIMED -->|yes| RATIO["r = step p95 TTFA ÷ baseline p95 TTFA"]
+    RATIO --> OVER2{"r above 2.0?"}
+    OVER2 -->|yes| FAIL
+    OVER2 -->|no| OVER15{"r above 1.5?"}
+    OVER15 -->|yes| WARN["WARN"]
+    OVER15 -->|no| PASS["PASS"]
+    FAIL --> RUN["run verdict<br/>worst of its steps"]
+    WARN --> RUN
+    PASS --> RUN
+    NA --> RUN
+    RUN --> SUITE["suite verdict<br/>worst of its runs"]
+```
 
-The 2× line is the benchmark [Coval's load-testing guide](https://www.coval.ai/blog/voice-load-testing-methodology) cites. The 1.5× warn line is Callstorm's own. Task and conversation-quality checks are reported separately, and a run can pass on latency while failing the task. Callstorm keeps those apart so one green number never hides the rest.
+The checks run in this order:
+
+| Order | Step check | Verdict |
+| --- | --- | --- |
+| 1 | Fewer than 97 percent of call attempts connect | Fail, whatever the latency |
+| 2 | No baseline step, or no timed turns in this step | n/a, counted as a pass |
+| 3 | p95 TTFA is more than 2× the baseline step's p95 | Fail |
+| 4 | p95 is above 1.5× and at most 2× baseline | Warn |
+| 5 | p95 is at most 1.5× baseline | Pass |
+
+p95 TTFA is the wait before the agent starts speaking that 95 turns in 100 beat. In a network-impairment run the verdict comes from the clean-network steps, and impaired conditions that broke are reported beside it.
+
+### Why these numbers
+
+* **Relative, not absolute.** Published latency targets disagree, and a target that is generous for one agent is out of reach for another. Comparing each step with the same agent at one call measures how much load hurt, not how the agent ranks against someone else's number.
+* **2× fail.** The benchmark [Coval's load-testing guide](https://www.coval.ai/blog/voice-load-testing-methodology) cites: p95 within 2× the baseline at peak load.
+* **1.5× warn.** Callstorm's own line, with no published source. It flags a step whose slowest turns have grown by half before they reach the fail line.
+* **97 percent connected.** Also Callstorm's own, set when concurrency sweeps were first added, with no published source behind it. The check comes first because latency is measured only on calls that connected, so without it a step that drops calls could still look fast. The floor is strict on small steps: with 30 calls, one dropped call leaves 96.7 percent and fails the step; with 80 calls, two may drop (97.5 percent) but three may not.
+
+Task and conversation-quality checks are reported separately, and a run can pass on latency while failing the task. Callstorm keeps those apart so one green number never hides the rest.
 
 ---
 
