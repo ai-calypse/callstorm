@@ -1,0 +1,70 @@
+{
+  "kind": "suite",
+  "subject": "deepgram-full-20260914-1544",
+  "runs": [
+    "20260914-154401-sweep-deepgram-30"
+  ],
+  "generated_at": "2026-09-14T23:36:45.860543Z",
+  "model": "gemini-3.5-flash",
+  "prompt_hash": "91de29b7d245",
+  "data_hash": "af3ee2a83778",
+  "headline": "The voice agent maintains low response latency up to 20 concurrent calls but suffers a major drop in task completion quality, while test machine constraints invalidate results at 40 concurrent calls.",
+  "insights": [
+    {
+      "title": "Quality Degradation Occurs Before Latency Slowdown under Load",
+      "category": "quality",
+      "severity": "high",
+      "evidence": [
+        "refund-escalation, step baseline: ttfa p50_ms 844.5",
+        "refund-escalation, step c20: ttfa p50_ms 862.2",
+        "refund-escalation, step baseline: quality verdict pass",
+        "refund-escalation, step c20: quality verdict fail",
+        "refund-escalation, step c20: quality reasons 'the judge passed 55% of 40 calls, against 80% of 30 at the baseline'"
+      ],
+      "finding": "The agent's task-completion quality fails under load at concurrency 20, even though its response speed remains stable. At concurrency 20, the median Time to First Audio (the wait before the agent speaks) is 862.2 milliseconds, which is barely changed from the baseline's 844.5 milliseconds. However, the evaluation judge failed this step because the task success rate dropped, passing only 55% of 40 calls compared to 80% of 30 calls at the baseline. This indicates that load degrades the agent's ability to follow conversation scripts correctly before it impacts its speed.",
+      "why_it_matters": "Relying solely on latency metrics to measure system capacity can hide severe quality issues. If the system is scaled based on speed alone, users may experience unresponsive or script-failing conversations when concurrent calls reach 20.",
+      "next_step": "Review the backend logs for concurrency step c20 to investigate if parallel processing, rate limiting, or context window truncation on the LLM provider's side is causing the agent to skip crucial conversational steps under load."
+    },
+    {
+      "title": "Automated Quality Judge Is Too Lenient on Slow and Misheard Calls",
+      "category": "quality",
+      "severity": "medium",
+      "evidence": [
+        "refund-escalation, judge: line_ms 1200",
+        "refund-escalation, judge: quick_pass_rate 0.737",
+        "refund-escalation, judge: slow_pass_rate 0.817",
+        "refund-escalation, judge: misheard_pass_rate 0.7401129943502824"
+      ],
+      "finding": "The evaluation judge shows an inverse correlation between speed and quality, passing 81.7% of slow calls (where callers waited over 1200 milliseconds) compared to only 73.7% of quick calls. Additionally, calls where words were misheard still achieved a high pass rate of 74.0%. This suggests that the current evaluation criteria do not sufficiently penalize poor user experiences caused by long pauses or speech recognition errors.",
+      "why_it_matters": "If the automated evaluation judge passes low-quality, slow, or misheard calls, the testing suite will provide a false sense of security regarding overall customer experience.",
+      "next_step": "Refine the evaluation prompt criteria for the LLM judge to strictly penalize long pauses above 1200 milliseconds and transcripts with high Word Error Rates."
+    },
+    {
+      "title": "Test Infrastructure Overloaded at Concurrency 40",
+      "category": "test",
+      "severity": "medium",
+      "evidence": [
+        "refund-escalation, step c40: harness_degraded true",
+        "refund-escalation, step c40: transport_rtt p95_ms 1660.1",
+        "refund-escalation, step baseline: transport_rtt p95_ms 95.2",
+        "refund-escalation, step c40: worst_harness_drift_ms 5980.3"
+      ],
+      "finding": "At concurrency 40, the test machine itself was overloaded, as indicated by the 'harness_degraded' flag. This degradation led to an artificial rise in network round-trip time (transport RTT), with the p95 RTT spiking to 1660.1 milliseconds compared to 95.2 milliseconds at baseline. Additionally, the worst harness drift reached 5980.3 milliseconds. Because the test infrastructure could not keep up, no valid conclusions can be drawn about the agent's performance at 40 concurrent calls.",
+      "why_it_matters": "Analyzing or optimizing agent behavior using the data from step c40 would be misleading, as the bottleneck was the testing tool itself rather than the voice agent.",
+      "next_step": "Optimize the load-testing environment or run the test using a distributed harness before testing load capacities at 40 concurrent calls or higher."
+    },
+    {
+      "title": "Fragile Turn-Level Latency Due to Small Sample Sizes",
+      "category": "test",
+      "severity": "low",
+      "evidence": [
+        "refund-escalation, step baseline: turn 3 count 6",
+        "refund-escalation, step baseline: turn 4 count 15",
+        "refund-escalation, step baseline: turn 5 count 25"
+      ],
+      "finding": "At the baseline load step, the sample size of calls drops rapidly on later turns of the conversation, leaving turn 3 with only 6 calls, turn 4 with 15 calls, and turn 5 with 25 calls. This small sample size makes the turn-level tail latency statistics extremely fragile and subject to high variance.",
+      "why_it_matters": "Drawing performance conclusions or chasing latency anomalies on specific conversational turns is risky when fewer than 30 calls are represented, as a single outlier can distort the percentiles.",
+      "next_step": "Increase the total duration and call volume of the baseline load step in future tests to guarantee that even the closing turns collect at least 30 samples."
+    }
+  ]
+}

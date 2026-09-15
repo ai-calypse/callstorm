@@ -1,0 +1,53 @@
+{
+  "kind": "run",
+  "subject": "20260914-154401-sweep-deepgram-30",
+  "runs": [
+    "20260914-154401-sweep-deepgram-30"
+  ],
+  "generated_at": "2026-09-14T23:35:54.7984Z",
+  "model": "gemini-3.5-flash",
+  "prompt_hash": "91de29b7d245",
+  "data_hash": "e2fdf469122b",
+  "headline": "The agent's task success rate drops from 80% to 55% under a load of 20 concurrent calls, while extreme wait times spike past 3.4 seconds on Turn 2 and Turn 5.",
+  "insights": [
+    {
+      "title": "Quality Fails at 20 Concurrent Calls due to Task Success Drop",
+      "category": "quality",
+      "severity": "high",
+      "evidence": [
+        "refund-escalation, step c20: quality verdict fail",
+        "refund-escalation, step c20: quality reasons \"the judge passed 55% of 40 calls, against 80% of 30 at the baseline\""
+      ],
+      "finding": "The agent's quality failed under load at 20 concurrent calls (calls handled at the same time). This failure was triggered because the agent's task success rate fell to 55% of 40 calls, down from 80% of 30 calls at the single-call baseline. Note that while a 40-concurrency step was attempted, its test harness degraded during testing, meaning it measured the test machine rather than the agent, so we draw no conclusions from that step.",
+      "why_it_matters": "When multiple callers interact with the system simultaneously, the agent begins failing its core job criteria, meaning customers are not receiving correct answers or successful resolutions even though the system remains online.",
+      "next_step": "Investigate why the agent's prompt context or system instructions break down when processing multiple simultaneous requests at 20 concurrent calls."
+    },
+    {
+      "title": "Severe Wait Times Spike on Turn 2 and Turn 5",
+      "category": "latency",
+      "severity": "medium",
+      "evidence": [
+        "refund-escalation, calls.by_turn at turn 1: ttfa_p95_ms 1240.1",
+        "refund-escalation, calls.by_turn at turn 2: ttfa_p95_ms 3747.9",
+        "refund-escalation, calls.by_turn at turn 3: ttfa_p95_ms 1694.1",
+        "refund-escalation, calls.by_turn at turn 5: ttfa_p95_ms 3438.8"
+      ],
+      "finding": "While typical wait times remain stable, the tail latency—measured by p95 TTFA (Time to First Audio, the wait before the agent starts speaking, where only 5% of calls are slower)—spikes severely on Turn 2 (3747.9 ms) and Turn 5 (3438.8 ms). In contrast, Turn 1 has a p95 of 1240.1 ms and Turn 3 has a p95 of 1694.1 ms.",
+      "why_it_matters": "A delay of over 3 seconds on Turn 2 and Turn 5 represents dead air that will frustrate callers, often leading them to think the call has dropped or causing them to speak over the agent.",
+      "next_step": "Examine the application logs specifically for Turn 2 and Turn 5 to see if database lookups or external integrations are causing the agent's response generation to stall."
+    },
+    {
+      "title": "Slow Responses Correlate with Higher Task Success",
+      "category": "quality",
+      "severity": "medium",
+      "evidence": [
+        "refund-escalation, report.judge.waits: slow_pass_rate 0.817",
+        "refund-escalation, report.judge.waits: quick_pass_rate 0.737",
+        "refund-escalation, report.judge.waits: line_ms 1200"
+      ],
+      "finding": "There is a surprising, counter-intuitive relationship where slower calls (those where the caller waited past 1200 ms for a reply) achieved an 81.7% pass rate on task success, whereas quick calls (waits under 1200 ms) only achieved a 73.7% pass rate.",
+      "why_it_matters": "This suggests that the agent's underlying logic benefits from having more time to formulate a response. Forcing too fast an output might cause the agent to skip crucial conversational criteria needed to pass the evaluation.",
+      "next_step": "Determine if introducing a slight deliberate delay or a 'thinking step' can consistently elevate task success rates for all calls."
+    }
+  ]
+}

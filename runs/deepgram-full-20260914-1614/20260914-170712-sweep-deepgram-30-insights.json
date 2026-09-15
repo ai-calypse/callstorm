@@ -1,0 +1,73 @@
+{
+  "kind": "run",
+  "subject": "20260914-170712-sweep-deepgram-30",
+  "runs": [
+    "20260914-170712-sweep-deepgram-30"
+  ],
+  "generated_at": "2026-09-15T00:50:49.606059Z",
+  "model": "gemini-3.5-flash",
+  "prompt_hash": "91de29b7d245",
+  "data_hash": "965c4b2c9c80",
+  "headline": "Tail latency spikes early under moderate load due to thinking time bottlenecks, while high interruption rates and cut-off turns degrade agent quality.",
+  "insights": [
+    {
+      "title": "Unstable Tail Latency Under Load Driven by LLM Thinking Bottleneck",
+      "category": "latency",
+      "severity": "high",
+      "evidence": [
+        "20260914-170712-sweep-deepgram-30, step baseline: ttfa p95_ms 1451.8",
+        "20260914-170712-sweep-deepgram-30, step c5: ttfa p95_ms 3322.9",
+        "20260914-170712-sweep-deepgram-30, step c10: ttfa p95_ms 1627.2",
+        "20260914-170712-sweep-deepgram-30, step c20: ttfa p95_ms 3297.7",
+        "20260914-170712-sweep-deepgram-30, step c5: think_speak p95_ms 3254.6",
+        "20260914-170712-sweep-deepgram-30, step c5: endpointing p95_ms 372.3",
+        "20260914-170712-sweep-deepgram-30, step c20: think_speak p95_ms 3243.4",
+        "20260914-170712-sweep-deepgram-30, step c20: endpointing p95_ms 334.5",
+        "20260914-170712-sweep-deepgram-30, step c40: harness_degraded true"
+      ],
+      "finding": "The tail latency is highly unstable, jumping from 1451.8 ms at baseline to 3322.9 ms at concurrency 5, dropping back to 1627.2 ms at concurrency 10, and spiking again to 3297.7 ms at concurrency 20. This latency tail is driven almost entirely by thinking time (think_speak p95 of 3254.6 ms at c5 and 3243.4 ms at c20) rather than endpointing (which remains at 372.3 ms at c5 and 334.5 ms at c20). We exclude step c40 from this pattern analysis because its test harness was degraded.",
+      "why_it_matters": "Unstable tail latency means the agent's responsiveness is unpredictable even at low concurrency. Since the bottleneck is in thinking time rather than hearing the caller, optimizing speech detection will not resolve these delay spikes.",
+      "next_step": "Investigate downstream LLM or orchestrator processing delays at steps c5 and c20 to ensure consistent response generation times."
+    },
+    {
+      "title": "Closing Turn Experiences Disproportionate Latency Tail Spikes",
+      "category": "latency",
+      "severity": "medium",
+      "evidence": [
+        "20260914-170712-sweep-deepgram-30, step baseline, turn 5: ttfa p95_ms 3133.5",
+        "20260914-170712-sweep-deepgram-30, step c5, turn 5: ttfa p95_ms 3418.4",
+        "20260914-170712-sweep-deepgram-30, step c10, turn 5: ttfa p95_ms 3380.3",
+        "20260914-170712-sweep-deepgram-30, step c20, turn 5: ttfa p95_ms 3403.7"
+      ],
+      "finding": "The closing turn (turn 5) consistently exhibits severe tail latency spikes across all loads, with p95 ttfa of 3133.5 ms at baseline, 3418.4 ms at c5, 3380.3 ms at c10, and 3403.7 ms at c20. However, because each step's turn 5 metrics are derived from fewer than 30 calls (ranging from 25 to 28 calls), these specific turn percentiles are fragile and should be interpreted with caution.",
+      "why_it_matters": "If callers experience a three-second delay when trying to conclude the call with 'Alright, that works. Thanks for sorting it out.', it creates an awkward final silence right before hanging up, damaging user satisfaction.",
+      "next_step": "Verify why the final conversational turn takes longer to generate than earlier turns and implement a simplified, faster template for the closing reply."
+    },
+    {
+      "title": "Conversational Quality Degrades Due to Elevated Interruption Rates",
+      "category": "quality",
+      "severity": "medium",
+      "evidence": [
+        "20260914-170712-sweep-deepgram-30, step baseline: interruption_rate 0.32",
+        "20260914-170712-sweep-deepgram-30, step c20: interruption_rate 0.39",
+        "20260914-170712-sweep-deepgram-30, step c20: interruptions 78",
+        "20260914-170712-sweep-deepgram-30, step baseline: interruptions 48"
+      ],
+      "finding": "The quality evaluation fails at step c20 because the agent talked over the caller in 39.0% of 200 turns, an increase from 32.0% of 150 turns at the baseline.",
+      "why_it_matters": "Frequent interruptions prevent the agent from hearing the full user context, frustrating the caller and causing the agent to execute incorrect actions or fail task requirements.",
+      "next_step": "Adjust the voice activity detection or barge-in settings to make the agent less aggressive when the customer pauses mid-sentence."
+    },
+    {
+      "title": "Turn 4 is Highly Susceptible to Being Cut Short",
+      "category": "quality",
+      "severity": "medium",
+      "evidence": [
+        "calls, turn 4: heard_cut_short 95",
+        "calls, turn 4: count 210"
+      ],
+      "finding": "The agent cut the caller short on turn 4 in 95 out of 210 turns, meaning the agent's transcript captured under half of the words the caller actually said.",
+      "why_it_matters": "On turn 4, the user asks about the refund timeframe ('Okay. And how long is that going to take to actually show up on my card?'). Cutting this query short risks the agent providing an incorrect response or missing critical customer questions, directly impacting task success.",
+      "next_step": "Review why turn 4 has such a high rate of truncated transcripts and increase the silence threshold or pause duration required before the agent begins processing turn 4 replies."
+    }
+  ]
+}

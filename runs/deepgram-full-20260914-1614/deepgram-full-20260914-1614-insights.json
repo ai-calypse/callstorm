@@ -1,0 +1,67 @@
+{
+  "kind": "suite",
+  "subject": "deepgram-full-20260914-1614",
+  "runs": [
+    "20260914-161419-sweep-deepgram-30",
+    "20260914-170712-sweep-deepgram-30"
+  ],
+  "generated_at": "2026-09-15T00:51:21.123975Z",
+  "model": "gemini-3.5-flash",
+  "prompt_hash": "91de29b7d245",
+  "data_hash": "1811ecb16707",
+  "headline": "While typical response speeds remain steady under load, tail latencies frequently stall for over 3 seconds across both scenarios, and the barge-in configuration triggers severe user interruption failures.",
+  "insights": [
+    {
+      "title": "Severe Tail Latency Spikes at Low Concurrency",
+      "category": "latency",
+      "severity": "high",
+      "evidence": [
+        "refund-escalation, baseline: ttfa p50_ms 828.7",
+        "refund-escalation, baseline: ttfa p95_ms 3261.3",
+        "refund-bargein, c5: ttfa p50_ms 839.5",
+        "refund-bargein, c5: ttfa p95_ms 3322.9",
+        "refund-bargein, c20: ttfa p95_ms 3297.7"
+      ],
+      "finding": "In both the refund-escalation and refund-bargein scenarios, typical response times—measured by median TTFA, or Time to First Audio (the wait before the agent starts speaking)—remain highly stable around 830ms to 850ms. However, tail latency (the p95 metric, indicating the slowest 5% of calls) routinely spikes over 3 seconds even under low concurrency. (Note: Step c40 in both runs experienced test machine resource issues with harness_degraded true, so those metrics are excluded from this analysis).",
+      "why_it_matters": "While the typical customer call is handled quickly, one out of twenty callers will experience a jarring 3-second delay, which is long enough to cause callers to think the system has hung and begin speaking over the agent.",
+      "next_step": "Optimize the agent's LLM generation and text-to-speech rendering pipelines to eliminate these extreme 3-second delays in the tail distribution."
+    },
+    {
+      "title": "Barge-In Configuration Triggers Conversational Failures",
+      "category": "quality",
+      "severity": "high",
+      "evidence": [
+        "refund-bargein, c20: quality verdict \"fail\"",
+        "refund-bargein, c20: quality reasons \"talked over the caller in 39.0% of 200 turns, against 32.0% at the baseline\"",
+        "refund-escalation, c20: quality verdict \"pass\""
+      ],
+      "finding": "The refund-bargein scenario (which allows callers to interrupt the agent) frequently fails quality checks under load, whereas the standard refund-escalation scenario consistently passes.",
+      "why_it_matters": "When barge-in is enabled, the agent frequently talks over callers, which ruins the conversational flow and causes automated quality judges to fail the calls.",
+      "next_step": "Implement more conservative Voice Activity Detection (VAD) settings so the agent does not trigger speech prematurely when it hears caller background noise or pauses."
+    },
+    {
+      "title": "Severe Interruption Rates on Turn 4 in Barge-In Scenario",
+      "category": "quality",
+      "severity": "medium",
+      "evidence": [
+        "refund-bargein, calls.by_turn turn 4: heard_cut_short 95",
+        "refund-escalation, calls.by_turn turn 4: heard_cut_short 5"
+      ],
+      "finding": "In the refund-bargein scenario, the agent cuts the caller short 95 times on Turn 4, compared to only 5 times in refund-escalation.",
+      "why_it_matters": "When callers ask how long a refund will take, the agent consistently interrupts them mid-sentence, indicating a specific conversational turn where VAD thresholds are far too sensitive.",
+      "next_step": "Increase the endpointing silence threshold specifically on Turn 4 to allow callers enough space to complete their sentence."
+    },
+    {
+      "title": "Extreme Latency Spikes on Closing Turns",
+      "category": "latency",
+      "severity": "medium",
+      "evidence": [
+        "refund-escalation, calls.by_turn turn 5: ttfa_p95_ms 3474.1",
+        "refund-bargein, calls.by_turn turn 5: ttfa_p95_ms 3419.1"
+      ],
+      "finding": "In both refund-escalation and refund-bargein, the final turn (Turn 5, where the caller wraps up with 'Alright, that works. Thanks for sorting it out.') is consistently the slowest on the tail, with p95 TTFA values exceeding 3.4 seconds.",
+      "why_it_matters": "Leaving a caller in silence for over 3 seconds right before hanging up ruins the final impression of an otherwise successful customer experience.",
+      "next_step": "Implement static responses or fast-path caching for predictable concluding phrases (like 'You're welcome') to bypass the LLM and lower the final turn's latency."
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "kind": "run",
+  "subject": "20260914-161419-sweep-deepgram-30",
+  "runs": [
+    "20260914-161419-sweep-deepgram-30"
+  ],
+  "generated_at": "2026-09-15T00:06:23.712399Z",
+  "model": "gemini-3.5-flash",
+  "prompt_hash": "91de29b7d245",
+  "data_hash": "98953b291880",
+  "headline": "The voice agent maintains steady conversational quality and median response speeds up to 20 concurrent calls, but suffers from tail latency spikes on the final turn and triggers a test runner degradation at 40 concurrent calls.",
+  "insights": [
+    {
+      "title": "Severe latency spikes isolated to the final closing turn",
+      "category": "latency",
+      "severity": "high",
+      "evidence": [
+        "refund-escalation, step baseline: turn 5 ttfa p95_ms 3451.9",
+        "refund-escalation, step c10: turn 5 ttfa p95_ms 3392.2"
+      ],
+      "finding": "The agent experiences extreme tail latency specifically on the fifth and final turn of the conversation, where the caller says 'Alright, that works. Thanks for sorting it out.' At the 95th percentile, the delay rises to 3451.9 milliseconds at baseline and remains high at 3392.2 milliseconds at 10 concurrent calls.",
+      "why_it_matters": "A delay of over three seconds on the final turn creates an awkward, unnatural pause right before the call ends, which can frustrate users and leave a poor final impression of the service.",
+      "next_step": "Examine the prompt design and check if any resource cleanup or database logging is blocking the agent from generating its final response quickly."
+    },
+    {
+      "title": "Transient quality warning at five concurrent calls",
+      "category": "quality",
+      "severity": "medium",
+      "evidence": [
+        "refund-escalation, step c5: quality.reasons [\"the judge passed 67% of 30 calls, against 73% of 30 at the baseline\"]"
+      ],
+      "finding": "At 5 concurrent calls, the agent's performance triggered a quality warning because the judge passed 67% of 30 calls, which is lower than the 73% of 30 calls passed at the baseline step.",
+      "why_it_matters": "A lower success rate means the agent did not fulfill its instructions—such as offering a replacement shipment or stating how long the refund takes—as reliably under this slight load.",
+      "next_step": "Run a verification test at 5 concurrent calls to see if this success rate drop persists or was an anomaly due to the small sample size."
+    },
+    {
+      "title": "Degraded test harness invalidates metrics at forty concurrent calls",
+      "category": "test",
+      "severity": "high",
+      "evidence": [
+        "refund-escalation, step c40: harness_degraded true",
+        "refund-escalation, step c40: transport_rtt.p95_ms 1319.5",
+        "refund-escalation, step c20: transport_rtt.p95_ms 98.3",
+        "refund-escalation, step c40: endpointing.p95_ms 2230",
+        "refund-escalation, step c20: endpointing.p95_ms 374"
+      ],
+      "finding": "At 40 concurrent calls, the test harness became degraded. This degradation heavily inflated the measured network round-trip time to 1319.5 milliseconds at the 95th percentile compared to 98.3 milliseconds at 20 concurrent calls, and pushed endpointing latency to 2230 milliseconds from 374 milliseconds. Because the test machine itself was overwhelmed, we can draw no conclusions about the agent's speed or capacity limits at this load level.",
+      "why_it_matters": "When the test harness is degraded, it introduces artificial delays and jitter that make it impossible to measure the voice agent's true processing time, potentially leading to false alarms.",
+      "next_step": "Upgrade the test runner's CPU and memory capacity or distribute the load across multiple runner instances before testing at 40 concurrent calls again."
+    }
+  ]
+}
