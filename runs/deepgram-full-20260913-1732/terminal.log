@@ -1,0 +1,609 @@
+suite deepgram-full-20260913-1732
+=== sweep refund started 16:44:09
+credentials environment  key 9f4900... (len 40)
+callstorm  scenario=refund-escalation
+target     deepgram voice agent  nova-3 / gpt-4o-mini / aura-2-apollo-en
+cost       210 calls billed by Deepgram; caller audio is cached and free
+profile    sweep-deepgram-30  5 steps, 210 calls, peak concurrency 40
+kafka      redpanda.callstorm.svc.cluster.local:9092 topic=callstorm.turns
+dispatch   redpanda.callstorm.svc.cluster.local:9092  run=20260913-173209-sweep-deepgram-30
+
+baseline     ramp      concurrency 1    calls 30   .............................. p95 1150ms  setup 100%  turns 150  across 7 workers
+c5           ramp      concurrency 5    calls 30   .............................. p95 2544ms  setup 100%  turns 150  across 7 workers
+c10          ramp      concurrency 10   calls 30   .............................. p95 3109ms  setup 100%  turns 150  across 6 workers
+c20          ramp      concurrency 20   calls 40   ........................................ p95 3152ms  setup 100%  turns 200  across 8 workers
+c40          ramp      concurrency 40   calls 80   ................................................................................ p95 1954ms  setup 100%  turns 400  across 8 workers
+kafka      published 0 turn events, dropped 0
+
+judging      20 of 210 conversations against 4 criteria (groq openai/gpt-oss-120b)
+judge: open /runs/deepgram-full-20260913-1732/20260913-173209-sweep-deepgram-30-judgements.json: no such file or directory
+
+--------------------------------------------------------------------------------------------
+LOAD REPORT  sweep-deepgram-30   scenario=refund-escalation
+--------------------------------------------------------------------------------------------
+
+step         conc   setup   ttfa p50    ttfa p95    ttfa p99    vs base   verdict
+baseline     1      100%    847ms       1150ms      3151ms      1.00x     pass   <- baseline
+c5           5      100%    860ms       2544ms      3778ms      2.21x     fail
+c10          10     100%    877ms       3109ms      3726ms      2.70x     fail
+c20          20     100%    868ms       3152ms      3221ms      2.74x     fail
+c40          40     100%    873ms       1954ms      3233ms      1.70x     warn
+
+
+step         wer mean  wer worst errors / words heard
+baseline     3.0%      87.5%     63 of 2130  (1S 61D 1I over 150 turns)
+c5           3.0%      25.0%     64 of 2130  (4S 59D 1I over 150 turns)
+c10          2.8%      14.3%     59 of 2130  (0S 59D 0I over 150 turns)
+c20          3.6%      100.0%    101 of 2840  (4S 97D 0I over 200 turns)
+c40          3.6%      100.0%    205 of 5680  (8S 195D 2I over 400 turns)
+
+network      observed TTFA, the round trip measured on each call's connection, and the agent's share
+step         observed p50  observed p95  rtt p50    agent p50   agent p95   corrected
+baseline     847ms         1150ms        81ms       768ms       1066ms      150 of 150 turns
+c5           860ms         2544ms        87ms       773ms       2457ms      150 of 150 turns
+c10          877ms         3109ms        85ms       789ms       3028ms      150 of 150 turns
+c20          868ms         3152ms        86ms       782ms       3066ms      200 of 200 turns
+c40          873ms         1954ms        85ms       783ms       1870ms      400 of 400 turns
+
+two clocks   from the caller's true end of speech (TTFA), and from the agent's transcript of the caller (think/speak)
+step         speech p50   speech p95   detect p50   detect p95
+baseline     847ms        1150ms       540ms        738ms
+c5           860ms        2544ms       550ms        1175ms
+c10          877ms        3109ms       563ms        1741ms
+c20          868ms        3152ms       554ms        2894ms
+c40          873ms        1954ms       548ms        1652ms
+
+reference    published lines, each read on its own clock; none of them is the verdict
+observed     Hamming observed production median 1400-1700ms on speech  (Hamming, 2026-01)
+             baseline p50 847ms under · c5 p50 860ms under · c10 p50 877ms under · c20 p50 868ms under · c40 p50 873ms under
+target       Coval p95 target under load 2000ms on speech  (Coval, 2026-03-07)
+             baseline p95 1150ms under · c5 p95 2544ms over · c10 p95 3109ms over · c20 p95 3152ms over · c40 p95 1954ms under
+target       Hamming TTFW breakdown line 800ms on detect  (Hamming, 2026-02-10)
+             baseline p50 540ms under · baseline p95 738ms under · c5 p50 550ms under · c5 p95 1175ms over · c10 p50 563ms under · c10 p95 1741ms over · c20 p50 554ms under · c20 p95 2894ms over · c40 p50 548ms under · c40 p95 1652ms over
+perceptual   Human turn-taking marker 300ms on speech  (Cekura, 2026-09-03)
+             baseline p50 847ms over · c5 p50 860ms over · c10 p50 877ms over · c20 p50 868ms over · c40 p50 873ms over
+
+phase shape   each step split in half by when its calls started, medians compared
+step         phase      held     first half  second half drift     reading
+baseline     ramp       1516s    855ms       839ms       -2%       steady
+c5           ramp       313s     869ms       857ms       -1%       steady
+c10          ramp       157s     865ms       891ms       +3%       steady
+c20          ramp       110s     862ms       871ms       +1%       steady
+c40          ramp       158s     866ms       874ms       +1%       steady
+
+step         talk      agent wpm  caller wpm  interrupts   score   dead air
+baseline     41%       157        181         0/150        5.00    3 turns, 12s
+c5           41%       160        181         0/150        5.00    9 turns, 30s
+c10          40%       161        181         0/150        5.00    10 turns, 32s
+c20          40%       160        181         0/200        5.00    13 turns, 42s
+c40          41%       158        181         0/400        5.00    20 turns, 68s
+
+step         ttfa p95    endpointing   think/speak   which half
+baseline     1150ms      408ms         738ms         64% think/speak
+c5           2544ms      414ms         1175ms        74% think/speak  (+10 pts vs baseline)
+c10          3109ms      386ms         1741ms        82% think/speak  (+17 pts vs baseline)
+c20          3152ms      375ms         2894ms        89% think/speak  (+24 pts vs baseline)
+c40          1954ms      414ms         1652ms        80% think/speak  (+16 pts vs baseline)
+
+cost         157.3 agent-minutes across the run; pass -rate-per-minute to price it
+
+dispatch     210 dispatched, 210 received, 0 duplicates dropped, 0 missing, 1 late
+c10          0 duplicates, 0 missing, 1 late from earlier steps
+
+BREAKPOINT   c5 at 5 concurrent: p95 TTFA 2544ms is 2.21x baseline
+harness      147ms worst-case pacing drift across the run
+             SUSPECT: step c40 drifted 147ms, past the 100ms limit.
+             This machine could not hold realtime pacing, so that step
+             measures the harness rather than the agent. Re-run it on a
+             quieter machine or at lower concurrency before believing it.
+duration     2256s
+
+report       /runs/deepgram-full-20260913-1732/20260913-173209-sweep-deepgram-30.json
+csv          /runs/deepgram-full-20260913-1732/20260913-173209-sweep-deepgram-30.csv
+chart        /runs/deepgram-full-20260913-1732/20260913-173209-sweep-deepgram-30.svg
+calls        /runs/deepgram-full-20260913-1732/20260913-173209-sweep-deepgram-30-calls.jsonl
+
+
+task success 0 of 0 conversations met every criterion
+unjudged     20 conversations the judge could not score
+             baseline: Post "https://api.groq.com/openai/v1/chat/completions": tls: failed to verify certificate: x509: certificate signed by unknown authority
+=== sweep refund exited 0 at 17:21:46
+=== sweep barge-in started 17:21:46
+credentials environment  key 9f4900... (len 40)
+callstorm  scenario=refund-bargein
+target     deepgram voice agent  nova-3 / gpt-4o-mini / aura-2-apollo-en
+cost       210 calls billed by Deepgram; caller audio is cached and free
+profile    sweep-deepgram-30  5 steps, 210 calls, peak concurrency 40
+kafka      redpanda.callstorm.svc.cluster.local:9092 topic=callstorm.turns
+dispatch   redpanda.callstorm.svc.cluster.local:9092  run=20260913-172146-sweep-deepgram-30
+
+baseline     ramp      concurrency 1    calls 30   .............................. p95 2349ms  setup 100%  turns 150  across 7 workers
+c5           ramp      concurrency 5    calls 30   .............................. p95 1614ms  setup 100%  turns 150  across 7 workers
+c10          ramp      concurrency 10   calls 30   .............................. p95 1518ms  setup 100%  turns 150  across 6 workers
+c20          ramp      concurrency 20   calls 40   ........................................ p95 1244ms  setup 100%  turns 200  across 8 workers
+c40          ramp      concurrency 40   calls 80   ................................................................................ p95 1228ms  setup 100%  turns 400  across 8 workers
+kafka      published 0 turn events, dropped 0
+
+judging      20 of 210 conversations against 2 criteria (groq openai/gpt-oss-120b)
+
+--------------------------------------------------------------------------------------------
+LOAD REPORT  sweep-deepgram-30   scenario=refund-bargein
+--------------------------------------------------------------------------------------------
+
+step         conc   setup   ttfa p50    ttfa p95    ttfa p99    vs base   verdict
+baseline     1      100%    877ms       2349ms      3688ms      1.00x     pass   <- baseline
+c5           5      100%    870ms       1614ms      3156ms      0.69x     pass
+c10          10     100%    856ms       1518ms      3156ms      0.65x     pass
+c20          20     100%    852ms       1244ms      3233ms      0.53x     pass
+c40          40     100%    870ms       1228ms      3158ms      0.52x     pass
+
+
+step         wer mean  wer worst errors / words heard
+baseline     2.9%      87.5%     62 of 2130  (0S 62D 0I over 150 turns)
+c5           2.7%      87.5%     58 of 2130  (0S 58D 0I over 150 turns)
+c10          2.7%      7.1%      57 of 2130  (0S 57D 0I over 150 turns)
+c20          3.1%      100.0%    89 of 2840  (4S 85D 0I over 200 turns)
+c40          3.0%      100.0%    169 of 5680  (4S 164D 1I over 400 turns)
+
+network      observed TTFA, the round trip measured on each call's connection, and the agent's share
+step         observed p50  observed p95  rtt p50    agent p50   agent p95   corrected
+baseline     877ms         2349ms        81ms       797ms       2266ms      150 of 150 turns
+c5           870ms         1614ms        85ms       785ms       1523ms      150 of 150 turns
+c10          856ms         1518ms        85ms       772ms       1434ms      150 of 150 turns
+c20          852ms         1244ms        87ms       763ms       1157ms      200 of 200 turns
+c40          870ms         1228ms        85ms       786ms       1144ms      400 of 400 turns
+
+two clocks   from the caller's true end of speech (TTFA), and from the agent's transcript of the caller (think/speak)
+step         speech p50   speech p95   detect p50   detect p95
+baseline     877ms        2349ms       566ms        1546ms
+c5           870ms        1614ms       564ms        971ms
+c10          856ms        1518ms       555ms        1217ms
+c20          852ms        1244ms       542ms        799ms
+c40          870ms        1228ms       557ms        921ms
+
+reference    published lines, each read on its own clock; none of them is the verdict
+observed     Hamming observed production median 1400-1700ms on speech  (Hamming, 2026-01)
+             baseline p50 877ms under · c5 p50 870ms under · c10 p50 856ms under · c20 p50 852ms under · c40 p50 870ms under
+target       Coval p95 target under load 2000ms on speech  (Coval, 2026-03-07)
+             baseline p95 2349ms over · c5 p95 1614ms under · c10 p95 1518ms under · c20 p95 1244ms under · c40 p95 1228ms under
+target       Hamming TTFW breakdown line 800ms on detect  (Hamming, 2026-02-10)
+             baseline p50 566ms under · baseline p95 1546ms over · c5 p50 564ms under · c5 p95 971ms over · c10 p50 555ms under · c10 p95 1217ms over · c20 p50 542ms under · c20 p95 799ms under · c40 p50 557ms under · c40 p95 921ms over
+perceptual   Human turn-taking marker 300ms on speech  (Cekura, 2026-09-03)
+             baseline p50 877ms over · c5 p50 870ms over · c10 p50 856ms over · c20 p50 852ms over · c40 p50 870ms over
+
+phase shape   each step split in half by when its calls started, medians compared
+step         phase      held     first half  second half drift     reading
+baseline     ramp       1532s    880ms       875ms       -1%       steady
+c5           ramp       312s     873ms       862ms       -1%       steady
+c10          ramp       153s     854ms       857ms       +0%       steady
+c20          ramp       107s     846ms       864ms       +2%       steady
+c40          ramp       150s     870ms       870ms       +0%       steady
+
+step         talk      agent wpm  caller wpm  interrupts   score   dead air
+baseline     41%       156        181         0/150        5.00    8 turns, 25s
+c5           41%       160        181         0/150        5.00    6 turns, 18s
+c10          40%       161        181         0/150        5.00    5 turns, 16s
+c20          40%       159        181         0/200        5.00    6 turns, 22s
+c40          40%       159        181         0/400        5.00    8 turns, 27s
+
+step         ttfa p95    endpointing   think/speak   which half
+baseline     2349ms      364ms         1546ms        81% think/speak
+c5           1614ms      350ms         971ms         73% think/speak  (-7 pts vs baseline)
+c10          1518ms      382ms         1217ms        76% think/speak
+c20          1244ms      387ms         799ms         67% think/speak  (-14 pts vs baseline)
+c40          1228ms      419ms         921ms         69% think/speak  (-12 pts vs baseline)
+
+cost         155.0 agent-minutes across the run; pass -rate-per-minute to price it
+
+dispatch     210 dispatched, 210 received, 0 duplicates dropped, 0 missing, 0 late
+
+BREAKPOINT   none reached; every step stayed inside 2x baseline
+harness      32ms worst-case pacing drift across the run
+duration     2255s
+
+report       /runs/deepgram-full-20260913-1732/20260913-172146-sweep-deepgram-30.json
+csv          /runs/deepgram-full-20260913-1732/20260913-172146-sweep-deepgram-30.csv
+chart        /runs/deepgram-full-20260913-1732/20260913-172146-sweep-deepgram-30.svg
+calls        /runs/deepgram-full-20260913-1732/20260913-172146-sweep-deepgram-30-calls.jsonl
+
+ok    10/10  The agent issues a refund after the caller turns down the replacement
+ok    10/10  The agent tells the caller how long the refund takes to reach their card
+
+task success 10 of 10 conversations met every criterion
+unjudged     10 conversations the judge could not score
+             c10: groq rate limit: Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m2bmy027ejgrst62tarfzy4r` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 6952, Requested 1062. Please try again in 105ms. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing (judge fewer calls with -judge-calls, or wait)
+judgements   /runs/deepgram-full-20260913-1732/20260913-172146-sweep-deepgram-30-judgements.json
+
+heard vs done  10 judged calls, split at 5% word error rate
+  heard cleanly   10 calls, 10 completed the task  (100%)
+  misheard        0 calls, 0 completed the task
+  median WER      2.8% on calls that passed, 0.0% on calls that failed
+  inconclusive: every judged call was heard cleanly, so there is nothing to compare it against
+=== sweep barge-in exited 0 at 17:59:34
+=== sweep branching started 17:59:34
+credentials environment  key 9f4900... (len 40)
+callstorm  scenario=refund-branching
+target     deepgram voice agent  nova-3 / gpt-4o-mini / aura-2-apollo-en
+cost       210 calls billed by Deepgram; caller audio is cached and free
+profile    sweep-deepgram-30  5 steps, 210 calls, peak concurrency 40
+kafka      redpanda.callstorm.svc.cluster.local:9092 topic=callstorm.turns
+dispatch   redpanda.callstorm.svc.cluster.local:9092  run=20260913-175934-sweep-deepgram-30
+
+baseline     ramp      concurrency 1    calls 30   .............................. p95 1148ms  setup 100%  turns 150  across 7 workers
+c5           ramp      concurrency 5    calls 30   .............................. p95 1086ms  setup 100%  turns 150  across 8 workers
+c10          ramp      concurrency 10   calls 30   .............................. p95 1118ms  setup 100%  turns 150  across 6 workers
+c20          ramp      concurrency 20   calls 40   ........................................ p95 1125ms  setup 100%  turns 200  across 8 workers
+c40          ramp      concurrency 40   calls 80   ................................................................................ p95 1296ms  setup 100%  turns 400  across 8 workers
+kafka      published 0 turn events, dropped 0
+
+judging      20 of 210 conversations against 2 criteria (groq openai/gpt-oss-120b)
+
+--------------------------------------------------------------------------------------------
+LOAD REPORT  sweep-deepgram-30   scenario=refund-branching
+--------------------------------------------------------------------------------------------
+
+step         conc   setup   ttfa p50    ttfa p95    ttfa p99    vs base   verdict
+baseline     1      100%    842ms       1148ms      3205ms      1.00x     pass   <- baseline
+c5           5      100%    792ms       1086ms      1654ms      0.95x     pass
+c10          10     100%    789ms       1118ms      3181ms      0.97x     pass
+c20          20     100%    793ms       1125ms      3231ms      0.98x     pass
+c40          40     100%    803ms       1296ms      3174ms      1.13x     pass
+
+
+step         wer mean  wer worst errors / words heard
+baseline     2.6%      25.0%     55 of 2124  (1S 53D 1I over 150 turns)
+c5           2.7%      7.1%      58 of 2124  (2S 56D 0I over 150 turns)
+c10          3.2%      100.0%    67 of 2124  (1S 66D 0I over 150 turns)
+c20          3.8%      100.0%    109 of 2834  (4S 105D 0I over 200 turns)
+c40          3.0%      100.0%    173 of 5674  (8S 163D 2I over 400 turns)
+
+network      observed TTFA, the round trip measured on each call's connection, and the agent's share
+step         observed p50  observed p95  rtt p50    agent p50   agent p95   corrected
+baseline     842ms         1148ms        81ms       760ms       1062ms      150 of 150 turns
+c5           792ms         1086ms        86ms       706ms       995ms       150 of 150 turns
+c10          789ms         1118ms        87ms       702ms       1033ms      150 of 150 turns
+c20          793ms         1125ms        86ms       709ms       1040ms      200 of 200 turns
+c40          803ms         1296ms        86ms       717ms       1205ms      400 of 400 turns
+
+two clocks   from the caller's true end of speech (TTFA), and from the agent's transcript of the caller (think/speak)
+step         speech p50   speech p95   detect p50   detect p95
+baseline     842ms        1148ms       534ms        723ms
+c5           792ms        1086ms       478ms        705ms
+c10          789ms        1118ms       469ms        751ms
+c20          793ms        1125ms       476ms        687ms
+c40          803ms        1296ms       478ms        773ms
+
+reference    published lines, each read on its own clock; none of them is the verdict
+observed     Hamming observed production median 1400-1700ms on speech  (Hamming, 2026-01)
+             baseline p50 842ms under · c5 p50 792ms under · c10 p50 789ms under · c20 p50 793ms under · c40 p50 803ms under
+target       Coval p95 target under load 2000ms on speech  (Coval, 2026-03-07)
+             baseline p95 1148ms under · c5 p95 1086ms under · c10 p95 1118ms under · c20 p95 1125ms under · c40 p95 1296ms under
+target       Hamming TTFW breakdown line 800ms on detect  (Hamming, 2026-02-10)
+             baseline p50 534ms under · baseline p95 723ms under · c5 p50 478ms under · c5 p95 705ms under · c10 p50 469ms under · c10 p95 751ms under · c20 p50 476ms under · c20 p95 687ms under · c40 p50 478ms under · c40 p95 773ms under
+perceptual   Human turn-taking marker 300ms on speech  (Cekura, 2026-09-03)
+             baseline p50 842ms over · c5 p50 792ms over · c10 p50 789ms over · c20 p50 793ms over · c40 p50 803ms over
+
+phase shape   each step split in half by when its calls started, medians compared
+step         phase      held     first half  second half drift     reading
+baseline     ramp       1534s    856ms       817ms       -5%       steady
+c5           ramp       306s     800ms       780ms       -2%       steady
+c10          ramp       159s     797ms       780ms       -2%       steady
+c20          ramp       105s     791ms       795ms       +0%       steady
+c40          ramp       152s     798ms       820ms       +3%       steady
+
+step         talk      agent wpm  caller wpm  interrupts   score   dead air
+baseline     42%       152        180         0/150        5.00    4 turns, 13s
+c5           41%       155        180         0/150        5.00    1 turns, 3s
+c10          41%       156        180         0/150        5.00    5 turns, 16s
+c20          41%       156        181         0/200        5.00    6 turns, 24s
+c40          41%       154        181         0/400        5.00    10 turns, 35s
+
+step         ttfa p95    endpointing   think/speak   which half
+baseline     1148ms      402ms         723ms         64% think/speak
+c5           1086ms      388ms         705ms         65% think/speak
+c10          1118ms      369ms         751ms         67% think/speak
+c20          1125ms      365ms         687ms         65% think/speak
+c40          1296ms      476ms         773ms         62% think/speak
+
+cost         155.8 agent-minutes across the run; pass -rate-per-minute to price it
+
+dispatch     210 dispatched, 210 received, 2 duplicates dropped, 0 missing, 0 late
+c5           2 duplicates, 0 missing, 0 late from earlier steps
+
+BREAKPOINT   none reached; every step stayed inside 2x baseline
+harness      555ms worst-case pacing drift across the run
+             SUSPECT: step c40 drifted 555ms, past the 100ms limit.
+             This machine could not hold realtime pacing, so that step
+             measures the harness rather than the agent. Re-run it on a
+             quieter machine or at lower concurrency before believing it.
+duration     2258s
+
+report       /runs/deepgram-full-20260913-1732/20260913-175934-sweep-deepgram-30.json
+csv          /runs/deepgram-full-20260913-1732/20260913-175934-sweep-deepgram-30.csv
+chart        /runs/deepgram-full-20260913-1732/20260913-175934-sweep-deepgram-30.svg
+calls        /runs/deepgram-full-20260913-1732/20260913-175934-sweep-deepgram-30-calls.jsonl
+
+ok    9/9  The agent asks the caller for an order number before discussing the specific order
+ok    9/9  The agent issues a refund by the end of the call
+
+task success 9 of 9 conversations met every criterion
+unjudged     11 conversations the judge could not score
+             c10: groq rate limit: Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m2bmy027ejgrst62tarfzy4r` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7479, Requested 1033. Please try again in 3.84s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing (judge fewer calls with -judge-calls, or wait)
+judgements   /runs/deepgram-full-20260913-1732/20260913-175934-sweep-deepgram-30-judgements.json
+
+heard vs done  9 judged calls, split at 5% word error rate
+  heard cleanly   9 calls, 9 completed the task  (100%)
+  misheard        0 calls, 0 completed the task
+  median WER      2.8% on calls that passed, 0.0% on calls that failed
+  inconclusive: every judged call was heard cleanly, so there is nothing to compare it against
+=== sweep branching exited 0 at 18:37:23
+=== sweep hesitant started 18:37:23
+credentials environment  key 9f4900... (len 40)
+callstorm  scenario=refund-hesitant
+target     deepgram voice agent  nova-3 / gpt-4o-mini / aura-2-apollo-en
+cost       210 calls billed by Deepgram; caller audio is cached and free
+profile    sweep-deepgram-30  5 steps, 210 calls, peak concurrency 40
+kafka      redpanda.callstorm.svc.cluster.local:9092 topic=callstorm.turns
+dispatch   redpanda.callstorm.svc.cluster.local:9092  run=20260913-183723-sweep-deepgram-30
+
+baseline     ramp      concurrency 1    calls 30   .............................. p95 950ms  setup 100%  turns 150  across 7 workers
+c5           ramp      concurrency 5    calls 30   .............................. p95 1940ms  setup 100%  turns 150  across 7 workers
+c10          ramp      concurrency 10   calls 30   .............................. p95 1253ms  setup 100%  turns 150  across 6 workers
+c20          ramp      concurrency 20   calls 40   ........................................ p95 986ms  setup 100%  turns 200  across 8 workers
+c40          ramp      concurrency 40   calls 80   ................................................................................ p95 1029ms  setup 100%  turns 400  across 8 workers
+kafka      published 0 turn events, dropped 0
+
+judging      20 of 210 conversations against 3 criteria (groq openai/gpt-oss-120b)
+
+--------------------------------------------------------------------------------------------
+LOAD REPORT  sweep-deepgram-30   scenario=refund-hesitant
+--------------------------------------------------------------------------------------------
+
+step         conc   setup   ttfa p50    ttfa p95    ttfa p99    vs base   verdict
+baseline     1      100%    782ms       950ms       3167ms      1.00x     pass   <- baseline
+c5           5      100%    789ms       1940ms      3594ms      2.04x     fail
+c10          10     100%    786ms       1253ms      3158ms      1.32x     pass
+c20          20     100%    779ms       986ms       3155ms      1.04x     pass
+c40          40     100%    785ms       1029ms      3116ms      1.08x     pass
+
+
+step         wer mean  wer worst errors / words heard
+baseline     2.5%      14.3%     54 of 2130  (2S 52D 0I over 150 turns)
+c5           3.0%      87.5%     64 of 2130  (0S 64D 0I over 150 turns)
+c10          2.8%      100.0%    60 of 2130  (2S 58D 0I over 150 turns)
+c20          2.5%      14.3%     72 of 2840  (1S 71D 0I over 200 turns)
+c40          3.3%      100.0%    187 of 5680  (6S 179D 2I over 400 turns)
+
+network      observed TTFA, the round trip measured on each call's connection, and the agent's share
+step         observed p50  observed p95  rtt p50    agent p50   agent p95   corrected
+baseline     782ms         950ms         82ms       701ms       870ms       150 of 150 turns
+c5           789ms         1940ms        85ms       703ms       1850ms      150 of 150 turns
+c10          786ms         1253ms        86ms       701ms       1165ms      150 of 150 turns
+c20          779ms         986ms         86ms       692ms       902ms       200 of 200 turns
+c40          785ms         1029ms        83ms       698ms       948ms       400 of 400 turns
+
+two clocks   from the caller's true end of speech (TTFA), and from the agent's transcript of the caller (think/speak)
+step         speech p50   speech p95   detect p50   detect p95
+baseline     782ms        950ms        473ms        670ms
+c5           789ms        1940ms       475ms        941ms
+c10          786ms        1253ms       472ms        741ms
+c20          779ms        986ms        478ms        644ms
+c40          785ms        1029ms       490ms        695ms
+
+reference    published lines, each read on its own clock; none of them is the verdict
+observed     Hamming observed production median 1400-1700ms on speech  (Hamming, 2026-01)
+             baseline p50 782ms under · c5 p50 789ms under · c10 p50 786ms under · c20 p50 779ms under · c40 p50 785ms under
+target       Coval p95 target under load 2000ms on speech  (Coval, 2026-03-07)
+             baseline p95 950ms under · c5 p95 1940ms under · c10 p95 1253ms under · c20 p95 986ms under · c40 p95 1029ms under
+target       Hamming TTFW breakdown line 800ms on detect  (Hamming, 2026-02-10)
+             baseline p50 473ms under · baseline p95 670ms under · c5 p50 475ms under · c5 p95 941ms over · c10 p50 472ms under · c10 p95 741ms under · c20 p50 478ms under · c20 p95 644ms under · c40 p50 490ms under · c40 p95 695ms under
+perceptual   Human turn-taking marker 300ms on speech  (Cekura, 2026-09-03)
+             baseline p50 782ms over · c5 p50 789ms over · c10 p50 786ms over · c20 p50 779ms over · c40 p50 785ms over
+
+phase shape   each step split in half by when its calls started, medians compared
+step         phase      held     first half  second half drift     reading
+baseline     ramp       1475s    784ms       779ms       -1%       steady
+c5           ramp       302s     789ms       790ms       +0%       steady
+c10          ramp       155s     786ms       788ms       +0%       steady
+c20          ramp       104s     770ms       788ms       +2%       steady
+c40          ramp       156s     793ms       773ms       -2%       steady
+
+step         talk      agent wpm  caller wpm  interrupts   score   dead air
+baseline     40%       159        181         0/150        5.00    4 turns, 12s
+c5           40%       158        181         0/150        5.00    7 turns, 23s
+c10          41%       157        181         0/150        5.00    3 turns, 9s
+c20          40%       155        181         0/200        5.00    4 turns, 13s
+c40          40%       158        181         0/400        5.00    7 turns, 26s
+
+step         ttfa p95    endpointing   think/speak   which half
+baseline     950ms       360ms         670ms         65% think/speak
+c5           1940ms      366ms         941ms         72% think/speak  (+7 pts vs baseline)
+c10          1253ms      395ms         741ms         65% think/speak
+c20          986ms       382ms         644ms         63% think/speak
+c40          1029ms      356ms         695ms         66% think/speak
+
+cost         152.9 agent-minutes across the run; pass -rate-per-minute to price it
+
+dispatch     210 dispatched, 210 received, 0 duplicates dropped, 0 missing, 0 late
+
+BREAKPOINT   c5 at 5 concurrent: p95 TTFA 1940ms is 2.04x baseline
+harness      65ms worst-case pacing drift across the run
+duration     2192s
+
+report       /runs/deepgram-full-20260913-1732/20260913-183723-sweep-deepgram-30.json
+csv          /runs/deepgram-full-20260913-1732/20260913-183723-sweep-deepgram-30.csv
+chart        /runs/deepgram-full-20260913-1732/20260913-183723-sweep-deepgram-30.svg
+calls        /runs/deepgram-full-20260913-1732/20260913-183723-sweep-deepgram-30-calls.jsonl
+
+ok    8/8  The agent lets the caller finish a line rather than answering the first sentence of it
+ok    8/8  The agent asks the caller for an order number before discussing the specific order
+ok    8/8  The agent issues a refund after the caller turns down the replacement
+
+task success 8 of 8 conversations met every criterion
+unjudged     12 conversations the judge could not score
+             c5: groq rate limit: Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m2bmy027ejgrst62tarfzy4r` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 6769, Requested 1307. Please try again in 570ms. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing (judge fewer calls with -judge-calls, or wait)
+judgements   /runs/deepgram-full-20260913-1732/20260913-183723-sweep-deepgram-30-judgements.json
+
+heard vs done  8 judged calls, split at 5% word error rate
+  heard cleanly   8 calls, 8 completed the task  (100%)
+  misheard        0 calls, 0 completed the task
+  median WER      2.8% on calls that passed, 0.0% on calls that failed
+  inconclusive: every judged call was heard cleanly, so there is nothing to compare it against
+=== sweep hesitant exited 0 at 19:14:09
+=== sweep graph-ref started 19:14:09
+credentials environment  key 9f4900... (len 40)
+callstorm  scenario=graph-reference
+target     deepgram voice agent  nova-3 / gpt-4o-mini / aura-2-apollo-en
+cost       210 calls billed by Deepgram; caller audio is cached and free
+profile    sweep-deepgram-30  5 steps, 210 calls, peak concurrency 40
+kafka      redpanda.callstorm.svc.cluster.local:9092 topic=callstorm.turns
+dispatch   redpanda.callstorm.svc.cluster.local:9092  run=20260913-191409-sweep-deepgram-30
+
+baseline     ramp      concurrency 1    calls 30   .............................. p95 3504ms  setup 100%  turns 120  across 7 workers
+c5           ramp      concurrency 5    calls 30   .............................. p95 3558ms  setup 100%  turns 120  across 7 workers
+c10          ramp      concurrency 10   calls 30   .............................. p95 3483ms  setup 100%  turns 120  across 6 workers
+c20          ramp      concurrency 20   calls 40   ........................................ p95 3435ms  setup 100%  turns 160  across 8 workers
+c40          ramp      concurrency 40   calls 80   ................................................................................ p95 3355ms  setup 100%  turns 320  across 8 workers
+kafka      published 0 turn events, dropped 0
+judge: scenario graph-reference defines no success_criteria, so there is nothing to judge
+
+--------------------------------------------------------------------------------------------
+LOAD REPORT  sweep-deepgram-30   scenario=graph-reference
+--------------------------------------------------------------------------------------------
+
+step         conc   setup   ttfa p50    ttfa p95    ttfa p99    vs base   verdict
+baseline     1      100%    748ms       3504ms      5526ms      1.00x     pass   <- baseline
+c5           5      100%    745ms       3558ms      5552ms      1.02x     pass
+c10          10     100%    751ms       3483ms      5379ms      0.99x     pass
+c20          20     100%    752ms       3435ms      5495ms      0.98x     pass
+c40          40     100%    748ms       3355ms      3539ms      0.96x     pass
+
+
+step         wer mean  wer worst errors / words heard
+baseline     5.6%      100.0%    93 of 1650  (9S 82D 2I over 120 turns)
+c5           5.2%      100.0%    85 of 1650  (6S 78D 1I over 120 turns)
+c10          4.3%      100.0%    71 of 1650  (5S 66D 0I over 120 turns)
+c20          5.4%      100.0%    119 of 2200  (8S 110D 1I over 160 turns)
+c40          4.6%      100.0%    203 of 4400  (13S 186D 4I over 320 turns)
+
+network      observed TTFA, the round trip measured on each call's connection, and the agent's share
+step         observed p50  observed p95  rtt p50    agent p50   agent p95   corrected
+baseline     748ms         3504ms        81ms       669ms       3424ms      120 of 120 turns
+c5           745ms         3558ms        85ms       657ms       3472ms      120 of 120 turns
+c10          751ms         3483ms        84ms       668ms       3399ms      120 of 120 turns
+c20          752ms         3435ms        83ms       670ms       3347ms      160 of 160 turns
+c40          748ms         3355ms        83ms       667ms       3274ms      320 of 320 turns
+
+two clocks   from the caller's true end of speech (TTFA), and from the agent's transcript of the caller (think/speak)
+step         speech p50   speech p95   detect p50   detect p95
+baseline     748ms        3504ms       447ms        3248ms
+c5           745ms        3558ms       429ms        3267ms
+c10          751ms        3483ms       441ms        3200ms
+c20          752ms        3435ms       444ms        3191ms
+c40          748ms        3355ms       446ms        3116ms
+
+reference    published lines, each read on its own clock; none of them is the verdict
+observed     Hamming observed production median 1400-1700ms on speech  (Hamming, 2026-01)
+             baseline p50 748ms under · c5 p50 745ms under · c10 p50 751ms under · c20 p50 752ms under · c40 p50 748ms under
+target       Coval p95 target under load 2000ms on speech  (Coval, 2026-03-07)
+             baseline p95 3504ms over · c5 p95 3558ms over · c10 p95 3483ms over · c20 p95 3435ms over · c40 p95 3355ms over
+target       Hamming TTFW breakdown line 800ms on detect  (Hamming, 2026-02-10)
+             baseline p50 447ms under · baseline p95 3248ms over · c5 p50 429ms under · c5 p95 3267ms over · c10 p50 441ms under · c10 p95 3200ms over · c20 p50 444ms under · c20 p95 3191ms over · c40 p50 446ms under · c40 p95 3116ms over
+perceptual   Human turn-taking marker 300ms on speech  (Cekura, 2026-09-03)
+             baseline p50 748ms over · c5 p50 745ms over · c10 p50 751ms over · c20 p50 752ms over · c40 p50 748ms over
+
+phase shape   each step split in half by when its calls started, medians compared
+step         phase      held     first half  second half drift     reading
+baseline     ramp       1484s    729ms       757ms       +4%       steady
+c5           ramp       308s     732ms       748ms       +2%       steady
+c10          ramp       155s     752ms       737ms       -2%       steady
+c20          ramp       106s     754ms       740ms       -2%       steady
+c40          ramp       154s     733ms       757ms       +3%       steady
+
+step         talk      agent wpm  caller wpm  interrupts   score   dead air
+baseline     51%       140        173         0/120        5.00    16 turns, 62s
+c5           51%       140        173         0/120        5.00    23 turns, 86s
+c10          51%       139        173         0/120        5.00    19 turns, 67s
+c20          51%       141        173         0/160        5.00    24 turns, 90s
+c40          51%       140        173         0/320        5.00    50 turns, 170s
+
+step         ttfa p95    endpointing   think/speak   which half
+baseline     3504ms      341ms         3248ms        91% think/speak
+c5           3558ms      363ms         3267ms        90% think/speak
+c10          3483ms      318ms         3200ms        91% think/speak
+c20          3435ms      322ms         3191ms        91% think/speak
+c40          3355ms      324ms         3116ms        91% think/speak
+
+cost         152.8 agent-minutes across the run; pass -rate-per-minute to price it
+
+nodes        share of visits whose reply met the node's expect, visits in brackets
+node             baseline       c5             c10            c20            c40           
+  open           0% (30)        0% (30)        0% (30)        0% (40)        0% (80)       
+  number         0% (30)        0% (30)        0% (30)        0% (40)        0% (80)       
+  refund         100% (30)      100% (30)      100% (30)      100% (40)      100% (80)     
+  close          (30)           (30)           (30)           (40)           (80)          
+
+dispatch     210 dispatched, 210 received, 0 duplicates dropped, 0 missing, 0 late
+
+BREAKPOINT   none reached; every step stayed inside 2x baseline
+harness      222ms worst-case pacing drift across the run
+             SUSPECT: step baseline drifted 148ms, past the 100ms limit.
+             This machine could not hold realtime pacing, so that step
+             measures the harness rather than the agent. Re-run it on a
+             quieter machine or at lower concurrency before believing it.
+             SUSPECT: step c5 drifted 222ms, past the 100ms limit.
+             This machine could not hold realtime pacing, so that step
+             measures the harness rather than the agent. Re-run it on a
+             quieter machine or at lower concurrency before believing it.
+             SUSPECT: step c10 drifted 111ms, past the 100ms limit.
+             This machine could not hold realtime pacing, so that step
+             measures the harness rather than the agent. Re-run it on a
+             quieter machine or at lower concurrency before believing it.
+duration     2207s
+
+report       /runs/deepgram-full-20260913-1732/20260913-191409-sweep-deepgram-30.json
+csv          /runs/deepgram-full-20260913-1732/20260913-191409-sweep-deepgram-30.csv
+chart        /runs/deepgram-full-20260913-1732/20260913-191409-sweep-deepgram-30.svg
+calls        /runs/deepgram-full-20260913-1732/20260913-191409-sweep-deepgram-30-calls.jsonl
+=== sweep graph-ref exited 0 at 19:50:56
+=== network refund started 19:50:56
+credentials environment  key 9f4900... (len 40)
+callstorm  scenario=refund-escalation
+target     deepgram voice agent  nova-3 / gpt-4o-mini / aura-2-apollo-en
+cost       22 calls billed by Deepgram; caller audio is cached and free
+
+callstorm: -impairments needs tc from iproute2 and a Linux kernel with netem: exec: "tc": executable file not found in $PATH
+=== network refund exited 1 at 19:50:56
+=== network barge-in started 19:50:56
+credentials environment  key 9f4900... (len 40)
+callstorm  scenario=refund-bargein
+target     deepgram voice agent  nova-3 / gpt-4o-mini / aura-2-apollo-en
+cost       22 calls billed by Deepgram; caller audio is cached and free
+
+callstorm: -impairments needs tc from iproute2 and a Linux kernel with netem: exec: "tc": executable file not found in $PATH
+=== network barge-in exited 1 at 19:50:56
+=== network branching started 19:50:56
+credentials environment  key 9f4900... (len 40)
+callstorm  scenario=refund-branching
+target     deepgram voice agent  nova-3 / gpt-4o-mini / aura-2-apollo-en
+cost       22 calls billed by Deepgram; caller audio is cached and free
+
+callstorm: -impairments needs tc from iproute2 and a Linux kernel with netem: exec: "tc": executable file not found in $PATH
+=== network branching exited 1 at 19:50:56
+=== network hesitant started 19:50:56
+credentials environment  key 9f4900... (len 40)
+callstorm  scenario=refund-hesitant
+target     deepgram voice agent  nova-3 / gpt-4o-mini / aura-2-apollo-en
+cost       22 calls billed by Deepgram; caller audio is cached and free
+
+callstorm: -impairments needs tc from iproute2 and a Linux kernel with netem: exec: "tc": executable file not found in $PATH
+=== network hesitant exited 1 at 19:50:56
+=== network graph-ref started 19:50:56
+credentials environment  key 9f4900... (len 40)
+callstorm  scenario=graph-reference
+target     deepgram voice agent  nova-3 / gpt-4o-mini / aura-2-apollo-en
+cost       22 calls billed by Deepgram; caller audio is cached and free
+
+callstorm: -impairments needs tc from iproute2 and a Linux kernel with netem: exec: "tc": executable file not found in $PATH
+=== network graph-ref exited 1 at 19:50:56
+suite done deepgram-full-20260913-1732

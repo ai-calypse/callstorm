@@ -1,0 +1,63 @@
+{
+  "kind": "run",
+  "subject": "20260913-173209-sweep-deepgram-30",
+  "runs": [
+    "20260913-173209-sweep-deepgram-30"
+  ],
+  "generated_at": "2026-09-14T06:00:00.0131441Z",
+  "model": "claude-opus-5",
+  "prompt_hash": "91de29b7d245",
+  "data_hash": "6f086e2ec74d",
+  "headline": "The judge passed 203 of 210 refund calls and the typical wait held steady up to 20 calls at once, but the caller's closing goodbye sometimes gets cut short and stalls, even with one call at a time, and that stall fails the p95 wait at 5 to 20 calls.",
+  "insights": [
+    {
+      "title": "The slow tail comes from the caller's goodbye being cut short, and it happens even with one call at a time",
+      "category": "latency",
+      "severity": "high",
+      "evidence": [
+        "calls log, turn 5: heard_cut_short 10",
+        "calls log, turn 5: ttfa_p50_ms_cut_short 3203.3",
+        "calls log, turn 5: ttfa_p50_ms_heard_in_full 848.9",
+        "baseline, turn 5: ttfa p95_ms 3150.9",
+        "c20, turn 5: ttfa p95_ms 3221.3",
+        "c5: endpointing p99_ms 3178",
+        "c20: endpointing p99_ms 500.6",
+        "c20: think_speak p95_ms 2893.8",
+        "baseline: wer deletions 61, substitutions 1"
+      ],
+      "finding": "On the closing turn, the caller says \"Alright, that works. Thanks for sorting it out.\" On 10 of those turns, the agent's transcript held under half of the caller's words. The typical wait on those cut-short turns was 3203.3 ms, against 848.9 ms when the agent heard the line in full. The closing turn's slow tail (its p95, the wait that only the slowest 1 call in 20 exceeds) was already 3150.9 ms at baseline, with one call at a time. The wait breakdown does not place this stall in one stage. At c5 it shows up in endpointing, the stage of noticing the caller stopped, where the p99 reached 3178 ms. At c20, endpointing's p99 was 500.6 ms and the stall shows up in thinking instead, at a p95 of 2893.8 ms. Words misheard are mostly deletions, words dropped from the transcript, rather than substitutions, words heard wrong. That fits a transcript that stops early, though the data does not prove it is the cause.",
+      "why_it_matters": "This behaves like a hearing problem on short closing lines, not a thinking or capacity problem. Adding servers or a faster language model would likely leave it unchanged.",
+      "next_step": "Pull the 10 cut-short closing turns from the calls log. Line up each one's caller audio, the agent's transcript and the endpointing timestamps, and check whether the speech-to-text service finalizes short lines late or cuts them."
+    },
+    {
+      "title": "The failed steps do not follow load: the typical wait stays flat while the slow tail swings within a single step",
+      "category": "capacity",
+      "severity": "medium",
+      "evidence": [
+        "baseline: ttfa p50_ms 847.1",
+        "c20: ttfa p50_ms 868.4",
+        "c5: ttfa p95_ms 2543.9",
+        "c20: ttfa p95_ms 3151.6",
+        "c5: phase first_half p95_ms 3202.1",
+        "c5: phase second_half p95_ms 1198.1",
+        "coval-load-p95: ms 2000"
+      ],
+      "finding": "The median wait (p50, the typical caller) barely moves from baseline (847.1 ms) to c20 (868.4 ms). Meanwhile the step p95 sits above Coval's published 2000 ms p95 line for load at c5 (2543.9 ms) and at c20 (3151.6 ms). Within c5 alone, the first half of the step had a p95 of 3202.1 ms and the second half 1198.1 ms, with no change in load. The tail therefore depends on which few calls hit a stall, not on how many calls run at once. The c40 step is marked harness_degraded, meaning the test machine itself fell behind, so its figures measure the harness rather than the agent. No conclusion can be drawn from it, including from its lower p95.",
+      "why_it_matters": "The fail verdicts at c5, c10 and c20 could be read as the agent running out of capacity at 5 calls. The data does not support that reading. Coval's line is another team's target, not this team's service level.",
+      "next_step": "Rerun the sweep once the closing-turn stall is fixed, from a test machine that keeps up at c40, to find where load itself starts moving the p95."
+    },
+    {
+      "title": "The quality judge passed 203 of 210 calls, so the quality verdict could not have caught a slip",
+      "category": "test",
+      "severity": "medium",
+      "evidence": [
+        "judge: judged 210, passed 203",
+        "judge.correlation: misheard_calls 13, misheard_pass_rate 100.0%",
+        "baseline, nodes turn-1 to turn-5: checked 0"
+      ],
+      "finding": "An AI judge graded each call against the task criteria. It passed 203 of 210 calls, including all 13 calls where the transcript misheard more than the threshold. None of the per-turn checks (nodes) graded anything. With 7 calls failing, the quality verdict of pass at every step had no way to show quality slipping under load.",
+      "why_it_matters": "A check that has never failed has not shown it can fail. The claim that quality held up under load rests on criteria this agent may simply find easy.",
+      "next_step": "Seed a few calls with a known-bad agent reply, such as a refund offered before a replacement, and confirm the judge fails them before trusting its pass verdicts."
+    }
+  ]
+}

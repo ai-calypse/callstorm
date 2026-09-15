@@ -1,0 +1,84 @@
+{
+  "kind": "run",
+  "subject": "20260913-175934-sweep-deepgram-30-5234",
+  "runs": [
+    "20260913-175934-sweep-deepgram-30-5234"
+  ],
+  "generated_at": "2026-09-14T06:02:56.3388871Z",
+  "model": "claude-opus-5",
+  "prompt_hash": "91de29b7d245",
+  "data_hash": "bfe39cbd6d7e",
+  "headline": "No call failed and the wait held steady up to 20 calls at once, but the closing 'thanks' turn stalls for seconds whenever the agent hears only part of it, even with a single call.",
+  "insights": [
+    {
+      "title": "The closing 'thanks' turn stalls when the agent hears only part of it, even with one call at a time",
+      "category": "latency",
+      "severity": "high",
+      "evidence": [
+        "calls.by_turn turn 5: heard_cut_short 8 of count 210",
+        "calls.by_turn turn 5: ttfa_p50_ms_cut_short 3152.8",
+        "calls.by_turn turn 5: ttfa_p50_ms_heard_in_full 754.4",
+        "baseline (concurrency 1), turn 5: ttfa p95_ms 3205.3",
+        "c10, turn 5: ttfa p95_ms 3181.3"
+      ],
+      "finding": "On the closing turn, 8 turns were 'cut short': the agent's transcript of the caller held fewer than half the words the caller said. On those turns the median wait (p50, the typical turn) was 3152.8ms. On the rest of that turn it was 754.4ms. So the slow tail of the closing turn is mostly a hearing problem, not a thinking one. The same tail appears with a single call (baseline turn 5 p95, the wait that 1 in 20 turns exceeded, was 3205.3ms) and again at c10, so extra load did not create it. One possible cause is that the speech recognizer drops the short, trailing 'Alright, that works. Thanks' line and the agent waits before it replies. The data does not show the mechanism.",
+      "why_it_matters": "A few seconds of silence right after the caller says thanks makes a call that went well end awkwardly. Faster models or more servers will not fix it because it is present at every load.",
+      "next_step": "Pull the 8 cut-short closing-turn calls and compare the caller audio with the agent's transcript and its end-of-speech settings, to find where the words were lost."
+    },
+    {
+      "title": "The agent commits to a replacement before the caller asks, and 3 calls never confirmed the refund",
+      "category": "quality",
+      "severity": "medium",
+      "evidence": [
+        "judge misses, 'The assistant confirms a refund at any point in the call': missed 3 of judged 210",
+        "calls.by_turn turn 2: most_common_reply 'I’ll arrange a replacement shipment for your wireless headphones.' (most_common_reply_count 53)",
+        "calls.by_turn turn 3: most_common_reply 'I can process a refund for you.' (most_common_reply_count 45)"
+      ],
+      "finding": "On turn 2 the caller has only given the order number. The most common reply there already arranges a replacement shipment. When the caller asks for their money back on turn 3, the agent usually switches to a refund. In 3 calls the judge (an AI model that grades each transcript) found no refund confirmed, and its note says those calls only discussed a replacement shipment.",
+      "why_it_matters": "A caller who wanted a refund and gets a replacement will likely call back or dispute the charge. The early commitment on turn 2 may be what makes the agent stick to the wrong outcome.",
+      "next_step": "Read the 3 failed transcripts and check whether the agent's instructions let it offer a replacement before the caller states what they want."
+    },
+    {
+      "title": "The pass rate is easy to earn, and the branch checks graded nothing",
+      "category": "test",
+      "severity": "medium",
+      "evidence": [
+        "judge misses, 'The assistant asks the user for an order number before the assistant discusses the specific order': missed 0 of judged 210",
+        "judge correlation: misheard_calls 10, misheard_pass_rate 100.0%, clean_pass_rate 98.5%, threshold 5.0%",
+        "baseline nodes turn-1 to turn-5: checked 0 each",
+        "c40 nodes turn-1 to turn-5: checked 0 each"
+      ],
+      "finding": "The judge graded all 210 calls and passed 207. One of its two criteria was met in every call. Calls where more than 5.0% of the caller's words were misheard passed at 100.0%, against 98.5% for the rest, so the criteria are not sensitive to mishearing. The scenario is called refund-branching, but the per-branch checks ('nodes') recorded 0 checked at every step. No branch of the conversation was verified on its own.",
+      "why_it_matters": "A high pass rate here says little about whether the agent handles the refund path correctly. Regressions on that path could pass unnoticed.",
+      "next_step": "Add node checks for each turn of the refund branch, and a judge criterion that fails a call when the agent keeps offering a replacement after the caller asks for a refund."
+    },
+    {
+      "title": "Wait did not grow with load up to 20 calls, so the capacity limit is still unknown",
+      "category": "capacity",
+      "severity": "medium",
+      "evidence": [
+        "baseline (concurrency 1): ttfa p50_ms 841.5",
+        "c20 (concurrency 20): ttfa p50_ms 792.9",
+        "baseline: think_speak p50_ms 534",
+        "c20: think_speak p50_ms 475.7",
+        "c40: harness_degraded true, worst_harness_drift_ms 554.7"
+      ],
+      "finding": "The typical wait before the agent starts speaking (ttfa) was highest with one call at a time and did not rise through 20 calls at once. The difference sits in thinking up the reply (think_speak), which was also highest at baseline. This slowdown was not caused by load. One possibility is that the baseline ran for a much longer stretch and at a different time than the busier steps. The only step that went beyond 20 calls, c40, was flagged as degraded: the test machine itself fell behind, so its figures describe the test machine and no conclusion about the agent can be drawn from them.",
+      "why_it_matters": "The team cannot yet say how many calls at once the agent can handle, only that 20 did not strain it.",
+      "next_step": "Rerun c40 and a higher step from a load machine with more headroom, or split the calls across two machines, so the busiest steps measure the agent."
+    },
+    {
+      "title": "Under the published load lines, but noticing the caller stopped already takes a human's whole reply gap",
+      "category": "latency",
+      "severity": "low",
+      "evidence": [
+        "c20: ttfa p95_ms 1125.2 (Coval p95 target under load, 2000ms)",
+        "c20: think_speak p95_ms 686.8 (Hamming TTFW breakdown line, 800ms)",
+        "baseline: endpointing p50_ms 301.1 (human turn-taking marker, 300ms)"
+      ],
+      "finding": "Through c20, the slow-caller wait (p95) stays below Coval's published 2000ms p95 line under load. Thinking time stays below Hamming's 800ms line. That Hamming reading favours the agent, because this test starts its clock at a later instant than Hamming does. These are other companies' targets, not this team's service levels. Endpointing is the time the agent takes to notice the caller has stopped talking. Its median alone sits at the roughly 300ms gap people leave before answering each other, before any thinking or network time is added.",
+      "why_it_matters": "Faster replies alone cannot bring the wait close to human timing. Endpointing would have to shrink too, and shortening it risks cutting callers off, as the closing turn already shows.",
+      "next_step": "If human-like timing is a goal, test a shorter end-of-speech setting in one run and watch whether cut-short turns rise alongside it."
+    }
+  ]
+}
