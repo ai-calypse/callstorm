@@ -4421,11 +4421,13 @@ function StudioSummary({rep,g,onExplore}) {
   const attempts=steps.reduce((n,s)=>n+(s.calls_attempted ?? s.calls ?? 0),0);
   const connected=steps.length && steps.every(s=>Number.isFinite(s.calls_connected)) ? steps.reduce((n,s)=>n+s.calls_connected,0) : null;
   const timed=steps.filter(s=>s.ttfa?.n>0), worst=timed.length ? Math.max(...timed.map(s=>s.ttfa.p95_ms)) : null;
+  const heard=sel.wer(rep), words=heard.reduce((n,s)=>n+s.wer.ref_words,0), wordErrors=heard.reduce((n,s)=>n+s.wer.substitutions+s.wer.deletions+s.wer.insertions,0);
   const title=!steps.length ? "No measurements to review yet." : judged ? `${j.passed} of ${j.judged} reviewed calls completed the task.` : "The calls are measured. The outcome is still unknown.";
   const metrics=[
     {label:"Tasks completed",value:judged ? pct(j.passed/j.judged) : "Not reviewed",note:judged ? `${j.passed} of ${j.judged} reviewed calls` : "Task review was not recorded",tab:"quality"},
     {label:"Calls handled at once",value:g.stats[0].value,note:"Highest tested level that passed",tab:"load"},
     {label:"Slow reply time",value:worst === null ? "Not measured" : (worst/1000).toFixed(2)+"s",note:"95% faster than this in the worst stage",tab:"load"},
+    {label:"Word error rate",value:words ? pct(wordErrors/words) : "Not measured",note:words ? `${wordErrors} errors in ${words} caller words, all stages` : "No reference transcript was recorded",tab:"conversation"},
     {label:"Cost per call",value:g.stats[2].value === "—" ? "Not priced" : g.stats[2].value,note:keyed(g.stats[2].note),tab:"cost"},
   ];
   return html`<section className="studio-summary" aria-label="Evaluation summary">
@@ -4675,6 +4677,7 @@ function Report({ rep, id, refs, runs, prev, initialTab, initialDrawer, initialC
 
       <${StudioSummary} rep=${rep} g=${g} onExplore=${t => setTab(t)}/>
       <nav className="studio-nav" aria-label="Review sections">${STUDIO_VIEWS.filter(([key])=>key !== "scenarios" || parts.length > 1).map(([key,label])=>html`<button key=${key} aria-pressed=${studioMode===key} onClick=${()=>setStudioMode(key)}>${label}</button>`)}</nav>
+      <div hidden=${studioMode !== "overview"}><${ReportTable} rep=${rep}/></div>
       <div className="studio-overview-grid" hidden=${studioMode !== "overview"}>
         <${StudioTrend} rep=${rep} onExplore=${t=>setTab(t)}/>
         <${StudioBrief} rep=${rep} insights=${insights} onExplore=${t=>setTab(t)} onAll=${()=>setStudioMode("findings")}/>

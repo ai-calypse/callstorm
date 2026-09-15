@@ -624,6 +624,11 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
 {
   const summary=render(mod.StudioSummary,{rep:run,g:mod.glance(run,null,null),onExplore(){}});
   has(summary,"studio summary keeps reviewed-call scope","Task review was not recorded");
+  has(summary,"glance shows word error rate","Word error rate");
+  has(summary,"glance says when WER was not measured","No reference transcript was recorded");
+  const graph=fixture("run-deepgram-graph.json");
+  has(render(mod.StudioSummary,{rep:graph,g:mod.glance(graph,null,null),onExplore(){}}),"glance pools WER over every stage","571 errors in 11550 caller words");
+  has(page1(run,"run"),"overview carries the report card","Every step, as measured");
   const trend=render(mod.StudioTrend,{rep:run,onExplore(){}});
   has(trend,"studio chart has keyboard-operable observations",'tabindex="0"');
   has(trend,"studio chart explains sample count",run.steps[0].ttfa.n+" measured replies");

@@ -10,7 +10,8 @@ Open http://localhost:8090/ after starting:
 go run ./cmd/dashboard -runs runs
 ```
 
-The page opens on a result summary and a median/p95 chart, then separate
+The page opens on a result summary (including word error rate), the per-step
+report card, and a median/p95 chart, then separate
 views for caller experience, task results, comparing the scenarios of a suite,
 comparing with the previous test, findings, and the evidence. Metric cards lead
 to the evidence behind them; definitions open from the sidebar.
