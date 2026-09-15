@@ -206,7 +206,7 @@ footer { font-size: 9px; letter-spacing: 1px; padding-top: 25px; }
 .rate-track { position: relative; }
 .rate-track .rate-fill { position: absolute; top: 0; bottom: 0; left: 0; background: var(--cs-chart-primary); opacity: .3; }
 .rate-track .rate-range { position: absolute; top: 0; bottom: 0; min-width: 3px; background: var(--cs-chart-primary); opacity: .8; }
-.scenario-heat { padding: 14px 7px; border-radius: 6px; font-variant-numeric: tabular-nums; }
+.scenario-heat { padding: 14px 7px; border-radius: 6px; font-variant-numeric: tabular-nums; color: var(--cs-ink); }
 .scenario-heat small { display: block; }
 .scenario-heat b { font-weight: 700; }
 .scenario-compare .conversation-heatmap .scenario-link { width: auto; padding: 0; border: 0; border-radius: 0; font-size: 12px; color: var(--cs-olive); }
@@ -215,4 +215,31 @@ footer { font-size: 9px; letter-spacing: 1px; padding-top: 25px; }
   .scenario-compare .wait-frequency-row > div:first-child { flex-wrap: wrap; }
   .scenario-compare .chart { overflow-x: auto; }
   .scenario-compare .chart svg { min-width: 480px; }
+}
+
+/* Small screens, following the design system's "below 760" column: a wide table
+   becomes one record per row, each value under its own label, so the columns
+   that matter (the verdicts) are never scrolled off the edge. */
+@media (max-width: 759px) {
+  table.stack { min-width: 0; table-layout: auto; border-spacing: 0; }
+  table.stack thead { display: none; }
+  table.stack tbody { display: block; }
+  table.stack tr { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px 16px; padding: 14px 0; border-top: 1px solid var(--cs-border); }
+  table.stack tr > * { display: block; width: auto; min-width: 0; padding: 0; border: 0; text-align: left; white-space: normal; }
+  table.stack tr > :first-child { grid-column: 1 / -1; width: auto; font-weight: 600; }
+  table.stack td:empty { display: none; }
+  table.stack tr.selected { background: var(--cs-selection); padding-inline: 10px; border-radius: 8px; }
+  table.stack tr.selected td { background: none; }
+  table.stack td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 4px; font-size: 11px; font-weight: 400; letter-spacing: .6px; text-transform: uppercase; color: var(--cs-text-caption); }
+}
+/* The overview chart scales with its viewBox; its labels are set in viewBox
+   units, so on a phone they grow to stay readable instead of shrinking away. */
+@media (max-width: 480px) { .studio-speed-chart text { font-size: 20px; } }
+/* Touch: every control at least 44px, the design system's web minimum. */
+@media (max-width: 759px), (pointer: coarse) {
+  .text-button, .seg button, .tabs button, .studio-nav button, .sidebar .nav-item, .studio-caution button, .brand, .compare-control, summary { min-height: 44px; }
+  .text-button { display: inline-flex; align-items: center; }
+  .icon-button { width: 44px; height: 44px; }
+  .compare-control input { width: 20px; height: 20px; }
+  input[type="range"] { min-height: 44px; }
 }

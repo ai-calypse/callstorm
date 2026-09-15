@@ -1687,7 +1687,7 @@ function ReportTable({ rep }) {
         <div><dt>Target</dt><dd>${rep.target || "deepgram voice agent"}</dd></div>
       </dl>
       <div className="tablewrap">
-        <table>
+        <table className="stack">
           <thead><tr>
             <th>Step</th><th>Conc</th><th>Setup</th><th>p50</th><th>p95</th><th>p99</th>
             <th>Turns</th><th>Drift</th><th>vs base</th><th>Verdict</th><th>Quality</th>
@@ -1696,16 +1696,16 @@ function ReportTable({ rep }) {
             ${steps.map(s => html`
               <tr key=${s.name}>
                 <td>${s.name}${s.name === rep.baseline ? " ←" : ""}</td>
-                <td>${s.concurrency}</td>
-                <td>${pct(s.setup_success)}</td>
-                <td>${ms(s.ttfa.p50_ms)}</td>
-                <td>${ms(s.ttfa.p95_ms)}${thinFor(s, 20)}</td>
-                <td>${ms(s.ttfa.p99_ms)}${thinFor(s, 100)}</td>
-                <td>${s.turns_total}</td>
-                <td>${ms(s.worst_harness_drift_ms)}</td>
-                <td>${s.p95_ratio ? s.p95_ratio.toFixed(2) + "×" : "-"}</td>
-                <td><${Badge} v=${s.verdict}/></td>
-                <td>${s.quality && s.quality.verdict ? html`<${Badge} v=${s.quality.verdict}/>` : "-"}</td>
+                <td data-label="Conc">${s.concurrency}</td>
+                <td data-label="Setup">${pct(s.setup_success)}</td>
+                <td data-label="p50">${ms(s.ttfa.p50_ms)}</td>
+                <td data-label="p95">${ms(s.ttfa.p95_ms)}${thinFor(s, 20)}</td>
+                <td data-label="p99">${ms(s.ttfa.p99_ms)}${thinFor(s, 100)}</td>
+                <td data-label="Turns">${s.turns_total}</td>
+                <td data-label="Drift">${ms(s.worst_harness_drift_ms)}</td>
+                <td data-label="vs base">${s.p95_ratio ? s.p95_ratio.toFixed(2) + "×" : "-"}</td>
+                <td data-label="Verdict"><${Badge} v=${s.verdict}/></td>
+                <td data-label="Quality">${s.quality && s.quality.verdict ? html`<${Badge} v=${s.quality.verdict}/>` : "-"}</td>
               </tr>`)}
           </tbody>
         </table>
@@ -2863,22 +2863,22 @@ function costMissing(steps) {
 function SuiteCostTable({ suite, rate, openId }) {
   return html`
     <div className="tablewrap">
-      <table>
+      <table className="stack">
         <thead><tr><th>Part</th><th>Scenario</th><th>Calls</th><th>Connected min</th><th>Per call</th><th>Total</th></tr></thead>
         <tbody>
           ${suite.map((p, i) => html`
             <tr key=${p.id} className=${p.id === openId ? "selected" : ""}>
-              <td>${i + 1}${p.id === openId ? " · open" : ""}</td><td>${p.scenario}</td>
-              <td>${p.calls === null ? "…" : p.calls}</td><td>${p.minutes === null ? "…" : p.minutes.toFixed(1)}</td>
-              <td>${p.minutes === null || !p.calls ? "…" : "$" + (p.minutes * rate / p.calls).toFixed(4)}</td>
-              <td>${p.minutes === null ? "loading" : "$" + (p.minutes * rate).toFixed(2)}</td>
+              <td>${i + 1}${p.id === openId ? " · open" : ""}</td><td data-label="Scenario">${p.scenario}</td>
+              <td data-label="Calls">${p.calls === null ? "…" : p.calls}</td><td data-label="Connected min">${p.minutes === null ? "…" : p.minutes.toFixed(1)}</td>
+              <td data-label="Per call">${p.minutes === null || !p.calls ? "…" : "$" + (p.minutes * rate / p.calls).toFixed(4)}</td>
+              <td data-label="Total">${p.minutes === null ? "loading" : "$" + (p.minutes * rate).toFixed(2)}</td>
             </tr>`)}
           <tr className="total">
             <td colSpan="2">${suite.every(p => p.minutes !== null) ? "Whole suite" : "Loading the other parts…"}</td>
-            <td>${suite.reduce((a, p) => a + (p.calls || 0), 0)}</td>
-            <td>${suite.reduce((a, p) => a + (p.minutes || 0), 0).toFixed(1)}</td>
+            <td data-label="Calls">${suite.reduce((a, p) => a + (p.calls || 0), 0)}</td>
+            <td data-label="Connected min">${suite.reduce((a, p) => a + (p.minutes || 0), 0).toFixed(1)}</td>
             <td></td>
-            <td>$${(suite.reduce((a, p) => a + (p.minutes || 0), 0) * rate).toFixed(2)}</td>
+            <td data-label="Total">$${(suite.reduce((a, p) => a + (p.minutes || 0), 0) * rate).toFixed(2)}</td>
           </tr>
         </tbody>
       </table>
@@ -2917,9 +2917,10 @@ function CostCard({ rep, estimate }) {
             </tbody>
           </table>
         </div>
-        ${e.suite && e.suite.length > 1 && html`
+        ${e.suite && e.suite.length > 1 && html`<${Frag}>
           <h4 className="sub">The whole suite, at the same rate</h4>
-          <${SuiteCostTable} suite=${e.suite} rate=${e.rate} openId=${rep.id}/>`}
+          <${SuiteCostTable} suite=${e.suite} rate=${e.rate} openId=${rep.id}/>
+        <//>`}
       <//>`;
   }
   if (rows.length < 2) {
@@ -3644,20 +3645,20 @@ function SuiteStrip({ suite, parts, selected, onPick, insights }) {
         </div>
       </div>
       <div className="tablewrap">
-        <table className="parts">
+        <table className="parts stack">
           <thead><tr><th>Part</th><th>Scenario</th><th>Profile</th><th>Started</th><th>Peak</th><th>Worst p95</th><th>Breaks at</th><th>Judged</th><th>Verdict</th></tr></thead>
           <tbody>
             ${parts.map((p, i) => html`
               <tr key=${p.id} className=${p.id === selected ? "selected" : ""} aria-current=${p.id === selected ? "true" : "false"}>
                 <td><button className="text-button part" onClick=${() => onPick(p.id)}>${i + 1}${p.id === selected ? " · open" : " ↗"}</button></td>
-                <td>${p.scenario}</td>
-                <td>${p.profile}${p.cohorts > 0 ? ` · ${p.cohorts} networks` : ""}</td>
-                <td>${when(p.started_at)}</td>
-                <td>${p.peak_concurrency}</td>
-                <td>${ms(p.worst_p95_ms)}</td>
-                <td>${[p.breakpoint, ...(p.network_breaks || [])].filter(Boolean).join("; ") || "held"}</td>
-                <td>${p.judged > 0 ? `${p.passed || 0}/${p.judged}` : "—"}</td>
-                <td><${Badge} v=${p.verdict}/>${p.harness_degraded ? html`<span className="quote">⚠ harness suspect</span>` : ""}</td>
+                <td data-label="Scenario">${p.scenario}</td>
+                <td data-label="Profile">${p.profile}${p.cohorts > 0 ? ` · ${p.cohorts} networks` : ""}</td>
+                <td data-label="Started">${when(p.started_at)}</td>
+                <td data-label="Peak">${p.peak_concurrency}</td>
+                <td data-label="Worst p95">${ms(p.worst_p95_ms)}</td>
+                <td data-label="Breaks at">${[p.breakpoint, ...(p.network_breaks || [])].filter(Boolean).join("; ") || "held"}</td>
+                <td data-label="Judged">${p.judged > 0 ? `${p.passed || 0}/${p.judged}` : "—"}</td>
+                <td data-label="Verdict"><${Badge} v=${p.verdict}/>${p.harness_degraded ? html`<span className="quote">⚠ harness suspect</span>` : ""}</td>
               </tr>`)}
           </tbody>
         </table>
@@ -4135,14 +4136,14 @@ function PriorityViews({rep,prev,onExplore,onCall,onHistory,mode="all"}) {
     <section hidden=${mode !== "all" && !["overview"].includes(mode)} className="priority-panel" aria-labelledby="load-results-title">
       <div className="priority-heading"><div><h2 id="load-results-title">What changed as more people called?</h2><p className="quiet">Read across a row to see task completion, reliability, speed, and conversation issues together.</p></div>
       ${groups.length>1 && html`<label className="stage-picker">Connection conditions<select className="cs-input" value=${groupIndex} onChange=${e=>{setGroupIndex(Number(e.target.value));setHeatPick(null);}}>${groups.map((g,i)=>html`<option key=${i} value=${i}>${g.impairment?.name || "Standard connection"}</option>`)}</select></label>`}</div>
-      ${steps.length ? html`<div className="tablewrap"><table className="results-grid"><thead><tr><th>Calls at once</th><th>Tasks completed</th><th>Calls connected</th><th>Reply wait</th><th>Conversation issues</th></tr></thead><tbody>
+      ${steps.length ? html`<div className="tablewrap"><table className="results-grid stack"><thead><tr><th>Calls at once</th><th>Tasks completed</th><th>Calls connected</th><th>Reply wait</th><th>Conversation issues</th></tr></thead><tbody>
         ${steps.map(s=>{
           const judged=stageJudged(rep,s,cohort), c=s.conversation;
           return html`<tr key=${s.name}><th scope="row">${s.concurrency}<small>${s.name}${s.harness_degraded ? " · test timing suspect" : ""}</small></th>
-            <td>${judged.length ? measuredRatio(judged.filter(c=>c.met).length,judged.length) : "Not reviewed"}<small>reviewed calls meeting all requirements</small></td>
-            <td>${measuredRatio(s.calls_connected,s.calls_attempted ?? s.calls)}<small>call attempts</small></td>
-            <td>${s.ttfa?.n > 0 ? ms(s.ttfa.p95_ms) : "Not measured"}<small>${s.ttfa?.n || 0} replies · 95% were this fast or faster</small></td>
-            <td>${c?.turns > 0 ? html`<${Frag}><span>${c.interruptions ?? "Not recorded"} talked-over replies / ${c.turns}</span><small>${c.dead_air_turns ?? "Not recorded"} waits over 2 sec</small><//>` : "Not measured"}${Number.isFinite(s.turns_failed) && html`<small>${s.turns_failed} failed replies / ${s.turns_total || 0}</small>`}</td></tr>`;
+            <td data-label="Tasks completed">${judged.length ? measuredRatio(judged.filter(c=>c.met).length,judged.length) : "Not reviewed"}<small>reviewed calls meeting all requirements</small></td>
+            <td data-label="Calls connected">${measuredRatio(s.calls_connected,s.calls_attempted ?? s.calls)}<small>call attempts</small></td>
+            <td data-label="Reply wait">${s.ttfa?.n > 0 ? ms(s.ttfa.p95_ms) : "Not measured"}<small>${s.ttfa?.n || 0} replies · 95% were this fast or faster</small></td>
+            <td data-label="Conversation issues">${c?.turns > 0 ? html`<${Frag}><span>${c.interruptions ?? "Not recorded"} talked-over replies / ${c.turns}</span><small>${c.dead_air_turns ?? "Not recorded"} waits over 2 sec</small><//>` : "Not measured"}${Number.isFinite(s.turns_failed) && html`<small>${s.turns_failed} failed replies / ${s.turns_total || 0}</small>`}</td></tr>`;
         })}
       </tbody></table></div>` : html`<p className="cs-notice">No test stages were recorded.</p>`}
       <p className="quiet">Task review and connection success are different checks. A fast, connected call can still miss the task. Reviewed samples can be much smaller than the total call count.</p>
@@ -4160,8 +4161,8 @@ function PriorityViews({rep,prev,onExplore,onCall,onHistory,mode="all"}) {
 
     <section hidden=${mode !== "all" && !["experience"].includes(mode)} className="priority-panel" aria-labelledby="conversation-heat-title"><div className="priority-heading"><div><h2 id="conversation-heat-title">Where in the conversation did things slow down?</h2><p className="quiet">Rows are reply positions, columns are call loads. Darker cells mean a longer wait. Select a cell to read the caller’s line.</p></div>
       <label className="stage-picker">Reply time<select className="cs-input" aria-label="Conversation heatmap measure" value=${heatMetric} onChange=${e=>setHeatMetric(e.target.value)}><option value="p95_ms">Slow replies (95th percentile)</option><option value="p50_ms">Typical reply (median)</option></select></label></div>
-      ${turns.length ? html`<${Frag}><div className="tablewrap"><table className="conversation-heatmap"><thead><tr><th>Conversation moment</th>${steps.map(s=>html`<th key=${s.name}>${s.concurrency} at once<small>${s.name}</small></th>`)}</tr></thead><tbody>
-        ${turns.map(n=>html`<tr key=${n}><th scope="row">Reply ${n}</th>${steps.map(s=>{const t=(s.turns || []).find(t=>t.turn===n), value=t?.ttfa?.n>0 ? t.ttfa[heatMetric] : null;return html`<td key=${s.name}>${Number.isFinite(value) ? html`<button aria-pressed=${!!(heatPick?.step === s.name && heatPick?.turn === n)} aria-label=${`Reply ${n}, ${s.concurrency} calls at once, ${ms(value)}, ${t.ttfa.n} samples`} style=${{background:`color-mix(in srgb, var(--cs-lavender) ${Math.round(15+85*Math.max(0,value)/maxWait)}%, white)`}} onClick=${()=>setHeatPick({step:s.name,turn:n})}>${ms(value)}<small>${t.ttfa.n} samples</small></button>` : html`<span className="quiet">Not measured</span>`}</td>`;})}</tr>`)}
+      ${turns.length ? html`<${Frag}><div className="tablewrap"><table className="conversation-heatmap stack"><thead><tr><th>Conversation moment</th>${steps.map(s=>html`<th key=${s.name}>${s.concurrency} at once<small>${s.name}</small></th>`)}</tr></thead><tbody>
+        ${turns.map(n=>html`<tr key=${n}><th scope="row">Reply ${n}</th>${steps.map(s=>{const t=(s.turns || []).find(t=>t.turn===n), value=t?.ttfa?.n>0 ? t.ttfa[heatMetric] : null;return html`<td key=${s.name} data-label=${`${s.concurrency} at once`}>${Number.isFinite(value) ? html`<button aria-pressed=${!!(heatPick?.step === s.name && heatPick?.turn === n)} aria-label=${`Reply ${n}, ${s.concurrency} calls at once, ${ms(value)}, ${t.ttfa.n} samples`} style=${{background:`color-mix(in srgb, var(--cs-lavender) ${Math.round(15+85*Math.max(0,value)/maxWait)}%, white)`}} onClick=${()=>setHeatPick({step:s.name,turn:n})}>${ms(value)}<small>${t.ttfa.n} samples</small></button>` : html`<span className="quiet">Not measured</span>`}</td>`;})}</tr>`)}
       </tbody></table></div><p className="heat-selection" aria-live="polite">${picked ? `Reply ${picked.turn} at ${heatPick.step}: ${picked.caller_line || "Caller text was not recorded."}` : "Select a measured cell for its conversation context."}</p>
       <p className="quiet">For branching conversations, the same reply position can contain different tasks. The report stores the most common caller line, not timing by scenario node, so these rows are not treated as identical tasks. Color scales to the selected connection group.</p><//>` : html`<p className="cs-notice">Reply-position timings were not recorded in this report.</p>`}
     </section>
@@ -4260,15 +4261,15 @@ function ScenarioWaits({ rows, onPick }) {
   return html`<section className="priority-panel" aria-labelledby="scenario-waits-title">
     <div className="priority-heading"><div>${title}<p className="quiet">Reply wait from the moment the caller stopped speaking, at each number of calls at once. Slowest scenario at its heaviest load first; a darker cell is a longer wait, and each row's longest is in bold.</p></div>
       <label className="stage-picker">Reply time<select className="cs-input" aria-label="Scenario wait measure" value=${pick} onChange=${e => setPick(e.target.value)}><option value="p95_ms">Slow replies (95th percentile)</option><option value="p50_ms">Typical reply (median)</option></select></label></div>
-    <div className="tablewrap"><table className="conversation-heatmap"><thead><tr><th>Scenario</th>${levels.map(c => html`<th key=${c}>${c} at once</th>`)}<th>Verdict</th></tr></thead><tbody>
+    <div className="tablewrap"><table className="conversation-heatmap stack"><thead><tr><th>Scenario</th>${levels.map(c => html`<th key=${c}>${c} at once</th>`)}<th>Verdict</th></tr></thead><tbody>
       ${byTop.map(t => {
         const longest = Math.max(...t.r.L.map(s => s.ttfa[pick]));
         return html`<tr key=${t.r.part.id}><th scope="row"><${ScenarioName} r=${t.r} onPick=${onPick}/></th>${levels.map(c => {
           const s = t.r.L.find(s => s.concurrency === c);
-          if (!s) return html`<td key=${c}><span className="quiet">${t.left.some(x => x.concurrency === c) ? "test machine fell behind" : "not run"}</span></td>`;
+          if (!s) return html`<td key=${c} data-label=${`${c} at once`}><span className="quiet">${t.left.some(x => x.concurrency === c) ? "test machine fell behind" : "not run"}</span></td>`;
           const v = s.ttfa[pick];
-          return html`<td key=${c}><div className="scenario-heat" title=${`${t.r.name} at ${atOnce(c)}: ${ms(v)} from ${s.ttfa.n} replies`} style=${{background: `color-mix(in srgb, var(--cs-chart-primary) ${Math.round(6 + 44 * v / most)}%, white)`}}>${v === longest ? html`<b>${ms(v)}</b>` : ms(v)}<small>${s.ttfa.n} replies</small></div></td>`;
-        })}<td><${Badge} v=${t.r.part.verdict}/><small>${t.r.part.breakpoint ? `breaks at ${t.r.part.breakpoint}` : "held against its own normal load"}</small></td></tr>`;
+          return html`<td key=${c} data-label=${`${c} at once`}><div className="scenario-heat" title=${`${t.r.name} at ${atOnce(c)}: ${ms(v)} from ${s.ttfa.n} replies`} style=${{background: `color-mix(in srgb, var(--cs-chart-primary) ${Math.round(6 + 44 * v / most)}%, white)`}}>${v === longest ? html`<b>${ms(v)}</b>` : ms(v)}<small>${s.ttfa.n} replies</small></div></td>`;
+        })}<td data-label="Verdict"><${Badge} v=${t.r.part.verdict}/><small>${t.r.part.breakpoint ? `breaks at ${t.r.part.breakpoint}` : "held against its own normal load"}</small></td></tr>`;
       })}
     </tbody></table></div>
     ${lines.map((l, i) => html`<p key=${i} className="scenario-reading">${l}</p>`)}
@@ -4320,10 +4321,10 @@ function ScenarioTasks({ rows, onPick }) {
       <small>${s.j.judged + (s.j.errored || 0)} of ${s.calls} calls judged${s.j.errored ? `, ${s.j.errored} could not be graded` : ""}${s.j.backend ? ` · ${s.j.backend}` : ""}</small>
     </div>`)}</div>
     ${lines.map((l, i) => html`<p key=${i} className="scenario-reading">${l}</p>`)}
-    ${critRows.length > 0 && html`<div className="tablewrap"><table className="results-grid"><thead><tr><th>Requirement</th>${stats.map(s => html`<th key=${s.r.part.id}>${s.r.name}</th>`)}</tr></thead><tbody>
+    ${critRows.length > 0 && html`<div className="tablewrap"><table className="results-grid stack"><thead><tr><th>Requirement</th>${stats.map(s => html`<th key=${s.r.part.id}>${s.r.name}</th>`)}</tr></thead><tbody>
       ${critRows.map(([c, by]) => html`<tr key=${c}><th scope="row">${c}</th>${stats.map(s => {
         const m = by[s.r.part.id];
-        return html`<td key=${s.r.part.id}>${m ? `${m.judged - m.missed} of ${m.judged}` : html`<span className="quiet">not asked</span>`}${m && m.missed > 0 ? html`<small>${m.missed} missed</small>` : ""}</td>`;
+        return html`<td key=${s.r.part.id} data-label=${s.r.name}>${m ? `${m.judged - m.missed} of ${m.judged}` : html`<span className="quiet">not asked</span>`}${m && m.missed > 0 ? html`<small>${m.missed} missed</small>` : ""}</td>`;
       })}</tr>`)}
     </tbody></table></div>`}
   </section>`;
@@ -4348,10 +4349,10 @@ function ScenarioTurns({ rows, onPick }) {
     : `The slowest reply differs by scenario: ${slow.map(x => `${x.d.r.name} at reply ${x.t.turn} (${ms(x.t.ttfa.p95_ms)})`).join(", ")}.`;
   return html`<section className="priority-panel" aria-labelledby="scenario-turns-title">${title}
     <p className="quiet">Slow replies (95th percentile) at each reply position, for each scenario at its heaviest load. Darker cells mean a longer wait; hover a cell for the caller's line.</p>
-    <div className="tablewrap"><table className="conversation-heatmap"><thead><tr><th>Scenario</th>${positions.map(n => html`<th key=${n}>Reply ${n}</th>`)}</tr></thead><tbody>
+    <div className="tablewrap"><table className="conversation-heatmap stack"><thead><tr><th>Scenario</th>${positions.map(n => html`<th key=${n}>Reply ${n}</th>`)}</tr></thead><tbody>
       ${slow.map(({ d, t: worst }) => html`<tr key=${d.r.part.id}><th scope="row"><${ScenarioName} r=${d.r} onPick=${onPick}/><small>${atOnce(d.top.concurrency)}</small></th>${positions.map(n => {
         const t = d.ts.find(t => t.turn === n);
-        return html`<td key=${n}>${t ? html`<div className="scenario-heat" title=${t.caller_line || ""} style=${{background: `color-mix(in srgb, var(--cs-chart-primary) ${Math.round(6 + 44 * t.ttfa.p95_ms / maxWait)}%, white)`}}>${t === worst ? html`<b>${ms(t.ttfa.p95_ms)}</b>` : ms(t.ttfa.p95_ms)}<small>${t.ttfa.n} samples</small></div>` : html`<span className="quiet">none</span>`}</td>`;
+        return html`<td key=${n} data-label=${`Reply ${n}`}>${t ? html`<div className="scenario-heat" title=${t.caller_line || ""} style=${{background: `color-mix(in srgb, var(--cs-chart-primary) ${Math.round(6 + 44 * t.ttfa.p95_ms / maxWait)}%, white)`}}>${t === worst ? html`<b>${ms(t.ttfa.p95_ms)}</b>` : ms(t.ttfa.p95_ms)}<small>${t.ttfa.n} samples</small></div>` : html`<span className="quiet">none</span>`}</td>`;
       })}</tr>`)}
     </tbody></table></div>
     ${reading && html`<p className="scenario-reading">${reading}</p>`}
@@ -4432,8 +4433,8 @@ function ScenarioSideBySide({ rows, onPick }) {
   ];
   return html`<section className="priority-panel" aria-labelledby="scenario-side-title"><h2 id="scenario-side-title">Everything else, side by side</h2>
     <p className="quiet">Pooled over every load level each scenario kept. Not measured means the scenario recorded no such figure.</p>
-    <div className="tablewrap"><table className="results-grid"><thead><tr><th>Measure</th>${rows.map(r => html`<th key=${r.part.id}><${ScenarioName} r=${r} onPick=${onPick}/></th>`)}</tr></thead><tbody>
-      ${metrics.map(([label, get, fmt]) => html`<tr key=${label}><th scope="row">${label}</th>${rows.map(r => { const v = get(r); return html`<td key=${r.part.id}>${has(v) ? fmt(v) : html`<span className="quiet">Not measured</span>`}</td>`; })}</tr>`)}
+    <div className="tablewrap"><table className="results-grid stack"><thead><tr><th>Measure</th>${rows.map(r => html`<th key=${r.part.id}><${ScenarioName} r=${r} onPick=${onPick}/></th>`)}</tr></thead><tbody>
+      ${metrics.map(([label, get, fmt]) => html`<tr key=${label}><th scope="row">${label}</th>${rows.map(r => { const v = get(r); return html`<td key=${r.part.id} data-label=${r.name}>${has(v) ? fmt(v) : html`<span className="quiet">Not measured</span>`}</td>`; })}</tr>`)}
     </tbody></table></div>
   </section>`;
 }
