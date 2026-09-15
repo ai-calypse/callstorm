@@ -532,6 +532,14 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
     has(cmp, `scenario comparison: ${t}`, t);
   }
   has(cmp, "both scenarios named", `${b.scenario}-b`);
+  has(cmp, "waits are a grid, slowest scenario first", "Slowest scenario at its heaviest load first");
+  check("the wait grid replaced the line chart", !cmp.includes("scenario-line-chart"));
+  const est = { rate: 0.075, tier: "standard", suite: [{ id: "p1", scenario: a.scenario, calls: 10, minutes: 20 }, { id: "p2", scenario: `${b.scenario}-b`, calls: 10, minutes: 10 }] };
+  const cost = render(mod.ScenarioCompare, { parts, reports: { p1: a, p2: b }, onPick() {}, estimate: est });
+  has(cost, "suite cost panel", "What did the suite cost?");
+  has(cost, "suite total at one rate", "The whole suite cost $2.25 across 20 calls");
+  has(cost, "each scenario priced", "$1.50");
+  has(render(mod.ScenarioCompare, { parts, reports: { p1: a, p2: b }, onPick() {}, priced: true }), "runs with their own rate point to their Cost tabs", "given their own rate");
   has(cmp, "task success carries its range", "range 84% to 100%");
   const [lo, hi] = mod.wilson(20, 20);
   check(`20 of 20 reads as a range, not 100% (${lo.toFixed(3)})`, Math.abs(lo - 0.839) < 0.002 && hi === 1);
@@ -636,6 +644,7 @@ for (const [label, rep] of [["run", run], ["matrix", matrix], ["phases", phases]
   const summary=render(mod.StudioSummary,{rep:run,g:mod.glance(run,null,null),onExplore(){}});
   has(summary,"studio summary keeps reviewed-call scope","Task review was not recorded");
   has(summary,"glance shows word error rate","Word error rate");
+  has(summary,"glance names its percentile","p95 reply time");
   has(summary,"glance says when WER was not measured","No reference transcript was recorded");
   const graph=fixture("run-deepgram-graph.json");
   has(render(mod.StudioSummary,{rep:graph,g:mod.glance(graph,null,null),onExplore(){}}),"glance pools WER over every stage","571 errors in 11550 caller words");

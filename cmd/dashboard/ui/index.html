@@ -2859,6 +2859,32 @@ function costMissing(steps) {
            billable minutes, and <b>-rate-per-minute</b> turns them into dollars.`;
 }
 
+// Every part of a suite priced at one rate, and the whole suite's total.
+function SuiteCostTable({ suite, rate, openId }) {
+  return html`
+    <div className="tablewrap">
+      <table>
+        <thead><tr><th>Part</th><th>Scenario</th><th>Calls</th><th>Connected min</th><th>Per call</th><th>Total</th></tr></thead>
+        <tbody>
+          ${suite.map((p, i) => html`
+            <tr key=${p.id} className=${p.id === openId ? "selected" : ""}>
+              <td>${i + 1}${p.id === openId ? " · open" : ""}</td><td>${p.scenario}</td>
+              <td>${p.calls === null ? "…" : p.calls}</td><td>${p.minutes === null ? "…" : p.minutes.toFixed(1)}</td>
+              <td>${p.minutes === null || !p.calls ? "…" : "$" + (p.minutes * rate / p.calls).toFixed(4)}</td>
+              <td>${p.minutes === null ? "loading" : "$" + (p.minutes * rate).toFixed(2)}</td>
+            </tr>`)}
+          <tr className="total">
+            <td colSpan="2">${suite.every(p => p.minutes !== null) ? "Whole suite" : "Loading the other parts…"}</td>
+            <td>${suite.reduce((a, p) => a + (p.calls || 0), 0)}</td>
+            <td>${suite.reduce((a, p) => a + (p.minutes || 0), 0).toFixed(1)}</td>
+            <td></td>
+            <td>$${(suite.reduce((a, p) => a + (p.minutes || 0), 0) * rate).toFixed(2)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>`;
+}
+
 function CostCard({ rep, estimate }) {
   const steps = sel.steps(rep);
   const rows = sel.cost(rep);
@@ -2893,27 +2919,7 @@ function CostCard({ rep, estimate }) {
         </div>
         ${e.suite && e.suite.length > 1 && html`
           <h4 className="sub">The whole suite, at the same rate</h4>
-          <div className="tablewrap">
-            <table>
-              <thead><tr><th>Part</th><th>Scenario</th><th>Calls</th><th>Connected min</th><th>Per call</th><th>Total</th></tr></thead>
-              <tbody>
-                ${e.suite.map((p, i) => html`
-                  <tr key=${p.id} className=${p.id === rep.id ? "selected" : ""}>
-                    <td>${i + 1}${p.id === rep.id ? " · open" : ""}</td><td>${p.scenario}</td>
-                    <td>${p.calls === null ? "…" : p.calls}</td><td>${p.minutes === null ? "…" : p.minutes.toFixed(1)}</td>
-                    <td>${p.minutes === null || !p.calls ? "…" : "$" + (p.minutes * e.rate / p.calls).toFixed(4)}</td>
-                    <td>${p.minutes === null ? "loading" : "$" + (p.minutes * e.rate).toFixed(2)}</td>
-                  </tr>`)}
-                <tr className="total">
-                  <td colSpan="2">${e.suite.every(p => p.minutes !== null) ? "Whole suite" : "Loading the other parts…"}</td>
-                  <td>${e.suite.reduce((a, p) => a + (p.calls || 0), 0)}</td>
-                  <td>${e.suite.reduce((a, p) => a + (p.minutes || 0), 0).toFixed(1)}</td>
-                  <td></td>
-                  <td>$${(e.suite.reduce((a, p) => a + (p.minutes || 0), 0) * e.rate).toFixed(2)}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>`}
+          <${SuiteCostTable} suite=${e.suite} rate=${e.rate} openId=${rep.id}/>`}
       <//>`;
   }
   if (rows.length < 2) {
@@ -3782,7 +3788,7 @@ function Glossary() {
   const [open, setOpen] = useState(false);
   return html`
     <section className="ref-card" id="glossary">
-      <span className="eyebrow">START HERE</span>
+      <span className="eyebrow">GLOSSARY</span>
       <h2>What each number catches</h2>
       <p className="lede">Latency percentiles say how long a caller waited. They say nothing about whether the agent
         lectured, raced, talked over the caller, misheard them, or left the line dead. Each row
@@ -4186,7 +4192,7 @@ function PriorityViews({rep,prev,onExplore,onCall,onHistory,mode="all"}) {
 // on one axis, so a scenario that is slow everywhere is not hidden by a baseline
 // that was slow too.
 
-const SCENARIO_COLORS = ["var(--cs-chart-primary)", "var(--cs-chart-comparison)", "var(--cs-chart-target)", "var(--cs-chart-efficiency)", "var(--ink-2)"];
+const SCENARIO_COLORS = ["var(--cs-chart-primary)", "var(--cs-chart-comparison)", "var(--cs-chart-target)", "var(--cs-chart-efficiency)", "var(--cs-text-secondary)"];
 
 // wilson is the 95% Wilson score interval for k successes in n: the pass rates
 // a sample this size cannot tell apart. 20 of 20 is not 100%, it is "above 84%".
@@ -4216,15 +4222,18 @@ function ScenarioWaits({ rows, onPick }) {
   const ready = rows.filter(r => r.L.length > 0);
   const title = html`<h2 id="scenario-waits-title">Which scenario keeps callers waiting longest?</h2>`;
   if (ready.length === 0) return html`<section className="priority-panel" aria-labelledby="scenario-waits-title">${title}<p className="cs-notice">No scenario recorded reply timings.</p></section>`;
-  const levels = [...new Set(ready.flatMap(r => r.L.map(s => s.concurrency)))].sort((a, b) => a - b);
-  const at = (r, c) => { const s = r.L.find(s => s.concurrency === c); return s ? s.ttfa[pick] : null; };
   const table = ready.map(r => {
     const p50s = r.L.map(s => s.ttfa.p50_ms), top = r.L[r.L.length - 1];
     // The verdict is measured against the report's own baseline step, even when
     // the ladder left that step out, so the explanation quotes the same one.
     const base = sel.steps(r.rep).find(s => s.name === r.rep.baseline && s.ttfa && s.ttfa.n > 0) || baselineOf(r.rep, r.L);
-    return { r, base: base.ttfa.p95_ms, top: top.ttfa.p95_ms, topLevel: top.concurrency, lo50: Math.min(...p50s), hi50: Math.max(...p50s) };
+    // A level where the test machine fell behind real time is left out of the
+    // ladder; the grid keeps its column and says why the cell is empty.
+    const left = sel.steps(r.rep).filter(s => s.harness_degraded && !r.L.includes(s));
+    return { r, base: base.ttfa.p95_ms, top: top.ttfa.p95_ms, topLevel: top.concurrency, lo50: Math.min(...p50s), hi50: Math.max(...p50s), left };
   });
+  const levels = [...new Set(table.flatMap(t => [...t.r.L, ...t.left].map(s => s.concurrency)))].sort((a, b) => a - b);
+  const most = Math.max(1, ...table.flatMap(t => t.r.L.map(s => s.ttfa[pick])));
   const byTop = table.slice().sort((a, b) => b.top - a.top);
   const lines = [];
   if (byTop.length > 1) {
@@ -4239,34 +4248,30 @@ function ScenarioWaits({ rows, onPick }) {
     const f = failing.filter(f => inverted.top > f.top).sort((a, b) => a.top - b.top)[0];
     lines.push(`Yet ${inverted.r.name} ${inverted.r.part.verdict === "warn" ? "only warned" : "passed"} while ${f.r.name} failed, at ${ms(inverted.top)} against ${ms(f.top)}. Each verdict compares a scenario with its own normal load, and those differed: ${inverted.r.name} started at ${ms(inverted.base)}, ${f.r.name} at ${ms(f.base)}. Read the verdicts for what load changed, and this chart for how slow each scenario is.`);
   }
-  // A line that starts late is a scenario whose early levels measured the test
-  // machine rather than the agent; saying so keeps a short line from reading as
-  // a scenario that was only tested at heavy load.
-  for (const r of ready) {
-    const left = sel.steps(r.rep).filter(s => s.harness_degraded && !r.L.includes(s));
-    if (!left.length) continue;
-    const first = r.L[0].concurrency, last = r.L[r.L.length - 1].concurrency;
-    const where = left.every(s => s.concurrency < first) ? `its line starts at ${atOnce(first)}`
-      : left.every(s => s.concurrency > last) ? `its line stops at ${atOnce(last)}` : "its line skips those levels";
-    lines.push(`${r.name} leaves out ${left.map(s => s.name).join(", ")}, where the test machine fell behind real time, so ${where}${left.some(s => s.name === r.rep.baseline) ? " and its verdict rests on a suspect baseline" : ""}.`);
+  // The grid shows which levels were left out; a verdict resting on a left-out
+  // baseline is the one consequence its cells cannot show.
+  for (const t of table) {
+    if (t.left.some(s => s.name === t.r.rep.baseline)) lines.push(`${t.r.name}'s normal load was measured while the test machine fell behind real time, so its verdict rests on a suspect baseline.`);
   }
   const medians = table.flatMap(t => [t.lo50, t.hi50]);
   if (table.length > 1 && Math.max(...medians) <= 1.25 * Math.min(...medians)) {
     lines.push(`The typical wait hardly moved: every scenario's median stayed between ${ms(Math.min(...medians))} and ${ms(Math.max(...medians))} at every load, so what changed was the slowest calls.`);
   }
   return html`<section className="priority-panel" aria-labelledby="scenario-waits-title">
-    <div className="priority-heading"><div>${title}<p className="quiet">Reply wait from the moment the caller stopped speaking, every scenario on the same axis.</p></div>
+    <div className="priority-heading"><div>${title}<p className="quiet">Reply wait from the moment the caller stopped speaking, at each number of calls at once. Slowest scenario at its heaviest load first; a darker cell is a longer wait, and each row's longest is in bold.</p></div>
       <label className="stage-picker">Reply time<select className="cs-input" aria-label="Scenario wait measure" value=${pick} onChange=${e => setPick(e.target.value)}><option value="p95_ms">Slow replies (95th percentile)</option><option value="p50_ms">Typical reply (median)</option></select></label></div>
-    <div className="scenario-line-chart"><${LineChart} labels=${levels.map(String)} xTitle="calls at the same time" yFmt=${v => ms(v)} endLabels=${false}
-      series=${ready.map(r => ({ name: r.name, color: r.color, values: levels.map(c => at(r, c)) }))}/></div>
-    ${lines.map((l, i) => html`<p key=${i} className="scenario-reading">${l}</p>`)}
-    <div className="tablewrap"><table className="results-grid"><thead><tr><th>Scenario</th><th>Normal load</th><th>Heaviest load</th><th>Typical wait</th><th>Verdict</th></tr></thead><tbody>
-      ${table.map(t => html`<tr key=${t.r.part.id}><th scope="row"><${ScenarioName} r=${t.r} onPick=${onPick}/></th>
-        <td>${ms(t.base)}<small>95th percentile</small></td>
-        <td>${ms(t.top)}<small>95th percentile at ${atOnce(t.topLevel)}</small></td>
-        <td>${ms(t.lo50)} to ${ms(t.hi50)}<small>median across load levels</small></td>
-        <td><${Badge} v=${t.r.part.verdict}/><small>${t.r.part.breakpoint ? `breaks at ${t.r.part.breakpoint}` : "held against its own normal load"}</small></td></tr>`)}
+    <div className="tablewrap"><table className="conversation-heatmap"><thead><tr><th>Scenario</th>${levels.map(c => html`<th key=${c}>${c} at once</th>`)}<th>Verdict</th></tr></thead><tbody>
+      ${byTop.map(t => {
+        const longest = Math.max(...t.r.L.map(s => s.ttfa[pick]));
+        return html`<tr key=${t.r.part.id}><th scope="row"><${ScenarioName} r=${t.r} onPick=${onPick}/></th>${levels.map(c => {
+          const s = t.r.L.find(s => s.concurrency === c);
+          if (!s) return html`<td key=${c}><span className="quiet">${t.left.some(x => x.concurrency === c) ? "test machine fell behind" : "not run"}</span></td>`;
+          const v = s.ttfa[pick];
+          return html`<td key=${c}><div className="scenario-heat" title=${`${t.r.name} at ${atOnce(c)}: ${ms(v)} from ${s.ttfa.n} replies`} style=${{background: `color-mix(in srgb, var(--cs-chart-primary) ${Math.round(6 + 44 * v / most)}%, white)`}}>${v === longest ? html`<b>${ms(v)}</b>` : ms(v)}<small>${s.ttfa.n} replies</small></div></td>`;
+        })}<td><${Badge} v=${t.r.part.verdict}/><small>${t.r.part.breakpoint ? `breaks at ${t.r.part.breakpoint}` : "held against its own normal load"}</small></td></tr>`;
+      })}
     </tbody></table></div>
+    ${lines.map((l, i) => html`<p key=${i} className="scenario-reading">${l}</p>`)}
   </section>`;
 }
 
@@ -4346,7 +4351,7 @@ function ScenarioTurns({ rows, onPick }) {
     <div className="tablewrap"><table className="conversation-heatmap"><thead><tr><th>Scenario</th>${positions.map(n => html`<th key=${n}>Reply ${n}</th>`)}</tr></thead><tbody>
       ${slow.map(({ d, t: worst }) => html`<tr key=${d.r.part.id}><th scope="row"><${ScenarioName} r=${d.r} onPick=${onPick}/><small>${atOnce(d.top.concurrency)}</small></th>${positions.map(n => {
         const t = d.ts.find(t => t.turn === n);
-        return html`<td key=${n}>${t ? html`<div className="scenario-heat" title=${t.caller_line || ""} style=${{background: `color-mix(in srgb, var(--cs-lavender) ${Math.round(15 + 85 * t.ttfa.p95_ms / maxWait)}%, white)`}}>${t === worst ? html`<b>${ms(t.ttfa.p95_ms)}</b>` : ms(t.ttfa.p95_ms)}<small>${t.ttfa.n} samples</small></div>` : html`<span className="quiet">none</span>`}</td>`;
+        return html`<td key=${n}>${t ? html`<div className="scenario-heat" title=${t.caller_line || ""} style=${{background: `color-mix(in srgb, var(--cs-chart-primary) ${Math.round(6 + 44 * t.ttfa.p95_ms / maxWait)}%, white)`}}>${t === worst ? html`<b>${ms(t.ttfa.p95_ms)}</b>` : ms(t.ttfa.p95_ms)}<small>${t.ttfa.n} samples</small></div>` : html`<span className="quiet">none</span>`}</td>`;
       })}</tr>`)}
     </tbody></table></div>
     ${reading && html`<p className="scenario-reading">${reading}</p>`}
@@ -4433,7 +4438,25 @@ function ScenarioSideBySide({ rows, onPick }) {
   </section>`;
 }
 
-function ScenarioCompare({ parts, reports, onPick }) {
+// What the suite cost, part by part, priced the way a single run is: from each
+// call's connection time at the rate chosen on the Cost tab.
+function ScenarioCost({ estimate, priced }) {
+  const title = html`<h2 id="scenario-cost-title">What did the suite cost?</h2>`;
+  const panel = body => html`<section className="priority-panel" aria-labelledby="scenario-cost-title">${title}${body}</section>`;
+  if (priced) return panel(html`<p className="cs-notice">These runs were given their own rate, so each part's Cost tab carries its bill.</p>`);
+  if (!estimate || !estimate.suite) return panel(html`<p className="cs-notice" aria-busy="true">Loading connection times to price the suite…</p>`);
+  const { suite, rate } = estimate, tier = tierOf(estimate.tier);
+  const minutes = suite.reduce((a, p) => a + (p.minutes || 0), 0), calls = suite.reduce((a, p) => a + (p.calls || 0), 0);
+  const done = suite.every(p => p.minutes !== null);
+  const dearest = done ? suite.reduce((a, p) => (p.minutes > a.minutes ? p : a)) : null;
+  return panel(html`<${Frag}>
+    <p className="quiet">Each call priced from its connection time at $${rate.toFixed(3)} per minute, ${tier.label}, ${DEEPGRAM_PRICING.plan}. Change the tier or the rate on the Cost tab.</p>
+    ${done && html`<p className="scenario-reading">The whole suite cost $${(minutes * rate).toFixed(2)} across ${calls} calls. ${dearest.scenario} cost the most, $${(dearest.minutes * rate).toFixed(2)}.</p>`}
+    <${SuiteCostTable} suite=${suite} rate=${rate}/>
+  <//>`);
+}
+
+function ScenarioCompare({ parts, reports, onPick, estimate, priced }) {
   const loading = parts.filter(p => reports[p.id] === undefined).length;
   const failed = parts.filter(p => reports[p.id] === null);
   const rows = scenarioRows(parts, reports);
@@ -4442,6 +4465,7 @@ function ScenarioCompare({ parts, reports, onPick }) {
     ${loading > 0 && html`<p className="cs-notice">Loading ${loading} of ${parts.length} scenarios…</p>`}
     ${failed.length > 0 && html`<p className="cs-notice">${failed.map(p => p.scenario).join(", ")} could not be loaded, so ${failed.length === 1 ? "it is" : "they are"} left out.</p>`}
     ${plans > 1 && html`<p className="cs-notice">These scenarios ran different load plans, so a load level means the same number of calls at once but not the same test.</p>`}
+    <${ScenarioCost} estimate=${estimate} priced=${priced}/>
     ${rows.length > 0 && html`<${Frag}>
       <${ScenarioWaits} rows=${rows} onPick=${onPick}/>
       <${ScenarioTasks} rows=${rows} onPick=${onPick}/>
@@ -4464,7 +4488,7 @@ function StudioSummary({rep,g,onExplore}) {
   const metrics=[
     {label:"Tasks completed",value:judged ? pct(j.passed/j.judged) : "Not reviewed",note:judged ? `${j.passed} of ${j.judged} reviewed calls` : "Task review was not recorded",tab:"quality"},
     {label:"Calls handled at once",value:g.stats[0].value,note:"Highest tested level that passed",tab:"load"},
-    {label:"Slow reply time",value:worst === null ? "Not measured" : (worst/1000).toFixed(2)+"s",note:"95% faster than this in the worst stage",tab:"load"},
+    {label:"p95 reply time",value:worst === null ? "Not measured" : (worst/1000).toFixed(2)+"s",note:"95% faster than this in the worst stage",tab:"load"},
     {label:"Word error rate",value:words ? pct(wordErrors/words) : "Not measured",note:words ? `${wordErrors} errors in ${words} caller words, all stages` : "No reference transcript was recorded",tab:"conversation"},
     {label:"Cost per call",value:g.stats[2].value === "—" ? "Not priced" : g.stats[2].value,note:keyed(g.stats[2].note),tab:"cost"},
   ];
@@ -4627,9 +4651,10 @@ function Report({ rep, id, refs, runs, prev, initialTab, initialDrawer, initialC
     return () => { live = false; };
   }, [suiteName]);
 
-  // The other parts of a suite, read once the cost tab asks for a suite total.
+  // The other parts of a suite, read once the Cost tab or the scenario
+  // comparison asks for a suite total.
   useEffect(() => {
-    if (!(tab === "cost" && unpriced && parts.length > 1)) return;
+    if (!((tab === "cost" || studioMode === "scenarios") && unpriced && parts.length > 1)) return;
     for (const p of parts) {
       if (p.id === id || p.id in suiteCalls) continue;
       setSuiteCalls(m => ({ ...m, [p.id]: undefined }));
@@ -4638,7 +4663,7 @@ function Report({ rep, id, refs, runs, prev, initialTab, initialDrawer, initialC
         .then(text => setSuiteCalls(m => ({ ...m, [p.id]: text.split("\n").filter(l => l.trim()).map(l => JSON.parse(l)) })))
         .catch(() => setSuiteCalls(m => ({ ...m, [p.id]: null })));
     }
-  }, [tab, unpriced, parts.length, id]);
+  }, [tab, studioMode, unpriced, parts.length, id]);
 
   // The other parts' reports, read once the scenario comparison is opened.
   useEffect(() => {
@@ -4725,7 +4750,7 @@ function Report({ rep, id, refs, runs, prev, initialTab, initialDrawer, initialC
 
 
       <${PriorityViews} mode=${studioMode} rep=${rep} prev=${prev} onHistory=${onOpenRuns} onCall=${requestId => { openCall(requestId); requestAnimationFrame(() => document.getElementById("explore-results").scrollIntoView({block:"start"})); }} onExplore=${t => { setTab(t); requestAnimationFrame(() => document.getElementById("explore-results").scrollIntoView({block:"start"})); }}/>
-      ${studioMode === "scenarios" && parts.length > 1 && html`<${ScenarioCompare} parts=${parts} reports=${{ ...partReports, [id]: rep }} onPick=${onPick}/>`}
+      ${studioMode === "scenarios" && parts.length > 1 && html`<${ScenarioCompare} parts=${parts} reports=${{ ...partReports, [id]: rep }} onPick=${onPick} estimate=${estimate} priced=${!unpriced}/>`}
 
       <details open hidden=${studioMode !== "findings"} className="supporting-details studio-findings">
         <summary>Written analysis & more questions answered <span>Explore the supporting findings</span></summary>
@@ -4955,7 +4980,7 @@ function App() {
       </div>
       <${Dialog} open=${definitionsOpen} className="drawer" label="Definitions & how this test works" onClose=${closeDefinitions}>
         <div className="drawer-top"><h2>Definitions & how this test works</h2><button className="icon-button" onClick=${closeDefinitions} aria-label="Close definitions">×</button></div>
-        <div className="drawer-content"><${Glossary}/><${About}/><${Appendix} refs=${refs}/><${Sources}/></div>
+        <div className="drawer-content"><${About}/><${Glossary}/><${Appendix} refs=${refs}/><${Sources}/></div>
       <//>
       <${Dialog} open=${runsOpen} className="run-dialog" label="Evaluation runs" onClose=${closeRuns}>
         <div className="dialog-title">
