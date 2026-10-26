@@ -1,8 +1,14 @@
-## Change
+## What changes and why?
 
-Describe the problem and resulting behavior.
+Describe the problem, the resulting behavior, and any tradeoffs.
 
 ## Validation
 
-List the checks run and any relevant results. For UI changes, include a
-desktop or mobile screenshot. Note any measurements or behavior not verified.
+List the commands you ran and their results. Link evidence for performance claims.
+
+## Review checklist
+
+- [ ] Tests cover changed behavior, or I explain why tests are unnecessary.
+- [ ] Setup and user-facing documentation match the implementation.
+- [ ] No credentials, personal recordings, or private data are included.
+- [ ] Compatibility, rollout, and security implications are described where relevant.

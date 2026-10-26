@@ -1,57 +1,31 @@
-# Contributing to Callstorm
+# Contributing
 
-Contributions to measurement accuracy, scenarios, dashboard usability, and
-documentation are welcome. For a substantial change, open an issue describing
-the problem and proposed behavior before starting implementation.
+Start with the [README](README.md) for scope and setup. Report a reproducible bug or discuss a proposed feature
+before making a large change. Small, focused pull requests are easiest to review.
 
-## Set up
+## Development loop
 
-Use Go 1.25 or newer. Node.js and npm are needed for dashboard render checks.
-Run commands from the repository root unless shown otherwise.
+Create a branch from current `main`, make the change, and run the relevant checks:
 
 ```sh
-go mod download
-go test ./...
-cd cmd/dashboard/ui
-npm install
-npm run check
+go test -race ./...
+go vet ./...
+go build ./cmd/...
+npm ci --prefix cmd/dashboard/ui --ignore-scripts
+npm run check --prefix cmd/dashboard/ui
+go run ./cmd/dashboard -runs runs -export dist
+python3 .github/scripts/check-docs.py README.md CONTRIBUTING.md SECURITY.md docs/maintaining.md docs/demo.md
 ```
 
-Go tests and dashboard fixtures are the starting point for local validation;
-running the real-agent CLI is a separate, credentialed operation. See the
-[README](README.md#quickstart) for running the application.
+Add a regression test for behavior changes. Documentation-only edits do not need artificial tests.
+Include the problem, resulting behavior, commands run, and any remaining limitations in the PR. Performance
+claims need reproducible inputs and measured evidence; do not present an old benchmark as a new run.
 
-## Make a change
+## Review expectations
 
-1. Create a branch with a focused change.
-2. Keep metric calculations and their explanations consistent. Do not pool
-   percentiles across load stages or turn missing samples into measured zeroes.
-3. Add regression coverage when changing scoring, timing, aggregation, or
-   data handling. For layout changes, check desktop and mobile and exercise
-   the affected controls.
-4. Format changed Go files with `gofmt`. Run the checks relevant to your change.
-5. Open a pull request describing the problem, resulting behavior, and validation.
+Keep secrets and generated local data out of commits. Use the issue and PR templates. Maintainers review
+correctness, error paths, compatibility, and the evidence behind claims. Required checks must pass and review
+threads must be resolved before merging. Solo-maintainer PRs do not require an impossible self-approval.
 
-The current Go module path is `github.com/yakshgandhi/callstorm`; retain that
-path in imports even though the repository is hosted under `ai-calypse`.
-
-## Report a bug
-
-Include the commit, operating system, command or dashboard steps, expected
-behavior, and observed behavior. A small scenario or sanitized report helps
-reproduce measurement issues. Include whether test timing was marked suspect.
-
-Do not attach API keys, `.env` files, private transcripts, or customer audio.
-Run artifacts can contain complete conversations and agent configuration.
-Prefer a synthetic reproduction against the reference agent.
-
-## Documentation and screenshots
-
-Keep the main README focused on getting started. Detailed measurement and
-deployment documentation belongs in [the technical guide](docs/technical-guide.md).
-README images live in `docs/images/`; capture the real dashboard with synthetic
-test data and keep the selected test and its caveats visible.
-
-## License
-
-Contributions are made under the project's [MIT license](LICENSE).
+Version and delivery conventions are in [Maintenance](docs/maintaining.md). Report vulnerabilities using
+[the security policy](SECURITY.md), not a public issue.

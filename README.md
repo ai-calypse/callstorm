@@ -2,516 +2,110 @@
 
 # Callstorm
 
-### Load testing for voice AI agents that reports what callers heard, not just how fast the socket answered
+**Find the point where a voice agent stops holding a conversation.**
 
-**Scripted callers. Real concurrency. A verdict that separates "replied quickly" from "did the job".**
+A Go load-testing harness that replays scripted callers, measures the wait they experience,
+and checks whether the agent actually completed the task.
 
-<br/>
+[![CI](https://github.com/ai-calypse/callstorm/actions/workflows/ci.yml/badge.svg)](https://github.com/ai-calypse/callstorm/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/ai-calypse/callstorm/actions/workflows/codeql.yml/badge.svg)](https://github.com/ai-calypse/callstorm/actions/workflows/codeql.yml)
+[![MIT](https://img.shields.io/badge/license-MIT-256b5c)](LICENSE)
 
-[![Live dashboard](https://img.shields.io/badge/LIVE_DASHBOARD-Open_the_reports-236a59?style=for-the-badge)](https://ai-calypse.github.io/callstorm/)
-[![Pages](https://img.shields.io/github/actions/workflow/status/ai-calypse/callstorm/pages.yml?branch=main&style=for-the-badge&label=deploy)](https://github.com/ai-calypse/callstorm/actions/workflows/pages.yml)
-[![Go 1.25+](https://img.shields.io/badge/Go-1.25%2B-00ADD8?style=for-the-badge&logo=go&logoColor=white)](go.mod)
-[![Deepgram Voice Agent](https://img.shields.io/badge/Target-Deepgram_Voice_Agent-13EF93?style=for-the-badge)](https://developers.deepgram.com/docs/voice-agent)
-[![Real calls](https://img.shields.io/badge/Real_calls_in_repo-1320-blueviolet?style=for-the-badge)](runs/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-236a59?style=for-the-badge)](LICENSE)
+[Live dashboard](https://ai-calypse.github.io/callstorm/) · [Engineering report](docs/engineering-report.md) · [Technical guide](docs/technical-guide.md) · [Demo](docs/demo.md)
 
-**Built with**
-
-[![Go](https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white)](go.mod)
-[![Kafka](https://img.shields.io/badge/Kafka_·_franz--go-231F20?style=for-the-badge&logo=apachekafka&logoColor=white)](internal/bus/)
-[![Redpanda](https://img.shields.io/badge/Redpanda-E14226?style=for-the-badge&logo=redpanda&logoColor=white)](deploy/k8s/10-redpanda.yaml)
-[![Kubernetes](https://img.shields.io/badge/Kubernetes_·_Kustomize-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)](deploy/)
-[![KEDA](https://img.shields.io/badge/KEDA-3D5AFE?style=for-the-badge&logo=kubernetes&logoColor=white)](deploy/overlays/keda/scaler.yaml)
-[![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=prometheus&logoColor=white)](deploy/monitoring/prometheus.yml)
-[![Grafana](https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white)](deploy/monitoring/grafana/provisioning/dashboards/callstorm.json)
-[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](Dockerfile)
-[![WebSocket](https://img.shields.io/badge/WebSocket_·_PCM_audio-010101?style=for-the-badge&logo=socketdotio&logoColor=white)](https://developers.deepgram.com/docs/voice-agent)
-[![React](https://img.shields.io/badge/React_·_htm-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](cmd/dashboard/ui/)
-[![Claude](https://img.shields.io/badge/Claude-judge_&_analysis-D97757?style=for-the-badge&logo=anthropic&logoColor=white)](internal/judge/)
-[![GitHub Pages](https://img.shields.io/badge/GitHub_Pages-static_export-222222?style=for-the-badge&logo=github&logoColor=white)](.github/workflows/pages.yml)
-
-<br/>
-
-### **[Open the live dashboard](https://ai-calypse.github.io/callstorm/)**
-
-Every report in it comes from a committed run. Nothing is mocked.
-
-![A tour of the Callstorm dashboard: overview, caller experience, task results, scenario comparison, findings and evidence.](docs/images/callstorm-tour.gif)
-
-<br/>
-
-> **A voice agent can answer in 800 milliseconds and still be wrong. Callstorm places hundreds of scripted calls at once, times every turn, checks whether the caller got what they asked for, and refuses to hide one behind the other.**
+![Recorded dashboard walkthrough using a synthetic reference report](docs/images/callstorm-tour.gif)
 
 </div>
 
----
+## Why build this?
 
-# What can you learn?
+A socket can connect and a response can arrive quickly while the assistant misunderstands the caller.
+Callstorm keeps connection health, latency, conversation quality, and task success separate, with
+call-level evidence behind each verdict. It also measures load-generator drift, so a saturated harness
+cannot quietly blame the target.
 
-| Question | What Callstorm shows |
-| --- | --- |
-| **Does the assistant get slower when more people call?** | Per-stage reply-time percentiles, load sweeps, and degradation against a baseline. |
-| **Did callers get what they asked for?** | Scenario checks and optional transcript-based task review, with quoted evidence. |
-| **Where does the waiting happen?** | Wait bands, reply-position timings, and the split between detecting the end of speech and producing audio. |
-| **Does the conversation hold up?** | Transcription errors, interruptions, speaking balance, repeated replies, and long silences. |
-| **What changes on a poor connection?** | Optional network-impairment tests and comparisons against a clean connection. |
-| **Can I trust the test?** | A calibrated reference agent, call-level event logs, and warnings when the test system falls behind. |
+## Engineering at a glance
 
-Callstorm speaks the **Deepgram Voice Agent WebSocket protocol**, including a local reference target. It is not a general phone dialer: SIP and PSTN calling and other provider adapters are not implemented.
-
----
-
-# Latest measurements
-
-<!-- metrics:start -->
-**Latest run against a real agent:** [`20260914-170712-sweep-deepgram-30`](runs/deepgram-full-20260914-1614/20260914-170712-sweep-deepgram-30.json), scenario `refund-bargein`, profile `sweep-deepgram-30`, suite `deepgram-full-20260914-1614`. Started 2026-09-15 00:07 UTC, 210 calls, 210 connected, 1050 turns, 181 of 210 judged calls completed the task (claude code claude-sonnet-5).
-
-| Metric | Baseline: `baseline`, 1 at once | Peak: `c40`, 40 at once |
-| --- | ---: | ---: |
-| Time to first audio, p50 | 848 ms | 902 ms |
-| Time to first audio, p95 | 1.45 s | 3.82 s |
-| Time to first audio, p99 | 3.13 s | 5.57 s |
-| Agent-reported TTFA, p95 | 1.37 s | 3.07 s |
-| Endpointing, p50 | 305 ms | 327 ms |
-| Endpointing, p95 | 366 ms | 2.77 s |
-| Think + speak, p95 | 1.11 s | 1.90 s |
-| Turn latency, p95 | 5.61 s | 7.51 s |
-| Transport round trip, p50 | 91 ms | 93 ms |
-| Replies past 800 ms | 69.6% | 75.4% |
-| Word error rate, mean | 3.5% | 5.2% |
-| Interruptions | 48 (32.0% of turns) | 119 (29.8% of turns) |
-| Dead-air turns | 3 | 54 |
-| Calls connected | 30 / 30 | 80 / 80 |
-| Failed turns | 0 / 150 | 0 / 400 |
-| Worst harness drift | 22 ms | 4387 ms (flagged) |
-| Agent minutes billed | 17.2 | 47.7 |
-| Verdict against baseline | pass (p95 ratio 1) | fail (p95 ratio 2.63) |
-
-Time to first audio is measured from the end of caller speech to the first audible agent byte. Agent-reported TTFA starts from the agent's own end-of-speech event instead. Definitions and the published lines they are compared with are in the [technical guide](docs/technical-guide.md). This table is regenerated by `scripts/readme-metrics.py` from the newest report under `runs/`.
-<!-- metrics:end -->
-
----
-
-# The call that started this
-
-The caller said **"No."**
-
-Then paused for 300 milliseconds before the rest of the sentence.
-
-The agent took that pause as the end of the turn. It started replying **4.8 seconds before the caller had finished**, was cut off after 520 milliseconds of audio when the caller kept talking, and what it managed to say was the opposite of what was being asked. It had only heard "No."
-
-```text
-turn  ttfa       endpointing   think+speak   agent spoke
-2     -4809ms    -5254ms       444ms         520ms       agent talked over the caller
-```
-
-Same scenario. **Byte-identical caller audio.** Two other runs: no barge-in at all.
-
-That single turn shaped the whole tool:
-
-* **Negative latencies are kept, never clamped.** An agent that speaks before the caller finishes is the most interesting thing a run can find.
-* **Caller audio is synthesized once and cached.** Identical input is the only way to prove divergent behaviour is the agent's.
-* **A scenario runs many times, not once.** One clean run proves nothing.
-
-The full trace is in the [technical guide](docs/technical-guide.md#a-real-finding-already).
-
----
-
-# The problem: three ways a green dashboard lies
-
-Voice agents are tested like web APIs. Connect, measure round-trip, report p95. Every one of those numbers can be green while the calls are going badly.
-
-### 1. Fast, but wrong
-
-Reply time says nothing about the reply. An agent that endpoints early answers quickly **because** it stopped listening.
-
-### 2. Connected, but the job never got done
-
-A connection rate is the floor, not the result. Of the 1,075 judged calls in this repository, **1,059 completed the task**. A connection rate cannot tell you which sixteen did not, or why.
-
-### 3. Measured once, on a clock that starts too late
-
-A clock that starts after the agent detects end of speech hides the part of the wait a caller actually feels. A single run cannot separate the agent's variance from the network's. And a load generator under load drifts too, which most tools never admit.
-
----
-
-# How Callstorm answers that
-
-* **Scripted callers with real audio.** Every caller line is synthesized speech, cached and replayed identically across runs. Branches, personas, hesitation and deliberate interruptions are part of the scenario.
-* ⏱ **The clock starts when the caller stops.** Time to first audio is measured from the end of caller speech to the first audible agent byte, with endpointing and think-plus-speak split out.
-* **A judge reads the transcript.** Each scenario carries success criteria. An LLM judge checks them against what was said and quotes the evidence, turn by turn.
-* **Relative verdicts.** Every load step is compared with the run's own baseline. Published industry lines are shown for context and never replace it.
-* **The harness reports on itself.** Scheduling drift is measured per step, and a step where the tool fell behind is flagged as degraded before its numbers are trusted.
-* **Nothing is lost when a worker dies.** Distributed runs hand calls through Kafka with batch commits, so a killed pod's calls are replayed by a survivor.
-
----
-
-# Evidence from the repository
-
-Every number here is read from a committed report under [`runs/`](runs/), and the [live dashboard](https://ai-calypse.github.io/callstorm/) links each one to the calls behind it.
-
-### One agent, five scenarios, 1,050 calls in an afternoon
-
-The suite under [`runs/deepgram-full-20260913-1644/`](runs/deepgram-full-20260913-1644/) runs five refund scenarios against the same Deepgram Voice Agent, each from 1 to 40 concurrent callers. Every call connected. No turn failed. A Claude judge read every transcript.
-
-| Scenario | Task completed | TTFA p95 at 1 caller | Worst p95 under load | Verdict trail |
-| --- | ---: | ---: | ---: | --- |
-| refund-escalation | 210 / 210 | 1.15 s | **3.15 s** at 20 | pass · fail · fail · fail · warn |
-| refund-hesitant | 210 / 210 | 0.95 s | 1.94 s at 5 | pass · fail · pass · pass · pass |
-| refund-bargein | 210 / 210 | 2.35 s | 1.61 s at 5 | pass at every step |
-| refund-branching | 207 / 210 | 1.15 s | 1.30 s at 40 | pass at every step |
-| graph-reference | 204 / 210 | 3.50 s | 3.56 s at 5 | pass, with the harness flagged in 3 stages |
-
-The same agent, the same afternoon, the same load. One scenario's tail grew to almost three times its baseline at ten callers, and another's did not move. That is the finding a single-scenario test cannot make.
-
-```text
-refund-escalation · TTFA p95 by concurrency (ms)
-
-baseline   1 at once   ████████████                      1150   pass
-c5         5 at once   █████████████████████████         2544   fail
-c10       10 at once   ███████████████████████████████   3109   fail
-c20       20 at once   ████████████████████████████████  3152   fail
-c40       40 at once   ████████████████████              1954   warn   harness drift 147 ms, flagged
-
-TTFA p50 stayed between 847 and 877 ms at every step. The median never moved. The tail did.
-```
-
-The verdicts are relative to the scenario's own baseline, which is why the barge-in scenario passes with a slower tail than the one that fails: it was slow at one caller too. Where the harness itself fell behind, the report says so beside the verdict rather than under it.
-
-| Measured | Result |
-| --- | ---: |
-| Real calls placed against Deepgram across all committed runs | **1,320** |
-| Turns timed in those calls | **6,318** |
-| Calls that connected | **1,312 / 1,320** |
-| Judged calls that completed the task | **1,059 / 1,075** |
-| Mean word error rate, caller lines as heard by the agent, 160-call sweep | **2.3 to 3.2 percent** per step |
-| Reference agent calibration, 500 ms injected delay | reads back as **p95 509 ms** |
-
-### Kill a worker mid-step
-
-On a Kubernetes fleet, the busiest worker was sent SIGKILL while it held six calls. The run was 48 calls. The report received **48 of 48, none missing, one duplicate dropped**. This is repeated by [`scripts/verify-infrastructure.py`](scripts/verify-infrastructure.py) on a throwaway cluster from a clean checkout.
-
----
-
-# How it works
-
-## One dispatcher decides the load. A fleet supplies the capacity.
-
-```mermaid
-flowchart TB
-    SC["scenario<br/>lines · branches · success criteria"]
-    PR["profile<br/>smoke · ramp · stress · spike · soak · recovery"]
-
-    subgraph disp["cmd/callstorm · dispatcher"]
-        WIN["sliding window<br/>exactly a step's concurrency in flight"]
-        REP["report<br/>per-step percentiles · verdict vs baseline"]
-    end
-
-    subgraph bus["Kafka · Redpanda"]
-        TA[["callstorm.assignments"]]
-        TR[["callstorm.results"]]
-    end
-
-    subgraph fleet["cmd/worker fleet · scaled by KEDA on assignment lag"]
-        CALL["one call = one goroutine<br/>WebSocket · audio pump · ping loop · clock"]
-        CACHE[("caller audio<br/>synthesized once, cached")]
-    end
-
-    AGENT{{"agent under test<br/>Deepgram Voice Agent or refagent"}}
-    PROM["Prometheus → Grafana<br/>live, while the run happens"]
-    JUDGE["LLM judge<br/>Groq or Claude Code"]
-    RUNS[("runs/<br/>report · calls log · CSV · SVG")]
-    DASH["cmd/dashboard<br/>live server or static export"]
-
-    SC --> WIN
-    PR --> WIN
-    WIN -->|"assignment, scenario travels with it"| TA
-    TA --> CALL
-    CACHE --> CALL
-    CALL <-->|"PCM both ways on one socket"| AGENT
-    CALL -.->|":9464"| PROM
-    CALL -->|"result, then batch commit"| TR
-    TR --> REP
-    REP --> JUDGE
-    JUDGE --> RUNS
-    RUNS --> DASH
-```
-
-The dispatcher keeps exactly a step's concurrency in flight and releases the next call only when one returns. A step's percentiles describe that concurrency, not however many workers happen to exist. Workers hold no run state: the scenario travels inside the assignment and the caller audio is baked into the image, so a pod that joins mid-run is useful on its first poll.
-
-## Six phases, one profile
-
-```text
-smoke ──► ramp ──► stress ──► spike ──► soak ──► recovery
-  │         │         │          │         │         │
-  2 calls   find the  push past  straight  hold for  back to the
-  to prove  working   it         to peak,  minutes,  ramp load:
-  the path  load                 no warm   watch for did it
-                                 up        leaks     recover?
-```
-
-A ramp asks "how much at once". A **spike** is what a marketing email does to a support line, and a ramp never reproduces it. A **soak** holds one load long enough for a leak or a cooling cache to show. **Recovery** asks the question most tests skip: after the peak, did the agent come back?
-
-## Where the wait actually goes
-
-```text
-caller stops speaking
-        │
-        ├── endpointing ──── agent decides the turn is over
-        │
-        ├── think + speak ── model reasons, TTS starts
-        │
-        ▼
-first audible agent byte          ◄── TTFA is this whole span
-```
-
-Every latency histogram is split this way, so a slow turn can be blamed on turn detection, on generation, or on the network.
-
-## The verdict
-
-The verdict grades speed under load and nothing else. Each step is scored against the run's own baseline step, which runs one call at a time. A run takes the worst verdict among its steps, and a suite takes the worst verdict among its runs.
-
-```mermaid
-flowchart TB
-    STEP(["each step of a run"]) --> SETUP{"fewer than 97% of<br/>call attempts connected?"}
-    SETUP -->|yes| FAIL["FAIL"]
-    SETUP -->|no| TIMED{"baseline step and timed<br/>turns recorded?"}
-    TIMED -->|no| NA["n/a<br/>counts as a pass"]
-    TIMED -->|yes| RATIO["r = step p95 TTFA ÷ baseline p95 TTFA"]
-    RATIO --> OVER2{"r above 2.0?"}
-    OVER2 -->|yes| FAIL
-    OVER2 -->|no| OVER15{"r above 1.5?"}
-    OVER15 -->|yes| WARN["WARN"]
-    OVER15 -->|no| PASS["PASS"]
-    FAIL --> RUN["run verdict<br/>worst of its steps"]
-    WARN --> RUN
-    PASS --> RUN
-    NA --> RUN
-    RUN --> SUITE["suite verdict<br/>worst of its runs"]
-```
-
-The checks run in this order:
-
-| Order | Step check | Verdict |
+| Design choice | What it makes possible | Inspect it |
 | --- | --- | --- |
-| 1 | Fewer than 97 percent of call attempts connect | Fail, whatever the latency |
-| 2 | No baseline step, or no timed turns in this step | n/a, counted as a pass |
-| 3 | p95 TTFA is more than 2× the baseline step's p95 | Fail |
-| 4 | p95 is above 1.5× and at most 2× baseline | Warn |
-| 5 | p95 is at most 1.5× baseline | Pass |
+| One goroutine per call; bounded concurrency per load step | Compare each step against its own baseline | [Load generator](internal/loadgen/) |
+| WebSocket PCM audio with cached caller speech | Replay identical input across runs | [Worker](internal/worker/) · [Audio](internal/audio/) |
+| Kafka assignment/result bus | Distribute calls across replaceable workers | [Bus](internal/bus/) · [Deployments](deploy/) |
+| Controlled local reference agent | Calibrate clocks against known injected delays | [Reference agent](cmd/refagent/) |
+| Transcript criteria and optional LLM review | Distinguish fast replies from successful tasks | [Judge](internal/judge/) |
+| File-based reports and static export | Share the same evidence locally and on Pages | [Dashboard](cmd/dashboard/) |
 
-p95 TTFA is the wait before the agent starts speaking that 95 turns in 100 beat. In a network-impairment run the verdict comes from the clean-network steps, and impaired conditions that broke are reported beside it.
-
-### Why these numbers
-
-* **Relative, not absolute.** Published latency targets disagree, and a target that is generous for one agent is out of reach for another. Comparing each step with the same agent at one call measures how much load hurt, not how the agent ranks against someone else's number.
-* **2× fail.** The benchmark [Coval's load-testing guide](https://www.coval.ai/blog/voice-load-testing-methodology) cites: p95 within 2× the baseline at peak load.
-* **1.5× warn.** Callstorm's own line, with no published source. It flags a step whose slowest turns have grown by half before they reach the fail line.
-* **97 percent connected.** Also Callstorm's own, set when concurrency sweeps were first added, with no published source behind it. The check comes first because latency is measured only on calls that connected, so without it a step that drops calls could still look fast. The floor is strict on small steps: with 30 calls, one dropped call leaves 96.7 percent and fails the step; with 80 calls, two may drop (97.5 percent) but three may not.
-
-Task and conversation-quality checks are reported separately, and a run can pass on latency while failing the task. Callstorm keeps those apart so one green number never hides the rest.
-
----
-
-# Explainable results, not a score
-
-For every judged call, the report shows each criterion, whether it was met, and the exact turn that proves it.
-
-```text
-met   The agent asks for an order number before discussing the order
-    turn 1: "agent: Can you please provide me with your order number?"
-
-met   The agent offers a replacement before a refund is ever mentioned
-    turn 2: "agent: Thank you. I'll arrange a replacement shipment for your headphones."
-
-met   The agent issues a refund after the caller turns down the replacement
-    turn 3: "agent: I can issue a refund for you. Confirming that now."
-
-met   The agent tells the caller how long the refund takes to reach their card
-    turn 4: "agent: The refund will take five to seven business days to reach your card."
+```mermaid
+flowchart LR
+  S[Scenario + load profile] --> D[Dispatcher]
+  D --> K[Kafka assignments]
+  K --> W[Go workers]
+  W <-->|WebSocket audio| A[Voice agent]
+  W --> R[Kafka results]
+  R --> J[Report + optional judge]
+  J --> V[Dashboard / static export]
 ```
 
-Taken from [`20260912-225650-sweep-deepgram-judgements.json`](runs/20260912-225650-sweep-deepgram-judgements.json). The judge assesses transcripts, not whether a real booking, payment or database write happened.
+## Evidence worth opening
 
----
+- **Tail latency under concurrency:** a committed five-scenario, 1,050-call suite shows why a flat median
+  can hide a growing p95. [Measurements and interpretation](docs/engineering-report.md#evidence-from-the-repository).
+- **Worker crash recovery:** the documented 48-call chaos run received all 48 results, dropping one
+  duplicate. [Infrastructure verification](scripts/verify-infrastructure.py).
+- **Measurement integrity:** negative timings, endpointing, clock definitions, and harness degradation
+  are explained alongside the results. [Technical guide](docs/technical-guide.md).
 
-# The dashboard
+These are historical experiment results from committed artifacts, with their original test conditions.
+They are not guarantees for other agents, machines, or networks.
 
-![Callstorm dashboard showing task completion, tested concurrency, reply time, cost, and a test-timing caveat.](docs/images/callstorm-overview.png)
+## Try the dashboard without credentials
 
-
-A test is organised around the questions someone would actually ask:
-
-* **Overview:** what was achieved, how reply speed changed, and what needs attention.
-* **Caller experience:** how often callers waited and which conversation moments were slow.
-* **Task results:** missed requirements, sample counts, example conversations, and whether the misheard calls were the ones that failed.
-* **Compare scenarios:** each scenario of a suite side by side on reply wait, task success, the slowest moment, wait bands and mishearing.
-* **Compare tests:** differences between runs with matching recorded conditions.
-* **Findings:** written analysis and plain-language answers, with unanswered questions grouped separately.
-* **Explore evidence:** timings, transcripts, task checks, connection quality, costs and the calculation tables.
-
-![Callstorm evidence view showing reply speed by concurrency, baseline thresholds, the selected stage, and a suggested next step.](docs/images/callstorm-evidence.png)
-
-*Screenshots show an included synthetic test. They illustrate the interface, not a general performance claim. This report flags test-timing drift, and that caveat is part of the result.*
-
----
-
-# Quickstart
-
-### 1. Browse the included reports
-
-Requires **Go 1.25 or newer**. No API key is needed to read saved results.
+Requires [Go 1.25+](go.mod). No calls are placed by this command.
 
 ```sh
 git clone https://github.com/ai-calypse/callstorm.git
 cd callstorm
-go run ./cmd/dashboard -runs runs -addr 127.0.0.1:8090
+go run ./cmd/dashboard -runs runs
 ```
 
-Open **http://127.0.0.1:8090/**. The page loads React and htm from a CDN, so the first browser load needs internet access.
-
-### 2. Test against the reference agent
-
-The reference agent replies with tones after a configured delay. It proves the timing harness without an assistant that has to reason or speak.
+Open `http://localhost:8090`. To generate the static site:
 
 ```sh
-go run ./cmd/refagent -addr 127.0.0.1:8080 -ttfa 800ms -endpointing 300ms
+go run ./cmd/dashboard -runs runs -export dist
 ```
 
-In a second terminal:
+## Run a voice-agent test
 
 ```sh
-go run ./cmd/callstorm -target ws://127.0.0.1:8080/v1/agent/converse
-go run ./cmd/callstorm -target ws://127.0.0.1:8080/v1/agent/converse -profile profiles/sweep-local.json -max-concurrency 100
+cp .env.example .env
+# Set DEEPGRAM_API_KEY in .env.
+go run ./cmd/callstorm -scenario scenarios/refund.json -profile profiles/smoke-deepgram.json
 ```
 
-### 3. Test a real agent
+Caller speech synthesis and live target calls can incur provider charges. Start with the smoke profile.
+For calibration, run `go run ./cmd/refagent` and point the CLI at its local WebSocket endpoint;
+caller speech synthesis still requires a Deepgram key unless the audio is already cached.
+The [technical guide](docs/technical-guide.md) covers profiles, judging, Kubernetes, KEDA, and impairment tests.
 
-Copy [`.env.example`](.env.example) to `.env` and set the keys you need.
-
-| Key | Used for |
-| --- | --- |
-| `DEEPGRAM_API_KEY` | Caller speech synthesis and the default Deepgram target. Required by the CLI. |
-| `GROQ_API_KEY` | Optional task review with `-judge -judge-backend groq`. |
-| `GEMINI_API_KEY` | Optional written analysis of recorded runs. Without it, `-insights <dir> -insights-backend claude-code` writes analyses through the Claude Code CLI. |
+## Quality and delivery
 
 ```sh
-go run ./cmd/callstorm -scenario scenarios/refund.json -profile profiles/smoke-deepgram.json -judge -judge-backend groq
-```
-
-Start small, then pick a larger [profile](profiles/) suited to the target's limits. Values in `.env` override the inherited environment. Caller audio is cached after the first synthesis; new audio, real-agent calls and model-based reviews can incur provider charges. Run `go run ./cmd/callstorm -h` for every option.
-
----
-
-# What a run leaves behind
-
-```text
-runs/
-├── <run>.json              the report: per-step percentiles, verdicts, integrity counts
-├── <run>-calls.jsonl       every turn's words and instants, one call per line
-├── <run>-judgements.json   each criterion, met or missed, with the quoted turn
-├── <run>.csv               the step table
-└── <run>.svg               the latency chart
-```
-
-The dashboard reads these files directly. There is no database. Before sharing them, remember that call logs hold transcripts and reports can hold target configuration.
-
-A [scenario](scenarios/refund.json) defines the caller's lines, the assistant configuration and the success criteria. A [profile](profiles/sweep-local.json) defines the load and names the baseline step. `-suite` groups related scenarios into one test, and `-out` chooses another artifact directory.
-
----
-
-# Running it as a fleet
-
-```sh
-kubectl apply -k deploy/overlays/keda        # broker, target, workers, reports, monitoring, lag-based scaler
-kubectl apply -f deploy/k8s/50-dispatch-job.yaml
-kubectl -n callstorm port-forward svc/callstorm-reports 8090:8090
-```
-
-* **One autoscaler per overlay.** `keda` scales on assignment lag, `cpu` on CPU. Applying both makes them fight, so the layout makes that impossible by accident.
-* **Prometheus discovers every worker pod** through the Kubernetes API. A replica the autoscaler adds is scraped on its next interval.
-* **Reports outlive the Job.** The dispatcher writes to a persistent volume and a report server serves it through the same dashboard, plus an archive endpoint that bundles a run's evidence for download.
-* **Network impairment.** A Linux pod with `NET_ADMIN` runs the profile once per network condition with `tc netem`, clean first, and draws a grid of load against network.
-
-The [technical guide](docs/technical-guide.md) covers the deployment choices, the chaos test, live metrics and the impairment matrix in full.
-
----
-
-# Development
-
-```sh
-go test ./...
+go test -race ./...
+go vet ./...
 go build ./cmd/...
-cd cmd/dashboard/ui && npm install && npm run check    # dashboard render checks
-go run ./cmd/dashboard -runs runs -export dist          # static site, what GitHub Pages serves
+npm ci --prefix cmd/dashboard/ui --ignore-scripts
+npm run check --prefix cmd/dashboard/ui
 ```
 
-| Path | Purpose |
-| --- | --- |
-| [`cmd/callstorm/`](cmd/callstorm/) | Test CLI and dispatcher |
-| [`cmd/worker/`](cmd/worker/) | Fleet worker: takes assignments, places calls, publishes results |
-| [`cmd/dashboard/`](cmd/dashboard/) | Report server, static exporter and the page itself |
-| [`cmd/refagent/`](cmd/refagent/) | Reference target with controlled timings |
-| [`internal/`](internal/) | Audio, timing, load generation, judging and transport |
-| [`scenarios/`](scenarios/) · [`profiles/`](profiles/) | Example conversations and load profiles |
-| [`deploy/`](deploy/) | Kustomize layout, monitoring and Compose stack |
-| [`scripts/`](scripts/) | End-to-end infrastructure verification |
+Pull requests run race tests, formatting, vet, module verification, dashboard checks, static export,
+workflow validation, documentation links, dependency review, and CodeQL. The validated dashboard
+artifact from a successful `main` CI run is deployed to GitHub Pages. Version tags build CLI archives
+and checksums into a draft release. [Maintenance and release process](docs/maintaining.md).
 
-The Go module path is `github.com/yakshgandhi/callstorm`; the repository is hosted at `github.com/ai-calypse/callstorm`.
+## Scope and contributing
 
----
+The target protocol is Deepgram Voice Agent WebSocket. SIP/PSTN calling and other provider adapters
+are not implemented. Recorded transcripts and target configuration need review before sharing.
+The historical Go module path remains `github.com/yakshgandhi/callstorm`.
 
-# Sources
-
-These are the published pages behind every figure Callstorm credits to another company or a study: the verdict lines, wait bands, reference lines and measurement definitions. The dashboard lists the same pages under **Definitions → Sources**. Dates are those the pages gave when read.
-
-**Hamming**
-
-| Page | What Callstorm takes from it |
-| --- | --- |
-| [Voice AI Latency: What's Fast, What's Slow, and How to Fix It](https://hamming.ai/resources/voice-ai-latency-whats-fast-whats-slow-how-to-fix-it) (2026-01-12) | The 800ms target for the wait after a caller stops; the 1.4s–1.7s median reported for production agents. |
-| [Voice Agent Analytics & Post-Call Metrics](https://hamming.ai/resources/voice-agent-analytics-post-call-metrics-definitions-formulas-dashboards) (2026-02-10) | Time to first word from VAD silence detection, breakdown past 800ms, under 300ms as natural, interruptions above 10% of turns as poor. |
-| [Voice Agent Load Testing Guide](https://hamming.ai/resources/voice-agent-load-testing-guide) (2026-05-17) | Task completion under load: within 5% of baseline passes, a 5–10% drop warns, more than 10% fails. |
-| [Voice Agent Testing Guide](https://hamming.ai/resources/voice-agent-testing-guide) (2026-01-23) | A ±2% tolerance on word error rate before a change counts as a regression. |
-| [Voice Agent Evaluation Metrics](https://hamming.ai/resources/voice-agent-evaluation-metrics-guide) (2026-01-18) | Word error rate above 15% as poor. |
-| [Testing Voice Agents for Production Reliability](https://hamming.ai/resources/testing-voice-agents-production-reliability) (2025-12-31) | Failed-turn bands: under 0.5% good, under 1% acceptable, above 1% critical. |
-| [Voice Agent Drop-Off Analysis](https://hamming.ai/resources/voice-agent-drop-off-analysis-abandonment-framework) (2026-01-28) | Each 100ms past 800ms costing 4–6% of task completion, which the slow-calls split checks. |
-| [How to Measure Conversational Flow in Voice Agents](https://hamming.ai/resources/conversational-flow-measurement-voice-agents) (2025-12-29) | Repeated questions under 3% as excellent, the line on the repeated-replies chart. |
-
-**Coval**
-
-| Page | What Callstorm takes from it |
-| --- | --- |
-| [Voice Load Testing: How to Simulate 10,000 Concurrent Calls](https://www.coval.ai/blog/voice-load-testing-methodology) (2026-03-07) | The latency fail line, p95 no more than 2× baseline at peak load (given there as a common industry benchmark); p95 under 2s. |
-| [Voice AI Latency: What Causes Delays and How to Fix Them](https://www.coval.ai/blog/voice-ai-latency) (2026-03-03) | Past 1,200ms callers start repeating themselves, talking over the agent, or hanging up. |
-| [Time to First Audio, Measured Right](https://www.coval.ai/blog/time-to-first-audio-ttfa-benchmark) (2026-09-08) | Where audible sound starts: the first 10ms window, stepped 1ms, with RMS above 0.01; one provider's median 225ms of leading silence. |
-| [Statistical Metrics](https://docs.coval.ai/concepts/metrics/types/statistical) (docs) | Loop Detection and Agent Repeats Itself: repeated agent replies as a sign of a stuck conversation. |
-| [Write judge prompts](https://docs.coval.ai/concepts/metrics/writing-judge-prompts) (docs) | How the task judge is prompted. |
-
-**Cekura, research, and Deepgram**
-
-| Page | What Callstorm takes from it |
-| --- | --- |
-| [Cekura: Voice AI Latency: How to Monitor and Improve Every Layer](https://www.cekura.ai/blogs/voice-ai-latency-guide) (2026-09-03) | The latency boundary table, the 208ms human reply gap, and why a clock that starts after endpointing hides part of the wait. |
-| [Stivers et al., Universals and cultural variation in turn-taking in conversation](https://doi.org/10.1073/pnas.0903616106) (PNAS, 2009) | The study behind the 208ms mean gap between speakers across languages. |
-| [Deepgram pricing](https://deepgram.com/pricing) (read 2026-09-13) | Voice Agent rates, billed by connection time, for pricing a run without a given rate. |
-| [Deepgram API rate limits](https://developers.deepgram.com/reference/api-rate-limits) | Voice Agent concurrency limits behind the preflight's cap on calls at once. |
-| [Deepgram Voice Agent API](https://developers.deepgram.com/docs/voice-agent) | The WebSocket protocol Callstorm speaks, and its default target. |
-| [Deepgram text-to-speech](https://developers.deepgram.com/docs/text-to-speech) | The voices that synthesize the caller's lines. |
-
----
-
-# Contributing
-
-Bug reports, measurement fixes, new scenarios and dashboard improvements are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, validation and guidance on sharing reproducible examples. Use [GitHub Issues](https://github.com/ai-calypse/callstorm/issues) to report bugs or discuss a substantial change before implementing it.
-
-# License
-
-[MIT](LICENSE).
-
-<div align="center">
-<br/>
-
-**Fast is not the same as right. Callstorm measures both.**
-
-</div>
+[Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [MIT license](LICENSE)
