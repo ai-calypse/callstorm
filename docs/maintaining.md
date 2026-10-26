@@ -11,6 +11,11 @@ language analysis complements runtime tests rather than replacing them.
 deletion are blocked. No approving-review count is required for the solo maintainer. Dependabot groups compatible
 updates weekly; review them as normal code changes. Third-party Actions use immutable commit pins.
 
+The test-only `github.com/twmb/franz-go/pkg/kfake` module uses a pseudo-version. Dependabot currently
+tries parent-module release tags that do not contain that package, so version updates for this one module
+are excluded. Review its upstream revisions manually, update with `go get` at an explicit revision,
+and rerun the Go race suite. Dependency review and security analysis remain active.
+
 ## Release procedure
 
 1. Merge the release changes through a green PR and inspect the main-branch checks.

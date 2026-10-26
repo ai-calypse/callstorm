@@ -47,7 +47,8 @@ jobs:
             for cmd in callstorm worker collector refagent dashboard; do
               go build -trimpath -o "$stage/$cmd" "./cmd/$cmd"
             done
-            cp README.md LICENSE "$stage/"
+            cp README.md LICENSE .env.example "$stage/"
+            cp -R scenarios profiles "$stage/"
             tar -czf "dist/release/callstorm-$RELEASE_TAG-$GOOS-$GOARCH.tar.gz" -C "$stage" .
             rm -r "$stage"
           done
