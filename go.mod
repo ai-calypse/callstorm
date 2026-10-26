@@ -20,7 +20,7 @@ require (
 	github.com/prometheus/common v0.70.1 // indirect
 	github.com/prometheus/procfs v0.21.1 // indirect
 	github.com/twmb/franz-go/pkg/kmsg v1.13.1 // indirect
-	golang.org/x/crypto v0.51.0 // indirect
+	golang.org/x/crypto v0.52.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
