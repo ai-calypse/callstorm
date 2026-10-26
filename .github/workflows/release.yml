@@ -1,0 +1,60 @@
+name: Prepare Release
+on:
+  push:
+    tags: ['v[0-9]*']
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  prepare:
+    name: Validate and draft release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Validate version tag
+        shell: bash
+        run: '[[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]'
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+      - run: go test -race ./...
+      - run: go vet ./...
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: cmd/dashboard/ui/package-lock.json
+      - run: npm ci --prefix cmd/dashboard/ui --ignore-scripts
+      - run: npm run check --prefix cmd/dashboard/ui
+      - run: npm audit --prefix cmd/dashboard/ui --audit-level=high
+      - name: Build CLI archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/release
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
+            export GOOS="${target%/*}" GOARCH="${target#*/}" CGO_ENABLED=0
+            stage="$(mktemp -d)"
+            for cmd in callstorm worker collector refagent dashboard; do
+              go build -trimpath -o "$stage/$cmd" "./cmd/$cmd"
+            done
+            cp README.md LICENSE "$stage/"
+            tar -czf "dist/release/callstorm-$RELEASE_TAG-$GOOS-$GOARCH.tar.gz" -C "$stage" .
+            rm -r "$stage"
+          done
+          cd dist/release
+          sha256sum *.tar.gz > SHA256SUMS
+          sha256sum -c SHA256SUMS
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$RELEASE_TAG" --draft --verify-tag --title "Callstorm $RELEASE_TAG" --generate-notes dist/release/*
