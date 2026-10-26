@@ -52,7 +52,7 @@ jobs:
             rm -r "$stage"
           done
           cd dist/release
-          sha256sum *.tar.gz > SHA256SUMS
+          sha256sum ./*.tar.gz > SHA256SUMS
           sha256sum -c SHA256SUMS
       - name: Create draft release
         env:
