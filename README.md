@@ -11,7 +11,7 @@ and checks whether the agent actually completed the task.
 [![CodeQL](https://github.com/ai-calypse/callstorm/actions/workflows/codeql.yml/badge.svg)](https://github.com/ai-calypse/callstorm/actions/workflows/codeql.yml)
 [![MIT](https://img.shields.io/badge/license-MIT-256b5c)](LICENSE)
 
-[Live dashboard](https://ai-calypse.github.io/callstorm/) · [Engineering report](docs/engineering-report.md) · [Technical guide](docs/technical-guide.md) · [Demo](docs/demo.md)
+[Live dashboard](https://ai-calypse.github.io/callstorm/) · [Architecture & tradeoffs](ARCHITECTURE.md) · [Engineering report](docs/engineering-report.md) · [Technical guide](docs/technical-guide.md) · [Demo](docs/demo.md)
 
 ![Recorded dashboard walkthrough using a synthetic reference report](docs/images/callstorm-tour.gif)
 
